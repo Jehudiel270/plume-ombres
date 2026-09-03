@@ -269,6 +269,27 @@ export default function EspaceLivre({
     imprimerLivre(livre.titre, chapitres);
   }, [livre.titre, chargerChapitresExport]);
 
+  /** Télécharge le fichier ORIGINAL (mise en forme d'origine intacte). */
+  const telechargerOriginal = useCallback(async () => {
+    if (!livre.fichier_original) {
+      setMessageLangue(
+        "L'original n'a pas été conservé pour ce livre (import avant cette fonctionnalité)."
+      );
+      return;
+    }
+    try {
+      const { data, error } = await supabaseRef.current.storage
+        .from('originaux')
+        .download(livre.fichier_original);
+      if (error || !data) throw error ?? new Error('Téléchargement impossible.');
+      telechargerBlob(data, livre.nom_fichier ?? 'original');
+    } catch (e) {
+      setMessageLangue(
+        `Original indisponible : ${e instanceof Error ? e.message : 'erreur inconnue'}`
+      );
+    }
+  }, [livre.fichier_original, livre.nom_fichier]);
+
   // ---------- Langues du livre ----------
   async function changerLangues(source: string, cible: string) {
     if (source === cible) {
@@ -452,6 +473,17 @@ export default function EspaceLivre({
           >
             🖨 PDF
           </button>
+          {livre.fichier_original && (
+            <button
+              type="button"
+              onClick={telechargerOriginal}
+              disabled={exportEnCours}
+              className="bouton-fantome text-xs"
+              title="Télécharger le fichier original (mise en forme d’origine intacte)"
+            >
+              ↧ Original
+            </button>
+          )}
         </div>
 
         {messageLangue && (

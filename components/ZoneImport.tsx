@@ -94,6 +94,30 @@ export default function ZoneImport() {
         throw new Error(errLivre?.message ?? 'Impossible de créer le livre.');
       }
 
+      // 2b. Conservation du fichier ORIGINAL (mise en forme intacte) :
+      // stocké dans le bucket privé « originaux », téléchargeable ensuite.
+      let cheminOriginal: string | null = null;
+      try {
+        const extension = fichier.name.includes('.')
+          ? fichier.name.slice(fichier.name.lastIndexOf('.'))
+          : '';
+        cheminOriginal = `${livreInsere.id}${extension}`;
+        const { error: errUpload } = await supabase.storage
+          .from('originaux')
+          .upload(cheminOriginal, fichier, {
+            contentType: fichier.type || 'application/octet-stream',
+            upsert: true,
+          });
+        if (errUpload) throw errUpload;
+      } catch (e) {
+        // L'import ne doit pas échouer si la conservation échoue :
+        cheminOriginal = null;
+        console.warn(
+          'Original non conservé :',
+          e instanceof Error ? e.message : e
+        );
+      }
+
       // 3. Insertion des chapitres puis des segments (par lots).
       for (const chapitre of livre.chapitres) {
         setEtape(
@@ -123,10 +147,10 @@ export default function ZoneImport() {
         }
       }
 
-      // 4. Le livre est prêt à être traduit.
+      // 4. Le livre est prêt à être traduit (avec l'original conservé si possible).
       await supabase
         .from('livres')
-        .update({ statut: 'pret' })
+        .update({ statut: 'pret', fichier_original: cheminOriginal })
         .eq('id', livreInsere.id);
 
       setEtape(null);

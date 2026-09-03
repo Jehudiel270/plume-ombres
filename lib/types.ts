@@ -33,6 +33,8 @@ export interface Livre {
   langue_source: string;
   langue_cible: string;
   nom_fichier: string | null;
+  /** Chemin du fichier original stocké (bucket « originaux »), si conservé. */
+  fichier_original: string | null;
   statut: StatutLivre;
   created_at: string;
   updated_at: string;
