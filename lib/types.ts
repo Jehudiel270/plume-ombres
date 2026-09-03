@@ -67,7 +67,11 @@ export interface Segment {
 }
 
 /** Identifiant de fournisseur de traduction. */
-export type IdFournisseur = 'libretranslate' | 'mymemory';
+export type IdFournisseur =
+  | 'libretranslate'
+  | 'mymemory'
+  | 'gemini'
+  | 'google';
 
 /** Langues proposées (codes ISO 639-1). */
 export type CodeLangue = 'fr' | 'en' | 'es' | 'it' | 'pt' | 'de';

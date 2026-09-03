@@ -56,11 +56,14 @@ export async function POST(request: NextRequest) {
   }
 
   // --- Traduction via le fournisseur actif. ---
+  // Les segments d'import font au plus 6 000 caractères ; chaque
+  // fournisseur découpe lui-même en fragments selon sa propre limite.
+  const MAX_TEXTE = 6000;
   try {
     const fournisseur = fournisseurActif();
-    if (texte.length > fournisseur.maxCharsParRequete) {
+    if (texte.length > MAX_TEXTE) {
       return NextResponse.json(
-        { erreur: `Texte trop long (max ${fournisseur.maxCharsParRequete} caractères).` },
+        { erreur: `Texte trop long (max ${MAX_TEXTE} caractères).` },
         { status: 413 }
       );
     }

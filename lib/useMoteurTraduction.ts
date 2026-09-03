@@ -1,14 +1,14 @@
 'use client';
 
 // ============================================================
-// useMoteurTraduction.ts — File d'attente de traduction.
+// useMoteurTraduction.ts — File d'attente de traduction PARALLÈLE.
 //
 // Parcourt les segments « en attente » ou « en erreur » des
-// chapitres demandés, appelle la route API /api/translate pour
-// chacun, persiste le résultat, gère retry avec backoff,
-// annulation propre et progression temps réel. Une interruption
-// (fermeture d'onglet, annulation) ne perd rien : les segments
-// restent en attente en base et la reprise repart d'où elle en était.
+// chapitres demandés, appelle la route API /api/translate (pool
+// de travailleurs concurrents), persiste chaque résultat, gère
+// retry avec backoff, annulation propre et progression temps
+// réel. Une interruption ne perd rien : les segments restent en
+// attente en base et la reprise repart d'où elle en était.
 // ============================================================
 
 import { useCallback, useRef, useState } from 'react';
@@ -33,8 +33,8 @@ export interface Progression {
 }
 
 const MAX_ESSAIS = 3;
-const DELAI_COURANT = 130; // entre deux segments (moteur local rapide)
-const DELAI_MYMEMORY = 1150; // quota MyMemory : ~1 requête/seconde
+const DELAI_COURANT = 80; // entre deux segments (moteurs rapides)
+const DELAI_MYMEMORY = 1200; // quota MyMemory : ~1 requête/seconde
 
 function attendre(ms: number, signal: AbortSignal | null): Promise<void> {
   return new Promise((resoudre) => {
@@ -75,7 +75,7 @@ export function useMoteurTraduction() {
     signalAnnulation.current?.abort();
   }, []);
 
-  /** Termine proprement un chapitre (assemblage + statut), sauf annulation. */
+  /** Termine un chapitre : assemblage 1:1 + statut (sauf si annulation). */
   const cloreChapitre = useCallback(
     async (
       supabase: SupabaseClient,
@@ -149,113 +149,139 @@ export function useMoteurTraduction() {
         chapitreEnCours: null,
       });
 
-  let chapitreAnnule = false;
+      const CONCURRENCE = 4;
 
-  try {
-    for (const chapitre of chapitres) {
-      chapitreAnnule = false;
-      if (controleur.signal.aborted) break;
+      try {
+        for (const chapitre of chapitres) {
+          let chapitreAnnule = false;
+          if (controleur.signal.aborted) break;
 
-      await supabase
-        .from('chapitres')
-        .update({ statut: 'en_traduction' })
-        .eq('id', chapitre.id);
-
-      const file = await paginer<Segment>((debut, fin) =>
-        supabase
-          .from('segments')
-          .select('*')
-          .eq('chapitre_id', chapitre.id)
-          .in('statut', ['en_attente', 'erreur'])
-          .order('position', { ascending: true })
-          .range(debut, fin)
-      );
-      if (file.length === 0) {
-        if (!controleur.signal.aborted) {
-          await cloreChapitre(supabase, chapitre, majChapitre, false);
-        }
-        continue;
-      }
-
-      setProgression((p) => ({
-        ...p,
-        total: p.total + file.length,
-        chapitreEnCours: chapitre,
-      }));
-
-      for (const segment of file) {
-        if (controleur.signal.aborted) {
-          chapitreAnnule = true;
-          break;
-        }
-        const texte = segment.source;
-        if (!texte) {
           await supabase
-            .from('segments')
-            .update({ statut: 'fait', traduit: '', erreur: null })
-            .eq('id', segment.id);
-          setProgression((p) => ({ ...p, faits: p.faits + 1 }));
-          continue;
-        }
+            .from('chapitres')
+            .update({ statut: 'en_traduction' })
+            .eq('id', chapitre.id);
 
-        await supabase
-          .from('segments')
-          .update({ statut: 'en_cours' })
-          .eq('id', segment.id);
+          const file = await paginer<Segment>((debut, fin) =>
+            supabase
+              .from('segments')
+              .select('*')
+              .eq('chapitre_id', chapitre.id)
+              .in('statut', ['en_attente', 'erreur'])
+              .order('position', { ascending: true })
+              .range(debut, fin)
+          );
+          if (file.length === 0) {
+            if (!controleur.signal.aborted) {
+              await cloreChapitre(supabase, chapitre, majChapitre, false);
+            }
+            continue;
+          }
 
-        const resultat = await traduireAvecEssais(
-          {
-            texte,
-            source: livre.langue_source,
-            cible: livre.langue_cible,
-          },
-          segment.tentative,
-          controleur.signal
-        );
+          setProgression((p) => ({
+            ...p,
+            total: p.total + file.length,
+            chapitreEnCours: chapitre,
+          }));
 
-        if (!resultat.ok && resultat.raison === 'abort') {
-          chapitreAnnule = true;
-          await supabase
-            .from('segments')
-            .update({ statut: 'en_attente' })
-            .eq('id', segment.id);
-          break;
-        }
+          // --- Pool de travailleurs : traitement PARALLÈLE des segments ---
+          let suivant = 0;
+          let erreurInterne: Error | null = null;
 
-        if (resultat.ok) {
-          await supabase
-            .from('segments')
-            .update({
-              statut: 'fait',
-              traduit: resultat.texte,
-              erreur: null,
-              tentative: resultat.essais,
-            })
-            .eq('id', segment.id);
-          setProgression((p) => ({ ...p, faits: p.faits + 1 }));
-          const delai =
-            resultat.fournisseur === 'mymemory'
-              ? DELAI_MYMEMORY
-              : DELAI_COURANT;
-          await attendre(delai, controleur.signal);
-        } else {
-          // Échec définitif du segment (essais épuisés ou trop long).
-          await supabase
-            .from('segments')
-            .update({
-              statut: 'erreur',
-              tentative: resultat.essais,
-              erreur:
-                resultat.raison === 'long'
-                  ? 'Segment trop long pour le fournisseur.'
-                  : 'Échec après plusieurs essais.',
-            })
-            .eq('id', segment.id);
-          setProgression((p) => ({ ...p, erreurs: p.erreurs + 1 }));
-          await attendre(600, controleur.signal);
-        }
-      }
+          const traiterSegment = async (segment: Segment) => {
+            const texte = segment.source;
+            if (!texte) {
+              await supabase
+                .from('segments')
+                .update({ statut: 'fait', traduit: '', erreur: null })
+                .eq('id', segment.id);
+              setProgression((p) => ({ ...p, faits: p.faits + 1 }));
+              return;
+            }
 
+            await supabase
+              .from('segments')
+              .update({ statut: 'en_cours' })
+              .eq('id', segment.id);
+
+            const resultat = await traduireAvecEssais(
+              {
+                texte,
+                source: livre.langue_source,
+                cible: livre.langue_cible,
+              },
+              segment.tentative,
+              controleur.signal
+            );
+
+            if (!resultat.ok && resultat.raison === 'abort') {
+              // Annulation : segment laissé en attente pour la reprise.
+              await supabase
+                .from('segments')
+                .update({ statut: 'en_attente' })
+                .eq('id', segment.id);
+              return;
+            }
+
+            if (resultat.ok) {
+              await supabase
+                .from('segments')
+                .update({
+                  statut: 'fait',
+                  traduit: resultat.texte,
+                  erreur: null,
+                  tentative: resultat.essais,
+                })
+                .eq('id', segment.id);
+              setProgression((p) => ({ ...p, faits: p.faits + 1 }));
+              const delai =
+                resultat.fournisseur === 'mymemory'
+                  ? DELAI_MYMEMORY
+                  : DELAI_COURANT;
+              await attendre(delai, controleur.signal);
+            } else {
+              // Échec définitif du segment (essais épuisés ou trop long).
+              await supabase
+                .from('segments')
+                .update({
+                  statut: 'erreur',
+                  tentative: resultat.essais,
+                  erreur:
+                    resultat.raison === 'long'
+                      ? 'Segment trop long pour le fournisseur.'
+                      : 'Échec après plusieurs essais.',
+                })
+                .eq('id', segment.id);
+              setProgression((p) => ({ ...p, erreurs: p.erreurs + 1 }));
+              await attendre(300, controleur.signal);
+            }
+          };
+
+          const travailleurs = Array.from(
+            { length: Math.min(CONCURRENCE, file.length) },
+            async () => {
+              for (;;) {
+                if (controleur.signal.aborted) {
+                  chapitreAnnule = true;
+                  return;
+                }
+                const indice = suivant++;
+                if (indice >= file.length) return;
+                try {
+                  await traiterSegment(file[indice]);
+                } catch (e) {
+                  erreurInterne =
+                    e instanceof Error
+                      ? e
+                      : new Error('Erreur interne de traduction.');
+                  return;
+                }
+              }
+            }
+          );
+          await Promise.all(travailleurs);
+          if (erreurInterne) throw erreurInterne;
+
+          // Fin du chapitre : assemblage 1:1 et statut.
           await cloreChapitre(
             supabase,
             chapitre,
@@ -320,8 +346,7 @@ async function traduireAvecEssais(
       }
       throw new Error(detail?.erreur ?? `HTTP ${reponse.status}`);
     } catch (e) {
-      const estAbort =
-        e instanceof DOMException && e.name === 'AbortError';
+      const estAbort = e instanceof DOMException && e.name === 'AbortError';
       if (estAbort || signal.aborted) {
         return { ok: false, essais: tentative + 1, raison: 'abort' };
       }

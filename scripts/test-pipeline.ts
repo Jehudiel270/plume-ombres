@@ -80,7 +80,8 @@ async function principal() {
   );
 
   // Paragraphe volontairement éclaté en plusieurs segments (test du découpage).
-  const longParagraphe = 'Her eyes were the color of embers and her laughter was a blade. '.repeat(20);
+  const longParagraphe =
+    'Her eyes were the color of embers and her laughter was a blade. '.repeat(80);
   const unitesLong = decouperTexte(longParagraphe, MAX_CHARS_SEGMENT);
   verifier(
     'paragraphe géant découpé',

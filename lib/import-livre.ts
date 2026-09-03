@@ -7,11 +7,11 @@
 import { decouperEnChapitres, decouperTexte, type Unite } from './segmenter';
 
 /**
- * Taille maximale d'un segment : choisie la plus petite des limites
- * des fournisseurs (MyMemory ≈ 500 octets) pour qu'un même découpage
- * fonctionne quel que soit le fournisseur actif, sans re-découper.
+ * Taille maximale d'un segment (paragraphe). Les gros segments réduisent
+ * fortement le nombre d'appels (débit). Chaque fournisseur découpe
+ * lui-même en fragments si sa limite est plus stricte (ex. MyMemory).
  */
-export const MAX_CHARS_SEGMENT = 420;
+export const MAX_CHARS_SEGMENT = 6000;
 
 export interface SegmentBrut {
   position: number;

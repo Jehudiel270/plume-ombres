@@ -13,11 +13,18 @@ import type {
 } from './types';
 import { FournisseurLibreTranslate } from './libretranslate';
 import { FournisseurMyMemory } from './mymemory';
+import { FournisseurGemini, cleGemini } from './gemini';
+import { FournisseurGoogleLibre } from './google';
 import type { IdFournisseur } from '@/lib/types';
 
 /** Liste exhaustive des fournisseurs disponibles. */
 export function tousLesFournisseurs(): FournisseurTraduction[] {
-  return [new FournisseurLibreTranslate(), new FournisseurMyMemory()];
+  return [
+    new FournisseurLibreTranslate(),
+    new FournisseurMyMemory(),
+    new FournisseurGemini(),
+    new FournisseurGoogleLibre(),
+  ];
 }
 
 /** Fournisseur demandé par son identifiant. */
@@ -30,12 +37,20 @@ export function fournisseurParId(id: string): FournisseurTraduction {
 }
 
 /**
- * Fournisseur actif : celui de TRANSLATOR_DEFAULT, ou LibreTranslate
- * par défaut si la variable n'est pas définie.
+ * Fournisseur actif (choix par ordre de préférence) :
+ * 1. TRANSLATOR_DEFAULT si définie (ex. 'libretranslate', 'gemini',
+ *    'mymemory', 'google') ;
+ * 2. sinon ou 'auto' : Gemini si une clé GEMINI_API_KEY est présente,
+ *    puis Google libre (rapide, sans clé).
+ * LibreTranslate reste joignable explicitement pour le mode 100 % local.
  */
 export function fournisseurActif(): FournisseurTraduction {
-  const id = process.env.TRANSLATOR_DEFAULT ?? 'libretranslate';
-  return fournisseurParId(id as IdFournisseur);
+  const explicite = process.env.TRANSLATOR_DEFAULT;
+  if (explicite && explicite !== 'auto') {
+    return fournisseurParId(explicite as IdFournisseur);
+  }
+  if (cleGemini()) return fournisseurParId('gemini');
+  return fournisseurParId('google');
 }
 
 /**

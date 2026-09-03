@@ -14,13 +14,18 @@ multi-fournisseurs (aucun fournisseur codé en dur).
 
 - **Import** de livres `.txt` / `.md` (glisser-déposer) : détection
   automatique des chapitres (`Chapter`, `Chapitre`, `Prologue`…).
-- **Découpage intelligent** : chaque ligne devient une unité ≤ 420 caractères
-  (limite la plus stricte des fournisseurs) ; les paragraphes géants sont
-  éclatés proprement aux fins de phrases.
+- **Découpage intelligent** : chaque **paragraphe entier** devient une unité
+  (contexte complet → meilleure traduction), éclaté en phrases complètes
+  seulement au-delà de 6 000 caractères ; chaque fournisseur re-découpe
+  selon sa propre limite (ex. MyMemory 450 car.).
 - **Traduction multi-fournisseurs**, choisie côté serveur via
   `TRANSLATOR_DEFAULT` :
   - `libretranslate` (défaut) — moteur neuronal libre, gratuit & illimité,
     auto-hébergé (Docker ou natif). URL configurable (`LIBRETRANSLATE_URL`).
+  - `gemini` — Google Gemini Flash (clé AI Studio **gratuite, sans carte**) :
+    qualité littéraire supérieure et **haut débit** (~1 500 requêtes/jour →
+    un livre entier en quelques minutes). ⚠️ Le texte transite par Google
+    tant que ce fournisseur est actif.
   - `mymemory` — API publique gratuite sans clé, en secours
     (~50 000 caractères/jour avec email).
 - **File d'attente robuste** : statut par segment (en attente / en cours /
