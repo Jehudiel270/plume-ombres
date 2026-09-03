@@ -186,6 +186,15 @@ export default function EspaceLivre({
     URL.revokeObjectURL(url);
   }
 
+  function telechargerBlob(blob: Blob, nomFichier: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomFichier;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const exporterChapitre = useCallback(async () => {
     if (!chapitreComplet) return;
     const texte = chapitreComplet.texte_traduit ?? chapitreComplet.texte_source;
@@ -197,28 +206,34 @@ export default function EspaceLivre({
     );
   }, [chapitreComplet, livre.titre]);
 
+  /** Récupère tous les chapitres du livre (texte traduit si dispo). */
+  const chargerChapitresExport = useCallback(async () => {
+    const { data: tous } = await supabaseRef.current
+      .from('chapitres')
+      .select('position, titre, texte_source, texte_traduit, statut')
+      .eq('livre_id', livre.id)
+      .order('position', { ascending: true });
+    const chapitresBruts = (tous ?? []) as Array<{
+      titre: string;
+      texte_source: string;
+      texte_traduit: string | null;
+      statut: string;
+    }>;
+    return chapitresBruts.map((c) => ({
+      titre: c.titre,
+      texte:
+        c.statut === 'traduit' && c.texte_traduit
+          ? c.texte_traduit
+          : c.texte_source,
+    }));
+  }, [livre.id]);
+
   const exporterLivre = useCallback(async () => {
     setExportEnCours(true);
     try {
-      const { data: tous } = await supabaseRef.current
-        .from('chapitres')
-        .select('position, titre, texte_source, texte_traduit, statut')
-        .eq('livre_id', livre.id)
-        .order('position', { ascending: true });
-      const chapitresBruts = (tous ?? []) as Array<{
-        titre: string;
-        texte_source: string;
-        texte_traduit: string | null;
-        statut: string;
-      }>;
-      const contenu = chapitresBruts
-        .map((c) => {
-          const corps =
-            c.statut === 'traduit' && c.texte_traduit
-              ? c.texte_traduit
-              : c.texte_source;
-          return `# ${c.titre}\n\n${corps.trimEnd()}\n`;
-        })
+      const chapitres = await chargerChapitresExport();
+      const contenu = chapitres
+        .map((c) => `# ${c.titre}\n\n${c.texte.trimEnd()}\n`)
         .join('\n\n---\n\n');
       telecharger(
         contenu,
@@ -228,7 +243,31 @@ export default function EspaceLivre({
     } finally {
       setExportEnCours(false);
     }
-  }, [livre]);
+  }, [livre.titre, chargerChapitresExport]);
+
+  /** Export Word (.docx) mis en forme — conserve tout le reste. */
+  const exporterLivreDocx = useCallback(async () => {
+    setExportEnCours(true);
+    try {
+      const chapitres = await chargerChapitresExport();
+      const { genererDocx } = await import('@/lib/export-docx');
+      const blob = await genererDocx(livre.titre, chapitres);
+      telechargerBlob(blob, `${livre.titre} — traduction.docx`);
+    } catch (e) {
+      setMessageLangue(
+        `Export Word impossible : ${e instanceof Error ? e.message : 'erreur inconnue'}`
+      );
+    } finally {
+      setExportEnCours(false);
+    }
+  }, [livre.titre, chargerChapitresExport]);
+
+  /** Impression / « Enregistrer en PDF » du livre mis en forme. */
+  const imprimerLivrePdf = useCallback(async () => {
+    const chapitres = await chargerChapitresExport();
+    const { imprimerLivre } = await import('@/lib/imprimer-pdf');
+    imprimerLivre(livre.titre, chapitres);
+  }, [livre.titre, chargerChapitresExport]);
 
   // ---------- Langues du livre ----------
   async function changerLangues(source: string, cible: string) {
@@ -393,7 +432,25 @@ export default function EspaceLivre({
             className="bouton-fantome text-xs"
             title="Exporter le livre entier (.md)"
           >
-            ↧ Livre
+            ↧ Livre (.md)
+          </button>
+          <button
+            type="button"
+            onClick={exporterLivreDocx}
+            disabled={exportEnCours}
+            className="bouton-principal !px-3 !py-1.5 text-xs"
+            title="Télécharger le livre mis en forme (Word)"
+          >
+            ↧ Word (.docx)
+          </button>
+          <button
+            type="button"
+            onClick={imprimerLivrePdf}
+            disabled={exportEnCours}
+            className="bouton-fantome text-xs"
+            title="Mise en page puis « Enregistrer en PDF »"
+          >
+            🖨 PDF
           </button>
         </div>
 
