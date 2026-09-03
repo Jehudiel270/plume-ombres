@@ -23,7 +23,7 @@ create policy "profiles_update_own" on public.profiles
 -- ---------- LIVRES ----------
 create table if not exists public.livres (
   id uuid primary key default gen_random_uuid(),
-  proprietaire_id uuid not null references auth.users (id) on delete cascade,
+  proprietaire_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   titre text not null,
   auteur text,
   langue_source text not null default 'en',

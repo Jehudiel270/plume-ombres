@@ -13,6 +13,8 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   // --- Authentification : on refuse les appels anonymes. ---
+  // Session depuis les cookies (navigateur) OU jeton Bearer (clients API).
+  const porteur = request.headers.get('authorization');
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -27,7 +29,9 @@ export async function POST(request: NextRequest) {
   );
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = porteur?.startsWith('Bearer ')
+    ? await supabase.auth.getUser(porteur.slice('Bearer '.length))
+    : await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ erreur: 'Non autorisé.' }, { status: 401 });
   }
