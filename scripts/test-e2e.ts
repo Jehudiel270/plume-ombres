@@ -25,6 +25,8 @@ function lireEnvLocal(cle: string): string {
 const EMAIL = `e2e-${Date.now()}@example.com`;
 const MDP = 'PlumeTest.2026!';
 const TEXTE = readFileSync('C:/Users/dosso/dev/test-livre.txt', 'utf8');
+// Cible du test : serveur local (défaut) ou production Vercel.
+const BASE = process.env.E2E_BASE ?? 'http://127.0.0.1:3000';
 
 let echecs = 0;
 function verifier(nom: string, condition: boolean) {
@@ -138,7 +140,7 @@ async function principal() {
         resultats.push({ traduit: null, suite: seg.suite });
         continue;
       }
-      const reponse = await fetch('http://127.0.0.1:3000/api/translate', {
+      const reponse = await fetch(`${BASE}/api/translate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
