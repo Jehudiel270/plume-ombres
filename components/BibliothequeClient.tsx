@@ -44,7 +44,7 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
   async function supprimer(livre: Livre) {
     if (
       !window.confirm(
-        `Supprimer définitivement « ${livre.titre} » ainsi que ses chapitres et sa traduction ?`
+        `Définitivement ? « ${livre.titre} » ne murmura plus.`
       )
     ) {
       return;
@@ -66,15 +66,14 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
       <ZoneImport />
 
       {livres.length === 0 ? (
-        <div className="velours p-10 text-center animate-fondu-monte">
-          <p className="text-4xl mb-3">🖋️</p>
-          <p className="text-encre-300 font-display text-xl">
-            Votre bibliothèque est encore vide
+        <div className="velours p-12 text-center animate-fondu-monte">
+          <p className="text-5xl mb-4 opacity-80">🖋️</p>
+          <p className="text-encre-100 font-display text-2xl">
+            Une page blanche vous tend les bras.
           </p>
-          <p className="text-encre-500 text-sm mt-2 max-w-md mx-auto leading-relaxed">
-            Importez un premier manuscrit : le découpage en chapitres et en
-            segments est automatique, la traduction se lance en un clic et
-            peut être reprise à tout moment.
+          <p className="text-encre-500 text-sm mt-3 max-w-md mx-auto leading-relaxed italic">
+            Déposez un premier manuscrit ci-dessus et laissez l’encre couler :
+            le découpage, la traduction et la reprise sont automatiques.
           </p>
         </div>
       ) : (
@@ -82,7 +81,7 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
           {livres.map((livre, i) => (
             <article
               key={livre.id}
-              className="velours p-5 flex flex-col gap-3 hover:border-grenat-700 transition-colors animate-fondu-monte group cursor-pointer"
+              className="carte-livre animate-fondu-monte group cursor-pointer"
               style={{ animationDelay: `${i * 60}ms` }}
               onClick={() => routeur.push(`/livres/${livre.id}`)}
             >

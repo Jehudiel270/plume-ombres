@@ -11,7 +11,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
-import { preparerLivre, MAX_CHARS_SEGMENT } from '@/lib/import-livre';
+import { preparerLivre } from '@/lib/import-livre';
 import type { CodeLangue } from '@/lib/types';
 import { LANGUES } from '@/lib/types';
 
@@ -227,13 +227,13 @@ export default function ZoneImport() {
           </span>
         ) : (
           <>
-            <p className="text-3xl mb-2">🕯️</p>
+            <p className="text-3xl mb-2 opacity-80">🕯️</p>
             <p className="text-encre-100 text-sm font-medium">
-              Glisse ton fichier ici, ou clique pour parcourir
+              Déposer un manuscrit — glissez-le ici, ou cliquez pour parcourir
             </p>
-            <p className="text-encre-500 text-xs mt-1">
-              Romans jusqu’à ~1000 pages — le découpage et la reprise sont
-              automatiques (segments ≤ {MAX_CHARS_SEGMENT} caractères)
+            <p className="text-encre-500 text-xs mt-1 italic">
+              .txt, .md ou .pdf · jusqu’à ~1000 pages · découpage automatique,
+              traduction reprenable à tout moment
             </p>
           </>
         )}

@@ -38,9 +38,9 @@ export default async function Bibliotheque() {
             Ma bibliothèque
           </h1>
           <div className="liseret mt-3" />
-          <p className="text-encre-500 text-sm mt-3">
-            {pseudo}, tes romances t’attendent. Importe un livre, traduis-le,
-            savoure-le.
+          <p className="text-encre-500 text-sm mt-3 italic">
+            Vos romances t’attendent dans l’ombre. Importez, traduisez,
+            savourez.
           </p>
         </div>
         <BibliothequeClient livresInitiaux={(livres ?? []) as Livre[]} />

@@ -1,39 +1,59 @@
 @import 'tailwindcss';
 
 /* ============================================================
-   Plume d'Ombres — thème « dark romance »
-   Noirs profonds, accents grenat & violet, typographie élégante.
+   Plume d'Ombres — thème « dark romance » premium
+   Charte issue de recherches UX/UI (voir rapports sous-agents) :
+   noir chaud (jamais #000 pur), bordeaux/vin, UN accent par écran,
+   lecteur façon livre, motion 200-600ms, une seule source de lumière.
    ============================================================ */
 
 @theme {
-  /* Palette */
-  --color-nuit-950: #0b0709; /* fond principal, presque noir violacé */
-  --color-nuit-900: #120b0e; /* fond secondaire */
-  --color-nuit-850: #170f13;
-  --color-nuit-800: #1e1318; /* surfaces (cartes, barres latérales) */
-  --color-nuit-700: #2a1a21; /* bordures, survols */
-  --color-grenat-300: #e5989b;
-  --color-grenat-400: #d96a76;
-  --color-grenat-500: #c13d5c; /* accent principal */
+  /* Palette — noir nocturne chaud + bordeaux + plum */
+  --color-nuit-950: #0a0608; /* fond principal */
+  --color-nuit-900: #10090c; /* fond secondaire / lecteur */
+  --color-nuit-850: #191013; /* lecteur, panneaux */
+  --color-nuit-800: #191013; /* surfaces */
+  --color-nuit-700: #2e1f27; /* bordures, séparateurs */
+
+  /* Accent lisible sur fond sombre : rose grenat clair pour le TEXTE,
+     grenat profond pour les lueurs et gros éléments. */
+  --color-grenat-300: #f0a5b4;
+  --color-grenat-400: #e0607f; /* accent texte (contraste ≥ 4.5:1) */
+  --color-grenat-500: #c13d5c; /* accent profond / lueurs */
   --color-grenat-600: #a32b4b;
-  --color-grenat-700: #7e1f3c;
+  --color-grenat-700: #6b1e2d; /* bordeaux vieilli */
+
   --color-violet-rom-300: #c3a6e8;
   --color-violet-rom-400: #a678d6;
-  --color-violet-rom-500: #8551b8; /* accent secondaire */
+  --color-violet-rom-500: #8a5bc4; /* plum noir (tendance) */
   --color-violet-rom-600: #663a93;
+
   --color-or-ros-300: #e8c4a0;
-  --color-encre-100: #f6edf0; /* texte principal */
-  --color-encre-300: #d9c6cd; /* texte secondaire */
-  --color-encre-500: #a08592; /* texte atténué */
+
+  /* Texte — ivoire chaud, jamais blanc pur */
+  --color-encre-100: #f2e6eb;
+  --color-encre-300: #c8b6c0;
+  --color-encre-500: #a89aa3;
 
   /* Typographies (chargées via next/font dans le layout) */
   --font-display: var(--font-playfair), Georgia, serif;
   --font-lecture: var(--font-lora), Georgia, serif;
 
-  /* Animations */
-  --animate-fondu-monte: fondu-monte 0.7s ease-out both;
+  /* Rayons */
+  --radius-carte: 12px;
+  --radius-pilule: 999px;
+
+  /* Ombres & lueurs unifiées : une seule source de lumière */
+  --ombre-carte: 0 12px 32px rgb(0 0 0 / 0.45);
+  --liseret-haut: 0 1px 0 rgb(255 255 255 / 0.05);
+  --lueur-grenat: 0 0 24px rgb(193 61 92 / 0.25);
+
+  /* Motion : une seule courbe, durées courtes */
+  --courbe: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-fondu-monte: fondu-monte 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pouls-doux: pouls-doux 2.8s ease-in-out infinite;
   --animate-lueur-lente: lueur-lente 5s ease-in-out infinite;
-  --animate-pouls-doux: pouls-doux 2.2s ease-in-out infinite;
 
   @keyframes fondu-monte {
     from {
@@ -45,22 +65,22 @@
       transform: translateY(0);
     }
   }
-  @keyframes lueur-lente {
-    0%,
-    100% {
-      opacity: 0.5;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
   @keyframes pouls-doux {
     0%,
     100% {
       opacity: 1;
     }
     50% {
+      opacity: 0.4;
+    }
+  }
+  @keyframes lueur-lente {
+    0%,
+    100% {
       opacity: 0.45;
+    }
+    50% {
+      opacity: 1;
     }
   }
 }
@@ -73,15 +93,17 @@ html {
 
 body {
   @apply bg-nuit-950 text-encre-100 font-lecture antialiased;
+  font-synthesis: none;
+  font-feature-settings: 'kern' 1, 'liga' 1;
   background-image:
     radial-gradient(
-      ellipse 80% 50% at 20% -10%,
-      color-mix(in srgb, var(--color-grenat-600) 22%, transparent),
+      ellipse 90% 55% at 18% -12%,
+      color-mix(in srgb, var(--color-grenat-700) 26%, transparent),
       transparent
     ),
     radial-gradient(
-      ellipse 60% 40% at 90% 0%,
-      color-mix(in srgb, var(--color-violet-rom-600) 16%, transparent),
+      ellipse 65% 45% at 95% 4%,
+      color-mix(in srgb, var(--color-violet-rom-600) 14%, transparent),
       transparent
     );
   background-attachment: fixed;
@@ -92,23 +114,35 @@ body {
   color: #fff;
 }
 
-/* Barre de défilement discrète */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-nuit-700) transparent;
 }
 
-/* ---------- Composants maison ---------- */
-
-/* Carte « velours » : surface sombre aux reflets chauds */
-.velours {
-  @apply bg-nuit-800/80 border border-nuit-700 rounded-2xl;
-  box-shadow:
-    0 1px 0 color-mix(in srgb, white 4%, transparent) inset,
-    0 18px 50px -22px rgb(0 0 0 / 0.75);
+/* Accessibilité : aucun mouvement pour qui le demande. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-/* Dégradé texte grenat → violet, pour les titres d'ambiance */
+/* ---------- Composants maison ---------- */
+
+/* Carte « velours » */
+.velours {
+  @apply bg-nuit-800/85 rounded-[12px];
+  border: 1px solid var(--color-nuit-700);
+  box-shadow:
+    var(--liseret-haut),
+    var(--ombre-carte);
+}
+
+/* Dégradé texte grenat → violet (grands titres uniquement) */
 .texte-douche {
   background: linear-gradient(
     100deg,
@@ -120,7 +154,7 @@ body {
   color: transparent;
 }
 
-/* Liseré décoratif sous un titre */
+/* Liseré décoratif */
 .liseret {
   @apply h-px w-24;
   background: linear-gradient(
@@ -131,9 +165,14 @@ body {
   );
 }
 
-/* Bouton principal */
+/* Sur-titre éditorial : capitales espacées */
+.sur-titre {
+  @apply font-display text-[11px] font-semibold uppercase tracking-[0.22em];
+}
+
+/* Bouton principal — lueur grenat douce */
 .bouton-principal {
-  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold tracking-wide transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
   color: #fff;
   background: linear-gradient(
     120deg,
@@ -143,22 +182,24 @@ body {
   );
   box-shadow:
     0 10px 26px -12px color-mix(in srgb, var(--color-grenat-500) 80%, transparent),
-    0 1px 0 color-mix(in srgb, white 18%, transparent) inset;
+    var(--liseret-haut);
 }
 .bouton-principal:hover:not(:disabled) {
-  filter: brightness(1.12);
+  box-shadow:
+    var(--lueur-grenat),
+    var(--liseret-haut);
   transform: translateY(-1px);
 }
 
 /* Bouton secondaire */
 .bouton-fantome {
-  @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
   color: var(--color-encre-300);
   border: 1px solid var(--color-nuit-700);
   background: color-mix(in srgb, white 2%, transparent);
 }
 .bouton-fantome:hover:not(:disabled) {
-  border-color: var(--color-grenat-500);
+  border-color: color-mix(in srgb, var(--color-grenat-500) 70%, transparent);
   color: var(--color-encre-100);
 }
 
@@ -183,7 +224,7 @@ body {
   background: var(--color-nuit-800);
   border: 1px solid var(--color-nuit-700);
   color: var(--color-encre-100);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23d9c6cd' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23c8b6c0' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.8rem center;
   padding-right: 2.2rem;
@@ -191,16 +232,54 @@ body {
 
 /* Liens discrets */
 .lien-discret {
-  @apply text-encre-300 hover:text-grenat-300 transition-colors;
+  @apply text-encre-300 hover:text-grenat-400 transition-colors;
 }
 
-/* Zone de dépôt d'import */
+/* Zone de dépôt */
 .zone-depot {
-  @apply border-2 border-dashed rounded-2xl transition-colors cursor-pointer;
+  @apply border-2 border-dashed rounded-[12px] transition-colors cursor-pointer;
   border-color: var(--color-nuit-700);
 }
 .zone-depot:hover,
 .zone-depot.actif {
   border-color: var(--color-grenat-500);
   background: color-mix(in srgb, var(--color-grenat-500) 6%, transparent);
+}
+
+/* ---------- Carte livre (couverture) ---------- */
+.carte-livre {
+  @apply bg-nuit-800/85 rounded-[12px] p-5 flex flex-col gap-3;
+  border: 1px solid var(--color-nuit-700);
+  box-shadow:
+    var(--liseret-haut),
+    var(--ombre-carte);
+  transition:
+    transform 0.35s var(--courbe),
+    border-color 0.35s var(--courbe),
+    box-shadow 0.35s var(--courbe);
+}
+.carte-livre:hover {
+  transform: translateY(-3px) scale(1.01);
+  border-color: color-mix(in srgb, var(--color-grenat-600) 60%, var(--color-nuit-700));
+  box-shadow:
+    var(--lueur-grenat),
+    var(--ombre-carte);
+}
+
+/* ---------- Lecteur façon livre ---------- */
+.lecture {
+  background:
+    radial-gradient(
+      ellipse 70% 40% at 50% 0%,
+      color-mix(in srgb, var(--color-grenat-700) 10%, transparent),
+      transparent
+    ),
+    var(--color-nuit-900);
+  color: var(--color-encre-100);
+}
+
+/* Colonne de lecture : ~65 caractères, interligne aéré */
+.colonne-lecture {
+  max-width: 65ch;
+  margin-inline: auto;
 }

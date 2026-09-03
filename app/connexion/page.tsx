@@ -90,15 +90,14 @@ function PageConnexion() {
         {/* Emblème */}
         <div className="text-center mb-10">
           <p className="text-grenat-400 tracking-[0.45em] text-xs uppercase mb-3 animate-lueur-lente">
-            ✦ studio littéraire ✦
+            ✦ votre nuit vous attend ✦
           </p>
           <h1 className="font-display text-5xl md:text-6xl text-encre-100">
             Plume <span className="texte-douche italic">d’Ombres</span>
           </h1>
           <div className="liseret mx-auto mt-5" />
           <p className="text-encre-500 text-sm mt-4 font-lecture italic">
-            Importez, traduisez, savourez — vos romances les plus sombres,
-            dans votre langue.
+            Vos traductions sommeillent dans l’ombre.
           </p>
         </div>
 
@@ -178,7 +177,7 @@ function PageConnexion() {
                 ? 'Un instant…'
                 : mode === 'inscription'
                   ? 'Créer mon compte'
-                  : 'Entrer dans l’ombre'}
+                  : 'Entrer'}
             </button>
           </form>
 

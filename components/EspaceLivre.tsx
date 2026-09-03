@@ -523,27 +523,33 @@ export default function EspaceLivre({
           </div>
         )}
 
-        {/* Lecteur */}
-        <div className="velours p-6 sm:p-10 flex-1 min-h-[40vh]">
+        {/* Lecteur — façon livre : surface calme, colonne ~65 caractères */}
+        <div className="lecture velours p-6 sm:p-12 flex-1 min-h-[40vh]">
           {chargementChapitre ? (
-            <p className="text-encre-500 text-sm animate-pouls-doux">
+            <p className="text-encre-500 text-sm animate-pouls-doux text-center">
               Ouverture du chapitre…
             </p>
           ) : !chapitreComplet ? (
-            <p className="text-encre-500 text-sm italic">
-              Choisis un chapitre dans la liste.
+            <p className="text-encre-500 text-sm italic text-center">
+              Choisissez un chapitre dans la liste.
             </p>
           ) : (
-            <article className="animate-fondu-monte">
-              <h2 className="font-display text-2xl sm:text-3xl text-encre-100 mb-8 text-center">
-                {chapitreComplet.titre}
-              </h2>
+            <article className="animate-fondu-monte colonne-lecture">
+              <header className="text-center mb-10">
+                <p className="sur-titre text-grenat-400/80 mb-2">
+                  ✦ chapitre ✦
+                </p>
+                <h2 className="font-display text-2xl sm:text-4xl text-encre-100 leading-snug">
+                  {chapitreComplet.titre}
+                </h2>
+                <div className="liseret mx-auto mt-5" />
+              </header>
               {texteAffiche.trim().length === 0 ? (
                 <p className="text-encre-500 italic text-center text-sm">
                   Ce chapitre est vide.
                 </p>
               ) : (
-                <div className="whitespace-pre-wrap font-lecture text-[15px] sm:text-base leading-[1.9] text-encre-100/95 first-letter:float-left first-letter:font-display first-letter:text-6xl first-letter:leading-[0.8] first-letter:pr-3 first-letter:text-grenat-400">
+                <div className="whitespace-pre-wrap font-lecture text-[15px] sm:text-[17px] leading-[1.75] text-encre-100/95 first-letter:float-left first-letter:font-display first-letter:text-6xl first-letter:leading-[0.8] first-letter:pr-3 first-letter:text-grenat-400">
                   {texteAffiche.trim()}
                 </div>
               )}
