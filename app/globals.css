@@ -1,26 +1,206 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================================
+   Plume d'Ombres — thème « dark romance »
+   Noirs profonds, accents grenat & violet, typographie élégante.
+   ============================================================ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@theme {
+  /* Palette */
+  --color-nuit-950: #0b0709; /* fond principal, presque noir violacé */
+  --color-nuit-900: #120b0e; /* fond secondaire */
+  --color-nuit-850: #170f13;
+  --color-nuit-800: #1e1318; /* surfaces (cartes, barres latérales) */
+  --color-nuit-700: #2a1a21; /* bordures, survols */
+  --color-grenat-300: #e5989b;
+  --color-grenat-400: #d96a76;
+  --color-grenat-500: #c13d5c; /* accent principal */
+  --color-grenat-600: #a32b4b;
+  --color-grenat-700: #7e1f3c;
+  --color-violet-rom-300: #c3a6e8;
+  --color-violet-rom-400: #a678d6;
+  --color-violet-rom-500: #8551b8; /* accent secondaire */
+  --color-violet-rom-600: #663a93;
+  --color-or-ros-300: #e8c4a0;
+  --color-encre-100: #f6edf0; /* texte principal */
+  --color-encre-300: #d9c6cd; /* texte secondaire */
+  --color-encre-500: #a08592; /* texte atténué */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Typographies (chargées via next/font dans le layout) */
+  --font-display: var(--font-playfair), Georgia, serif;
+  --font-lecture: var(--font-lora), Georgia, serif;
+
+  /* Animations */
+  --animate-fondu-monte: fondu-monte 0.7s ease-out both;
+  --animate-lueur-lente: lueur-lente 5s ease-in-out infinite;
+  --animate-pouls-doux: pouls-doux 2.2s ease-in-out infinite;
+
+  @keyframes fondu-monte {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes lueur-lente {
+    0%,
+    100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  @keyframes pouls-doux {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
   }
 }
 
+/* ---------- Base ---------- */
+
+html {
+  color-scheme: dark;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-nuit-950 text-encre-100 font-lecture antialiased;
+  background-image:
+    radial-gradient(
+      ellipse 80% 50% at 20% -10%,
+      color-mix(in srgb, var(--color-grenat-600) 22%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 90% 0%,
+      color-mix(in srgb, var(--color-violet-rom-600) 16%, transparent),
+      transparent
+    );
+  background-attachment: fixed;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-grenat-500) 55%, transparent);
+  color: #fff;
+}
+
+/* Barre de défilement discrète */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-nuit-700) transparent;
+}
+
+/* ---------- Composants maison ---------- */
+
+/* Carte « velours » : surface sombre aux reflets chauds */
+.velours {
+  @apply bg-nuit-800/80 border border-nuit-700 rounded-2xl;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 4%, transparent) inset,
+    0 18px 50px -22px rgb(0 0 0 / 0.75);
+}
+
+/* Dégradé texte grenat → violet, pour les titres d'ambiance */
+.texte-douche {
+  background: linear-gradient(
+    100deg,
+    var(--color-grenat-400),
+    var(--color-violet-rom-400)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Liseré décoratif sous un titre */
+.liseret {
+  @apply h-px w-24;
+  background: linear-gradient(
+    90deg,
+    var(--color-grenat-500),
+    var(--color-violet-rom-500),
+    transparent
+  );
+}
+
+/* Bouton principal */
+.bouton-principal {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold tracking-wide transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
+  color: #fff;
+  background: linear-gradient(
+    120deg,
+    var(--color-grenat-600),
+    var(--color-grenat-500) 55%,
+    var(--color-violet-rom-600)
+  );
+  box-shadow:
+    0 10px 26px -12px color-mix(in srgb, var(--color-grenat-500) 80%, transparent),
+    0 1px 0 color-mix(in srgb, white 18%, transparent) inset;
+}
+.bouton-principal:hover:not(:disabled) {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+/* Bouton secondaire */
+.bouton-fantome {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
+  color: var(--color-encre-300);
+  border: 1px solid var(--color-nuit-700);
+  background: color-mix(in srgb, white 2%, transparent);
+}
+.bouton-fantome:hover:not(:disabled) {
+  border-color: var(--color-grenat-500);
+  color: var(--color-encre-100);
+}
+
+/* Champ de saisie */
+.champ-sombre {
+  @apply w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-colors;
+  background: color-mix(in srgb, black 25%, transparent);
+  border: 1px solid var(--color-nuit-700);
+  color: var(--color-encre-100);
+}
+.champ-sombre::placeholder {
+  color: var(--color-encre-500);
+}
+.champ-sombre:focus {
+  border-color: var(--color-grenat-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-grenat-500) 22%, transparent);
+}
+
+/* Sélecteur */
+.select-sombre {
+  @apply rounded-xl px-3 py-2 text-sm outline-none cursor-pointer appearance-none;
+  background: var(--color-nuit-800);
+  border: 1px solid var(--color-nuit-700);
+  color: var(--color-encre-100);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23d9c6cd' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.8rem center;
+  padding-right: 2.2rem;
+}
+
+/* Liens discrets */
+.lien-discret {
+  @apply text-encre-300 hover:text-grenat-300 transition-colors;
+}
+
+/* Zone de dépôt d'import */
+.zone-depot {
+  @apply border-2 border-dashed rounded-2xl transition-colors cursor-pointer;
+  border-color: var(--color-nuit-700);
+}
+.zone-depot:hover,
+.zone-depot.actif {
+  border-color: var(--color-grenat-500);
+  background: color-mix(in srgb, var(--color-grenat-500) 6%, transparent);
 }
