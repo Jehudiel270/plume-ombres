@@ -1,103 +1,115 @@
 // ============================================================
 // segmenter.ts — Découpage et assemblage 1:1 du texte.
 //
-// Principe : le texte est découpé en « unités » de traduction.
+// Principe : le texte est découpé en « unités » de traduction
+// COHÉRENTES : chaque paragraphe entier est une unité (contexte
+// complet → traduction de meilleure qualité) ; seuls les
+// paragraphes plus longs que la limite du fournisseur sont
+// éclatés, à la frontière des phrases complètes.
+//
 // Chaque unité transporte sa « suite » : l'espacement exact
-// (espaces, retours à la ligne, lignes vides) qui la suivait
-// dans l'original. Réassembler consiste à concaténer
-// (traduction + suite) pour chaque unité dans l'ordre —
-// la structure du texte est donc préservée à l'identique,
-// quelle que soit la sortie du fournisseur de traduction.
+// (espace inter-phrases, sauts de paragraphe = lignes vides) qui
+// la suivait dans l'original. Réassembler consiste à concaténer
+// (traduction + suite) pour chaque unité dans l'ordre — la
+// structure des paragraphes est donc préservée à l'identique,
+// quelle que soit la sortie du fournisseur.
+//
+// Les retours à la ligne « mous » (texte enveloppé à la ligne
+// près dans le fichier source, ex. PDF) sont réunis en espaces :
+// ils ne sont jamais traduits séparément (ce qui casserait les
+// phrases) et ne sont pas perdus pour autant — la frontière
+// sémantique réelle (le paragraphe) reste intacte.
 // ============================================================
 
 export interface Unite {
   /** Contenu à traduire (ne commence ni ne finit par des blancs). */
   source: string;
-  /** Espacement brut qui suit l'unité dans le texte d'origine. */
+  /** Espacement exact qui suit l'unité dans le texte normalisé. */
   suite: string;
 }
 
 /**
- * Découpe un texte entier en unités de traduction.
- *
- * Garantie : aucun retour à la ligne ne subsiste dans `source` —
- * tous les '\n' (simples ou lignes vides) sont placés dans `suite`.
- * La structure est donc préservée à l'identique quel que soit le
- * comportement du fournisseur face aux sauts de ligne.
+ * Normalisation « souple » : CRLF → LF, retours à la ligne isolés
+ * (enveloppement visuel) → espace, blancs multiples → un espace.
+ * Les séparateurs de paragraphes (une ou plusieurs lignes vides)
+ * sont conservés tels quels.
+ */
+export function normaliserSouple(texte: string): string {
+  return texte
+    .replace(/\r\n?/g, '\n')
+    .replace(/(?<!\n)\n(?!\n)/g, ' ')
+    .replace(/[ \t]+/g, ' ');
+}
+
+/**
+ * Découpe un texte entier en unités de traduction cohérentes.
  *
  * @param texte    texte brut (source)
  * @param maxChars taille maximale (en caractères) d'une unité
  */
 export function decouperTexte(texte: string, maxChars: number): Unite[] {
-  const normalise = texte.replace(/\r\n?/g, '\n');
+  const normalise = normaliserSouple(texte);
   if (normalise.length === 0) return [];
 
-  // Chaque segment sauf le dernier est une ligne TERMINÉE par '\n'.
-  // Le dernier segment est la fin du texte, sans '\n' final.
-  const segments = normalise.split('\n');
-  const fin = segments.pop() ?? '';
   const unites: Unite[] = [];
-  let colle = ''; // '\n' de lignes vides, en attente d'attachement
+  // Séparateurs de paragraphes (lignes vides) conservés dans le découpage.
+  const morceaux = normalise.split(/(\n{2,})/);
+  let derniere: Unite | null = null;
 
-  /** Rattache la colle en attente à la dernière unité (ou crée une unité vide). */
-  function viderColle() {
-    if (colle === '') return;
-    if (unites.length > 0) {
-      unites[unites.length - 1].suite += colle;
-    } else {
-      unites.push({ source: '', suite: colle }); // blancs de tête
+  for (const morceau of morceaux) {
+    if (morceau === '') continue;
+
+    if (/^\n+$/.test(morceau)) {
+      // Séparateur de paragraphes : collé à la suite du bloc précédent.
+      if (derniere) derniere.suite += morceau;
+      else unites.push({ source: '', suite: morceau }); // lignes vides initiales
+      continue;
     }
-    colle = '';
-  }
 
-  function ajouterLigne(ligne: string, terminee: boolean) {
-    if (ligne === '') {
-      // Ligne vide : elle ne contribue que son '\n' de terminaison.
-      if (terminee) colle += '\n';
-      return;
+    // --- Un paragraphe (sans '\n' interne après normalisation) ---
+    const debut = morceau.match(/^ +/)?.[0] ?? '';
+    const fin = morceau.match(/ +$/)?.[0] ?? '';
+    const corps = morceau.slice(debut.length, morceau.length - fin.length || undefined);
+
+    // L'indentation de tête reste dans la suite du paragraphe précédent
+    // (conserve un réassemblage exact du texte normalisé).
+    if (debut) {
+      if (derniere) derniere.suite += debut;
+      else unites.push({ source: '', suite: debut });
     }
-    viderColle();
 
-    // Les espaces/tabulations de fin de ligne sont de la « colle » :
-    // ils ne doivent pas voyager dans le texte à traduire.
-    const espacesFin = ligne.match(/[ \t]+$/)?.[0] ?? '';
-    const corpsLigne = ligne.slice(0, ligne.length - espacesFin.length);
+    if (corps.length === 0) {
+      if (fin) {
+        if (unites.length > 0) unites[unites.length - 1].suite += fin;
+        else unites.push({ source: '', suite: fin });
+      }
+      derniere = unites[unites.length - 1] ?? null;
+      continue;
+    }
 
-    if (corpsLigne.length === 0) {
-      // Ligne faite uniquement d'espaces : on la préserve telle quelle.
-      unites.push({ source: '', suite: espacesFin });
-    } else if (corpsLigne.length <= maxChars) {
-      unites.push({ source: corpsLigne, suite: espacesFin });
+    if (corps.length <= maxChars) {
+      unites.push({ source: corps, suite: fin });
+      derniere = unites[unites.length - 1];
     } else {
-      const pieces = decouperLigneTropLongue(corpsLigne, maxChars);
-      pieces[pieces.length - 1].suite += espacesFin;
+      // Paragraphe trop long : éclatement à la frontière des phrases.
+      const pieces = decouperParagrapheLong(corps, maxChars);
+      pieces[pieces.length - 1].suite += fin;
       unites.push(...pieces);
-    }
-
-    if (terminee) {
-      // Le '\n' qui termine la ligne appartient à la suite de l'unité.
-      unites[unites.length - 1].suite += '\n';
+      derniere = pieces[pieces.length - 1];
     }
   }
-
-  for (const segment of segments) {
-    ajouterLigne(segment, true);
-  }
-  ajouterLigne(fin, false); // dernière ligne : sans '\n' final
-  viderColle(); // lignes vides résiduelles (impossible ici, par sûreté)
 
   return unites;
 }
 
 /**
- * Vérifie que la concaténation des unités reconstitue le texte d'origine.
- * (Test de non-régression, utilisé dans le pipeline de test.)
+ * Vérifie que la concaténation des unités reconstitue le texte normalisé.
+ * (Test de non-régression — la garantie 1:1 porte sur la structure des
+ * paragraphes, les retours à la ligne mous ayant été réunis en espaces.)
  */
 export function verifierIntegrite(texte: string, unites: Unite[]): boolean {
-  const reconstitue = unites
-    .map((u) => u.source + u.suite)
-    .join('');
-  return reconstitue === texte.replace(/\r\n?/g, '\n');
+  const reconstitue = unites.map((u) => u.source + u.suite).join('');
+  return reconstitue === normaliserSouple(texte);
 }
 
 /**
@@ -105,12 +117,12 @@ export function verifierIntegrite(texte: string, unites: Unite[]): boolean {
  * @param unitesTraduites liste parallèle aux unités découpées :
  *                        chaque élément est la traduction de source,
  *                        ou null si l'unité n'a pas été traduite
- *                        (auquel cas le texte source est utilisé tel quel).
+ *                        (auquel cas rien n'est inséré pour cette unité).
  */
-export function assembler(unitesTraduites: Array<{ traduit: string | null; suite: string }>): string {
-  return unitesTraduites
-    .map((u) => (u.traduit ?? '') + u.suite)
-    .join('');
+export function assembler(
+  unitesTraduites: Array<{ traduit: string | null; suite: string }>
+): string {
+  return unitesTraduites.map((u) => (u.traduit ?? '') + u.suite).join('');
 }
 
 /**
@@ -122,69 +134,127 @@ export function unite(source: string, suite = ''): Unite {
 }
 
 // ------------------------------------------------------------
-// Découpage interne d'une ligne trop longue.
-// Les coupures privilégient : fin de phrase, puis espace ;
-// en dernier recours, coupure sèche.
+// Éclatement d'un paragraphe trop long, à la frontière des phrases.
 // ------------------------------------------------------------
 
-const FIN_PHRASE = new Set(['.', '!', '?', '…', '»', '”', '"']);
+const PONCTUATION_FIN_PHRASE = new Set(['.', '!', '?', '…', '»', '”', '"', ';', ':']);
 
-function decouperLigneTropLongue(ligne: string, maxChars: number): Unite[] {
+function decouperParagrapheLong(paragraphe: string, maxChars: number): Unite[] {
   const unites: Unite[] = [];
-  let debut = 0;
+  let reste = paragraphe;
 
-  while (debut < ligne.length) {
-    const reste = ligne.slice(debut);
-    if (reste.length <= maxChars) {
-      unites.push({ source: reste, suite: '' });
-      break;
-    }
-    const coupe = trouverCoupe(reste, maxChars);
-    // coupe : index où finit la portion « source » (la suite commence après).
-    const source = reste.slice(0, coupe);
-    // On détache les blancs qui suivent immédiatement la coupure.
-    const m = reste.slice(coupe).match(/^[ \t]*/);
-    const blanc = m ? m[0] : '';
-    unites.push({ source, suite: blanc });
-    debut += coupe + blanc.length;
+  while (reste.length > maxChars) {
+    const { source, suite, suivant } = couperPhrase(reste, maxChars);
+    unites.push({ source, suite });
+    reste = suivant;
   }
-
+  unites.push({ source: reste, suite: '' });
   return unites;
 }
 
-/** Trouve le meilleur index de coupure dans [1, maxChars]. */
-function trouverCoupe(texte: string, maxChars: number): number {
-  let meilleur = -1;
-  let qualite = -1;
+/** Coupe au mieux dans [1, maxChars] : fin de phrase, sinon dernier espace. */
+function couperPhrase(
+  texte: string,
+  maxChars: number
+): { source: string; suite: string; suivant: string } {
+  const fenetre = Math.min(maxChars, texte.length - 1);
 
-  for (let i = 1; i <= maxChars && i < texte.length; i++) {
-    const c = texte[i - 1];
-    const d = texte[i];
-
-    if (FIN_PHRASE.has(c) && /\s/.test(d)) {
-      // Fin de phrase suivie d'un blanc : coupure idéale.
-      if (i > meilleur || qualite < 3) {
-        meilleur = i;
-        qualite = 3;
-      }
-    } else if (c === '\n') {
-      // Retour à la ligne : bonne coupure (structure préservée).
-      if (i > meilleur || qualite < 2) {
-        meilleur = i;
-        qualite = 2;
-      }
-    } else if (/\s/.test(c) && qualite < 1) {
-      meilleur = i;
-      qualite = 1;
+  // 1. Fin de phrase suivie d'un espace : on garde la phrase complète.
+  for (let i = fenetre; i >= 1; i--) {
+    if (PONCTUATION_FIN_PHRASE.has(texte[i - 1]) && texte[i] === ' ') {
+      return {
+        source: texte.slice(0, i),
+        suite: ' ',
+        suivant: texte.slice(i + 1),
+      };
     }
   }
 
-  return meilleur > 0 ? meilleur : maxChars;
+  // 2. Repli : dernier espace de la fenêtre (mot entier préservé).
+  const dernierEspace = texte.lastIndexOf(' ', fenetre);
+  if (dernierEspace > 0) {
+    return {
+      source: texte.slice(0, dernierEspace),
+      suite: ' ',
+      suivant: texte.slice(dernierEspace + 1),
+    };
+  }
+
+  // 3. Dernier recours : coupure sèche (mot très long sans espace).
+  return {
+    source: texte.slice(0, maxChars),
+    suite: '',
+    suivant: texte.slice(maxChars),
+  };
 }
 
-/** Détection approximative des titres de chapitres dans un texte. */
-const TITRE_CHAPITRE =
-  /^(?:\s*#+\s*)?(?:chapter|chapitre|prologue|epilogue|part|book|livre|préface|preface|avant-propos|introduction)\b[\s\dIVXLClivxlc.:\-—]*[^\n]{0,80}$/i;
+// ============================================================
+// Détection des chapitres
+// ============================================================
+
+const TITRE_CHAPITRE_KEYWORDS =
+  /^(?:#+\s*)?(?:chapter|chapitre|prologue|epilogue|part|book|livre|préface|preface|avant-propos|introduction)\b/i;
+
+/**
+ * Un titre de chapitre crédible :
+ * - commence par un mot-clé (Chapter, Chapitre, Part, Prologue…) ;
+ * - est une ligne courte (≤ 90 caractères) ;
+ * - n'est pas une phrase de prose : le mot-clé ne doit pas être suivi
+ *   d'une minuscule ou d'une virgule (« introduction, taking her hand… »
+ *   est une ligne enveloppée, pas un titre).
+ */
+function estTitreChapitre(ligne: string): boolean {
+  if (ligne.length === 0 || ligne.length > 90) return false;
+  const match = TITRE_CHAPITRE_KEYWORDS.exec(ligne);
+  if (!match) return false;
+  const reste = ligne.slice(match[0].length).trimStart();
+  if (/^[a-z]/.test(reste)) return false; // suite en minuscules → prose
+  if (/^[,;]/.test(reste)) return false; // virgule → prose
+  return true;
+}
+
+const PETITS_MOTS =
+  /^(the|of|a|an|and|or|to|for|in|on|at|by|from|into|upon|with|over|under|as|is|are|was|were|its|it's|her|his|their|our|your|my|me|we|you|they|this|that|not|no|so|but|if|then|than|too|very|can|will|don't|de|la|le|les|du|des|un|une|et|ou|à|au|aux|en|sur|pour|par|avec|dans|son|sa|ses|leur|leurs|notre|nos|votre|vos|ma|mon|mes|ce|cette|ces|qui|que|est)$/i;
+
+/**
+ * Détection GÉNÉRIQUE d'un titre de section dans un PDF quelconque
+ * (au-delà des seuls mots-clés « Chapter/Chapitre ») :
+ * - ligne tout en MAJUSCULES courte (ACKNOWLEDGEMENTS, AUTHOR'S NOTE…) ;
+ * - ou ligne en casse de titre (Author's Note, About the Author…) ;
+ * - sans ponctuation de fin de phrase (une phrase de prose n'est pas un titre).
+ */
+function estTitreSection(ligne: string): boolean {
+  if (ligne.length < 3 || ligne.length > 60) return false;
+  // Fin de phrase réelle → pas un titre.
+  if (/[.!?]["'”»]?\s*$/.test(ligne)) return false;
+  // Pas de virgule ni deux points en fin de ligne (prose qui continue).
+  if (/[,;:]$/.test(ligne)) return false;
+
+  // Tout en majuscules : "ACKNOWLEDGEMENTS", "AUTHOR'S NOTE", "PART ONE".
+  const enMajuscules =
+    ligne === ligne.toUpperCase() &&
+    (ligne.match(/[A-ZÀ-Ý]/g) ?? []).length >= 3 &&
+    /[AEIOUYÀÉÈÊËÎÏÔÖÙÜÂ]/i.test(ligne);
+  if (enMajuscules) return true;
+
+  // Casse de titre : chaque mot commence par une majuscule (petits mots admis).
+  const mots = ligne.split(/\s+/);
+  if (mots.length < 1 || mots.length > 8) return false;
+  const casseTitre = mots.every((mot) => {
+    if (mot.length === 0) return false;
+    if (PETITS_MOTS.test(mot)) return true;
+    return /^[A-ZÀ-Ý][A-Za-zÀ-ÿ’'’-]*$/.test(mot);
+  });
+  const auMoinsUnMotPropre = mots.some(
+    (mot) => mot.length > 0 && !PETITS_MOTS.test(mot)
+  );
+  return casseTitre && auMoinsUnMotPropre;
+}
+
+/** Un titre de chapitre OU une section générique (Author's Note…). */
+function estTitreSectionOuChapitre(ligne: string): boolean {
+  return estTitreChapitre(ligne) || estTitreSection(ligne);
+}
 
 export interface ChapitreBrut {
   titre: string;
@@ -216,7 +286,7 @@ export function decouperEnChapitres(texteBrut: string): ChapitreBrut[] {
 
   for (const ligne of lignes) {
     const l = ligne.trim();
-    if (l.length > 0 && l.length <= 90 && TITRE_CHAPITRE.test(l)) {
+    if (l.length > 0 && estTitreSectionOuChapitre(l)) {
       ajouter();
       courant = { titre: l.replace(/^#+\s*/, ''), texte: '' };
     } else if (!courant && tampon.length === 0 && l.length === 0) {
@@ -232,7 +302,24 @@ export function decouperEnChapitres(texteBrut: string): ChapitreBrut[] {
 
   ajouter();
 
-  // Renumérote proprement les chapitres sans numéro explicite.
+  // Filtre la « table des matières » : un titre sans vraie prose (ex.
+  // liste de titres en début de livre, numéros de pages) n'est pas un
+  // chapitre. On garde un chapitre s'il est long OU contient des phrases
+  // réelles (mots + ponctuation de fin de phrase).
+  const aVraieProse = (c: ChapitreBrut) => {
+    const t = c.texte.trim();
+    return (
+      t.length >= 40 ||
+      /[a-zà-ÿ]{2,}[.!?…]["'”»]?\s/i.test(t + ' ')
+    );
+  };
+  const chapitresPleins = chapitres.filter(aVraieProse);
+  if (chapitresPleins.length > 0) {
+    return chapitresPleins.map((c, i) => ({
+      titre: c.titre || `Chapitre ${i + 1}`,
+      texte: c.texte,
+    }));
+  }
   return chapitres.map((c, i) => ({
     titre: c.titre || `Chapitre ${i + 1}`,
     texte: c.texte,

@@ -13,6 +13,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { paginer } from '@/lib/pagination';
 import type {
   Chapitre,
   Livre,
@@ -86,12 +87,14 @@ export function useMoteurTraduction() {
       ) => void,
       annule: boolean
     ) => {
-      const { data: tous } = await supabase
-        .from('segments')
-        .select('*')
-        .eq('chapitre_id', chapitre.id)
-        .order('position', { ascending: true });
-      const liste = (tous ?? []) as Segment[];
+      const liste = await paginer<Segment>((debut, fin) =>
+        supabase
+          .from('segments')
+          .select('*')
+          .eq('chapitre_id', chapitre.id)
+          .order('position', { ascending: true })
+          .range(debut, fin)
+      );
 
       if (annule) {
         // On ne touche pas au texte déjà assemblé ; on reflète juste
@@ -158,14 +161,15 @@ export function useMoteurTraduction() {
         .update({ statut: 'en_traduction' })
         .eq('id', chapitre.id);
 
-      const { data: aTraduire } = await supabase
-        .from('segments')
-        .select('*')
-        .eq('chapitre_id', chapitre.id)
-        .in('statut', ['en_attente', 'erreur'])
-        .order('position', { ascending: true });
-
-      const file = (aTraduire ?? []) as Segment[];
+      const file = await paginer<Segment>((debut, fin) =>
+        supabase
+          .from('segments')
+          .select('*')
+          .eq('chapitre_id', chapitre.id)
+          .in('statut', ['en_attente', 'erreur'])
+          .order('position', { ascending: true })
+          .range(debut, fin)
+      );
       if (file.length === 0) {
         if (!controleur.signal.aborted) {
           await cloreChapitre(supabase, chapitre, majChapitre, false);

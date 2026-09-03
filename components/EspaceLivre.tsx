@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { creerClientNavigateur } from '@/lib/supabase/client';
+import { paginer } from '@/lib/pagination';
 import type {
   Chapitre,
   CodeLangue,
@@ -105,11 +106,13 @@ export default function EspaceLivre({
   const rafraichirCompteurs = useCallback(async () => {
     if (chapitres.length === 0) return;
     const ids = chapitres.map((c) => c.id);
-    const { data } = await supabaseRef.current
-      .from('segments')
-      .select('statut')
-      .in('chapitre_id', ids);
-    const lignes = (data ?? []) as Array<{ statut: string }>;
+    const lignes = await paginer<{ statut: string }>((debut, fin) =>
+      supabaseRef.current
+        .from('segments')
+        .select('statut')
+        .in('chapitre_id', ids)
+        .range(debut, fin)
+    );
     setCompteurs({
       total: lignes.length,
       faits: lignes.filter((l) => l.statut === 'fait').length,

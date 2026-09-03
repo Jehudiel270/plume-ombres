@@ -1,9 +1,11 @@
 'use client';
 
 // ============================================================
-// ZoneImport.tsx — Import d'un livre (.txt / .md).
-// Lit le fichier, découpe en chapitres/segments, insère le tout
-// dans Supabase (RLS : l'utilisateur connecté est le propriétaire).
+// ZoneImport.tsx — Import d'un livre (.txt / .md / .pdf).
+// - .txt / .md : lu tel quel (UTF-8).
+// - .pdf      : texte extrait dans le navigateur (pdf.js), puis
+//   le même pipeline (chapitres → segments → Supabase) s'applique.
+// RLS : l'utilisateur connecté est le propriétaire.
 // ============================================================
 
 import { useRef, useState } from 'react';
@@ -15,6 +17,7 @@ import { LANGUES } from '@/lib/types';
 
 const CODES = Object.keys(LANGUES) as CodeLangue[];
 const TAILLE_LOT = 400; // lignes insérées par requête
+const EXTENSIONS = /\.(txt|md|markdown|pdf)$/i;
 
 export default function ZoneImport() {
   const routeur = useRouter();
@@ -26,20 +29,47 @@ export default function ZoneImport() {
   const [source, setSource] = useState<CodeLangue>('en');
   const [cible, setCible] = useState<CodeLangue>('fr');
 
+  /** Lit le fichier et en tire un texte brut selon son format. */
+  async function lireTexte(fichier: File): Promise<string> {
+    const estPdf = /\.pdf$/i.test(fichier.name);
+
+    if (!estPdf) {
+      const texte = await fichier.text(); // UTF-8 (BOM retiré automatiquement)
+      if (texte.trim().length === 0) {
+        throw new Error('Le fichier est vide.');
+      }
+      return texte;
+    }
+
+    // PDF : extraction locale par pdf.js (chargé à la demande).
+    setEtape('Extraction du PDF (page 0/?)…');
+    const { extraireTextePdfNavigateur } = await import('@/lib/pdf-navigateur');
+    const texte = await extraireTextePdfNavigateur(
+      await fichier.arrayBuffer(),
+      (page, total) => {
+        setEtape(`Extraction du PDF… page ${page}/${total}`);
+      }
+    );
+    if (texte.trim().length < 200) {
+      throw new Error(
+        "Le texte du PDF semble vide ou illisible (PDF scanné ?). Format conseillé : .txt/.md."
+      );
+    }
+    return texte;
+  }
+
   async function importerFichier(fichier: File) {
-    if (!/\.(txt|md|markdown)$/i.test(fichier.name)) {
-      setErreur('Format non supporté : choisis un fichier .txt ou .md.');
+    if (!EXTENSIONS.test(fichier.name)) {
+      setErreur(
+        'Format non supporté : choisis un fichier .txt, .md ou .pdf.'
+      );
       return;
     }
     setErreur(null);
     setEnCours(true);
 
     try {
-      const texte = await fichier.text(); // UTF-8 (BOM retiré automatiquement)
-
-      if (texte.trim().length === 0) {
-        throw new Error('Le fichier est vide.');
-      }
+      const texte = await lireTexte(fichier);
 
       // 1. Découpage en chapitres puis préparation des segments.
       setEtape('Découpage du texte…');
@@ -152,17 +182,18 @@ export default function ZoneImport() {
             </select>
           </div>
         </div>
-        <p className="text-[11px] text-encre-500 md:max-w-56 leading-snug">
-          Fichiers <code className="text-grenat-300">.txt</code> ou{' '}
-          <code className="text-grenat-300">.md</code> — les chapitres
-          sont détectés automatiquement (titres <em>Chapter / Chapitre</em>…).
+        <p className="text-[11px] text-encre-500 md:max-w-60 leading-snug">
+          Fichiers <code className="text-grenat-300">.txt</code>,{' '}
+          <code className="text-grenat-300">.md</code> ou{' '}
+          <code className="text-grenat-300">.pdf</code> — chapitres détectés
+          automatiquement, PDF extrait localement (rien n’est envoyé).
         </p>
       </div>
 
       <input
         ref={inputRef}
         type="file"
-        accept=".txt,.md,.markdown"
+        accept=".txt,.md,.markdown,.pdf"
         className="hidden"
         onChange={(e) => {
           const fichier = e.target.files?.[0];
