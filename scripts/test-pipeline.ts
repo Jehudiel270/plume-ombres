@@ -8,7 +8,11 @@
 import { preparerLivre, MAX_CHARS_SEGMENT } from '../lib/import-livre';
 import { verifierIntegrite, decouperTexte, assembler } from '../lib/segmenter';
 import { FournisseurMyMemory } from '../lib/providers/mymemory';
+import { FournisseurLibreTranslate } from '../lib/providers/libretranslate';
 
+// Fournisseur testé : 'libretranslate' (défaut) ou 'mymemory'
+// (FOURNISSEUR_TEST=libretranslate|mymemory npx tsx scripts/test-pipeline.ts)
+const NOM_FOURNISSEUR = process.env.FOURNISSEUR_TEST ?? 'libretranslate';
 process.env.MYMEMORY_EMAIL = 'plume-ombres@exemple.com'; // quota supérieur
 
 // --- Texte de test : dark romance, ~500 mots, plusieurs paragraphes,
@@ -85,8 +89,11 @@ async function principal() {
       unitesLong.every((u) => u.source.length <= MAX_CHARS_SEGMENT)
   );
 
-  console.log('— Traduction EN→FR (MyMemory) —');
-  const fournisseur = new FournisseurMyMemory();
+  console.log(`— Traduction EN→FR (${NOM_FOURNISSEUR}) —`);
+  const fournisseur =
+    NOM_FOURNISSEUR === 'mymemory'
+      ? new FournisseurMyMemory()
+      : new FournisseurLibreTranslate();
   let traduits = 0;
   const debut = Date.now();
   const livreTraduit = [];
