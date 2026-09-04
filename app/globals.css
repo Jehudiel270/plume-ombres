@@ -203,6 +203,38 @@ body {
   color: var(--color-encre-100);
 }
 
+/* Bouton phare — export fidèle : « PDF — mise en page d'origine,
+   contenu FR ». Plus visible que les autres exports : or + grenat,
+   pleine largeur sous la rangée d'actions. */
+.bouton-fidele {
+  @apply relative font-semibold tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed;
+  color: #fff;
+  border-radius: 14px;
+  border: 1px solid
+    color-mix(in srgb, var(--color-or-ros-300) 55%, transparent);
+  background: linear-gradient(
+    120deg,
+    var(--color-grenat-600),
+    var(--color-grenat-500) 45%,
+    var(--color-violet-rom-600)
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-or-ros-300) 18%, transparent),
+    0 12px 30px -12px color-mix(in srgb, var(--color-grenat-500) 90%, transparent),
+    var(--liseret-haut);
+}
+.bouton-fidele:hover:not(:disabled) {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-or-ros-300) 35%, transparent),
+    var(--lueur-grenat),
+    var(--liseret-haut);
+  transform: translateY(-1px);
+}
+.bouton-fidele:disabled {
+  /* En cours : on garde la teinte pour rester 'occupé' mais lisible. */
+  filter: saturate(0.6) brightness(0.85);
+}
+
 /* Champ de saisie */
 .champ-sombre {
   @apply w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-colors;
@@ -248,7 +280,7 @@ body {
 
 /* ---------- Carte livre (couverture) ---------- */
 .carte-livre {
-  @apply bg-nuit-800/85 rounded-[12px] p-5 flex flex-col gap-3;
+  @apply bg-nuit-800/85 rounded-[12px] p-4 sm:p-5 flex flex-col gap-3;
   border: 1px solid var(--color-nuit-700);
   box-shadow:
     var(--liseret-haut),
@@ -257,10 +289,19 @@ body {
     transform 0.35s var(--courbe),
     border-color 0.35s var(--courbe),
     box-shadow 0.35s var(--courbe);
+  break-inside: avoid; /* la carte ne doit pas être coupée */
+  outline: none;
 }
 .carte-livre:hover {
   transform: translateY(-3px) scale(1.01);
   border-color: color-mix(in srgb, var(--color-grenat-600) 60%, var(--color-nuit-700));
+  box-shadow:
+    var(--lueur-grenat),
+    var(--ombre-carte);
+}
+/* Focus clavier : même signal que le survol (accessibilité) */
+.carte-livre:focus-visible {
+  border-color: var(--color-grenat-500);
   box-shadow:
     var(--lueur-grenat),
     var(--ombre-carte);

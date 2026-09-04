@@ -38,6 +38,10 @@ export interface GeoOrigine {
   margeDroite: number;
   margeHaut: number;
   margeBas: number;
+  /** Taille du corps mesurée dans l'original (points), si connu. */
+  tailleCorps?: number;
+  /** Pas vertical entre baselines (points) mesuré dans l'original. */
+  hauteurLigne?: number;
 }
 
 export interface OptionsPdfTraduit {

@@ -11,9 +11,11 @@
 // origine en BAS-GAUCHE, axes positifs x à droite et y en haut :
 //   - largeur / hauteur : boiter de la page (médiabox),
 //   - items : boiter de chaque morceau de texte lisible (x,y = coin
-//     bas-gauche, w,h = dimension).
+//     bas-gauche, w,h = dimension, dy = hauteur de la boîte text).
 // Les marges d'en-bloc = distance entre le bord de la page et la
-// boiter convexe de tous les items (bornée à 25 % de la page).
+// box convexe de tous les items (bornée à 25 % de la page).
+// La taille du corps et l'interligne sont estimés sur les pages
+// « pleines » (≥ 30 items de texte) : pages de corps typiques.
 // ============================================================
 
 import type { GeoOrigine } from './pdf-traduit';
@@ -28,6 +30,8 @@ export interface ItemBrut {
   w: number;
   /** hauteur de la boîte (points). */
   h: number;
+  /** hauteur de la boîte de texte selon le moteur (≈ taille de police). */
+  dy: number;
 }
 
 export interface PageBrute {
@@ -75,13 +79,68 @@ export function calculerGeo(pages: PageBrute[]): GeoOrigine | null {
   const borne = (valeur: number, dimension: number) =>
     Math.round(Math.min(Math.max(valeur, 20), dimension * 0.25));
 
+  // --- Taille du corps, mesurée sur les pages « pleines » (≥ 30 items) ---
+  // dy ≈ taille de police (échelle de l'objet de texte). On prend la
+  // médiane des valeurs dominantes : les pages de corps l'emportent
+  // numériquement sur les pages de titres.
+  const pagesPleines = pages.filter((p) => p.items.length >= 30);
+  let tailleCorps: number | undefined;
+  if (pagesPleines.length > 0) {
+    const tousDy = pagesPleines
+      .flatMap((p) => p.items.map((it) => it.dy))
+      .filter((v) => v > 0);
+    if (tousDy.length > 0) {
+      // Plus fréquente (arrondie au 0.5 pt), puis médiane de ce groupe.
+      const parCle = new Map<number, number[]>();
+      for (const v of tousDy) {
+        const cle = Math.round(v * 2) / 2;
+        const liste = parCle.get(cle) ?? [];
+        liste.push(v);
+        parCle.set(cle, liste);
+      }
+      const dominante = [...parCle.entries()].sort(
+        (a, b) => b[1].length - a[1].length
+      )[0];
+      if (dominante) {
+        const valeurs = [...dominante[1]].sort((a, b) => a - b);
+        tailleCorps = Math.round(valeurs[Math.floor(valeurs.length / 2)] * 10) / 10;
+      }
+    }
+  }
+
+  // --- Hauteur de ligne : médiane des pas entre baselines (pages pleines). ---
+  // it.y est la baseline dans la convention pdf.js/PDF utilisée ici.
+  let hauteurLigne: number | undefined;
+  if (pagesPleines.length > 0) {
+    const tousPas: number[] = [];
+    for (const p of pagesPleines) {
+      const ys = [
+        ...new Set(p.items.map((it) => Math.round(it.y * 10) / 10)),
+      ].sort((a, b) => a - b);
+      for (let i = 1; i < ys.length; i++) {
+        const pas = ys[i] - ys[i - 1];
+        // Pas « normaux » : >= corps (interligne) mais pas un saut de bloc
+        // (pas > corps x 1.8 serait un espace de paragraphe / de titre).
+        if (tailleCorps ? pas >= tailleCorps * 0.9 && pas <= tailleCorps * 1.8 : true) {
+          tousPas.push(Math.round(pas * 10) / 10);
+        }
+      }
+    }
+    if (tousPas.length > 0) {
+      const pas = [...tousPas].sort((a, b) => a - b);
+      hauteurLigne = Math.round(pas[Math.floor(pas.length / 2)] * 10) / 10;
+    }
+  }
+
   return {
     largeur: Math.round(lg),
     hauteur: Math.round(hg),
     margeGauche: borne(minX, lg),
     margeDroite: borne(lg - maxX, lg),
-    // pdf.js exprime y depuis le bas : marge haute (depui le haut) = hg - maxY.
+    // pdf.js exprime y depuis le bas : marge haute (depuis le haut) = hg - maxY.
     margeHaut: borne(hg - maxY, hg),
     margeBas: borne(minY, hg),
+    ...(tailleCorps !== undefined ? { tailleCorps } : {}),
+    ...(hauteurLigne !== undefined ? { hauteurLigne } : {}),
   };
 }

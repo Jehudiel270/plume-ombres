@@ -42,6 +42,9 @@ export async function mesurerOriginalPdf(
           y: it.transform[5],
           w: it.width,
           h: it.height,
+          // Taille réelle du texte : l'échelle X de la matrice de pose
+          // (≈ taille de police en points, même pour du texte incliné).
+          dy: Math.abs(it.transform[0]),
         }));
       pages.push({ largeur: vp.width, hauteur: vp.height, items });
     }
