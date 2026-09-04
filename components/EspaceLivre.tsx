@@ -31,6 +31,14 @@ import { CLEF_PROGRESSION } from '@/lib/progression';
 import { chercherTermes, type Plaque } from '@/lib/recherche';
 import Recherche from '@/components/Recherche';
 import RegleLecture from '@/components/RegleLecture';
+import {
+  Download,
+  FileDown,
+  FileText,
+  Printer,
+  Save,
+  Sparkles,
+} from 'lucide-react';
 
 const CODES = Object.keys(LANGUES) as CodeLangue[];
 
@@ -336,6 +344,30 @@ export default function EspaceLivre({
     }));
   }, [livre.id]);
 
+  /** Chapitres complets, tels que le moteur PDF fidèle les attend
+   *  (`titre`, `texte_source`, `texte_traduit`) — l'alignement exact
+   *  se fait sur `texte_source`, champ donc indispensable. */
+  const chargerChapitresFideles = useCallback(
+    async () => {
+      const { data: tous } = await supabaseRef.current
+        .from('chapitres')
+        .select('position, titre, texte_source, texte_traduit')
+        .eq('livre_id', livre.id)
+        .order('position', { ascending: true });
+      return (tous ?? []).map((c: {
+        position: number;
+        titre: string;
+        texte_source: string;
+        texte_traduit: string | null;
+      }) => ({
+        titre: c.titre,
+        texte_source: c.texte_source,
+        texte_traduit: c.texte_traduit,
+      }));
+    },
+    [livre.id]
+  );
+
   const exporterLivre = useCallback(async () => {
     setExportEnCours(true);
     try {
@@ -450,6 +482,80 @@ export default function EspaceLivre({
       );
     }
   }, [livre.fichier_original, livre.nom_fichier]);
+
+  /** Export « PDF — mise en page d'origine, contenu français ».
+   *  Le fichier original est conservé À L'IDENTIQUE (couleur de
+   *  page, marges, polices, images, ornement) : seul le corps du
+   *  texte est remplacé par le français, coulé dans les mêmes boîtes
+   *  aux mêmes positions. Le moteur tourne 100 % dans le navigateur.
+   *  Indisponible : sans fichier original, ou chapitre incomplet.
+   *  100 % navigateur : fichier original du stockage, géométrie par
+   *  analyse complète, recoulement du corps français, assemblage.
+   *  Durée réelle : quelques dizaines de secondes pour un livre.
+   */
+  const [exportFidele, setExportFidele] = useState<{
+    etape: number;
+    total: number;
+    libelle: string;
+  } | null>(null);
+
+  const telechargerFidele = useCallback(async () => {
+    if (exportFidele || exportEnCours || genPdf) return;
+    try {
+      const incomplets = chapitres.filter((c) => c.statut !== 'traduit');
+      if (incomplets.length > 0) {
+        setMessageLangue(
+          `Traduction incomplète : ${incomplets.length} chapitre(s) non traduit — impossible de garantir un contenu 100 % français.`
+        );
+        return;
+      }
+      setExportFidele({ etape: 1, total: 6, libelle: 'Démarrage…' });
+      const { exporterPdfFidele } = await import('@/lib/export-fidele');
+      // L'alignement exact a besoin des chapitres TELS QUE STOCKÉS
+      // (texte_source = sous-texte exact du flux d'import ;
+      // texte_traduit = le contenu français). On charge donc tous
+      // les chapitres complets — le moteur gère de lui-même le cas
+      // « chapitre non traduit » (la source y est coulée telle
+      // quelle, sans mot perdu ni dupliqué).
+      const tous = await chargerChapitresFideles();
+      if (tous.length === 0) {
+        throw new Error('Aucun chapitre trouvé dans la base.');
+      }
+      // Récupère l'original conservé en base (même chemin que le
+      // bouton « Original ») — le moteur se charge du reste en local.
+      const telechargerOriginalFidele = async (chemin: string) => {
+        const { data, error } = await supabaseRef.current.storage
+          .from('originaux')
+          .download(chemin);
+        if (error || !data) {
+          throw error ?? new Error('Téléchargement de l’original impossible.');
+        }
+        return data.arrayBuffer();
+      };
+      await exporterPdfFidele(
+        {
+          id: livre.id,
+          titre: livre.titre,
+          langue_cible: livre.langue_cible,
+          fichier_original: livre.fichier_original,
+        },
+        tous,
+        telechargerOriginalFidele,
+        (p: { etape: number; total: number; libelle?: string }) =>
+          setExportFidele({
+            etape: p.etape,
+            total: p.total,
+            libelle: p.libelle ?? '',
+          })
+      );
+    } catch (e) {
+      setMessageLangue(
+        `PDF fidèle impossible : ${e instanceof Error ? e.message : 'erreur inconnue'}`
+      );
+    } finally {
+      setExportFidele(null);
+    }
+  }, [livre, chapitres, exportFidele, exportEnCours, genPdf, chargerChapitresFideles]);
 
   // ---------- Langues du livre ----------
   async function changerLangues(source: string, cible: string) {
@@ -669,58 +775,98 @@ export default function EspaceLivre({
             type="button"
             onClick={exporterChapitre}
             disabled={!chapitreComplet || exportEnCours}
-            className="bouton-fantome text-xs"
+            className="bouton-fantome inline-flex items-center gap-1.5 !px-2.5 !py-1.5 text-xs"
             title="Exporter le chapitre courant (.md)"
           >
-            ↧ Chapitre
+            <FileDown size={14} aria-hidden />
+            <span>Chapitre</span>
           </button>
           <button
             type="button"
             onClick={exporterLivre}
             disabled={exportEnCours}
-            className="bouton-fantome text-xs"
+            className="bouton-fantome inline-flex items-center gap-1.5 !px-2.5 !py-1.5 text-xs"
             title="Exporter le livre entier (.md)"
           >
-            ↧ Livre (.md)
+            <FileText size={14} aria-hidden />
+            <span>Livre (.md)</span>
           </button>
           <button
             type="button"
             onClick={exporterLivreDocx}
             disabled={exportEnCours}
-            className="bouton-principal !px-3 !py-1.5 text-xs"
+            className="bouton-fantome inline-flex items-center gap-1.5 !px-2.5 !py-1.5 text-xs"
             title="Télécharger le livre mis en forme (Word)"
           >
-            ↧ Word (.docx)
+            <Save size={14} aria-hidden />
+            <span>Word (.docx)</span>
           </button>
           <button
             type="button"
             onClick={imprimerLivrePdf}
             disabled={exportEnCours}
-            className="bouton-fantome text-xs"
+            className="bouton-fantome inline-flex items-center gap-1.5 !px-2.5 !py-1.5 text-xs"
             title="Mise en page puis « Enregistrer en PDF »"
           >
-            🖨 PDF
+            <Printer size={14} aria-hidden />
+            <span>Imprimer en PDF</span>
           </button>
           <button
             type="button"
             onClick={telechargerPdfTraduit}
             disabled={!!genPdf || exportEnCours}
-            className="bouton-principal !px-3 !py-1.5 text-xs"
-            title="Télécharger le livre TRADUIT en PDF (même gabarit que l'original)"
+            className="bouton-fantome inline-flex items-center gap-1.5 !px-2.5 !py-1.5 text-xs"
+            title="Télécharger le livre TRADUIT, re-paginé, même gabarit que l'original"
           >
-            {genPdf
-              ? `⏳ ${genPdf.fait}/${genPdf.total === 2 ? '…' : genPdf.total} PDF`
-              : '⬇ PDF traduit'}
+            <Download size={14} aria-hidden />
+            <span>
+              {genPdf
+                ? `PDF re-paginé… ${genPdf.fait}/${genPdf.total === 2 ? '…' : genPdf.total}`
+                : 'PDF traduit (re-paginé)'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={telechargerOriginal}
+            disabled={exportEnCours}
+            className="bouton-fantome inline-flex items-center gap-1.5 !px-2.5 !py-1.5 text-xs"
+            title="Télécharger le fichier original, inchangé"
+          >
+            <Download size={14} aria-hidden />
+            <span>Original</span>
           </button>
           {livre.fichier_original && (
             <button
               type="button"
-              onClick={telechargerOriginal}
-              disabled={exportEnCours}
-              className="bouton-fantome text-xs"
-              title="Télécharger le fichier original (mise en forme d’origine intacte)"
+              onClick={telechargerFidele}
+              disabled={!!exportFidele || exportEnCours || !!genPdf}
+              className="bouton-fidele mt-2 flex w-full items-center justify-center gap-2.5 !px-4 !py-2.5 text-sm"
+              title="Même PDF que l'original (couleur de page, marges, polices, images, ornement) avec le corps en français"
             >
-              ↧ Original
+              <Sparkles size={17} aria-hidden />
+              <span
+                className={exportFidele ? 'flex items-center gap-2 flex-col text-left' : ''}
+              >
+                {exportFidele ? (
+                  <>
+                    <span>
+                      {exportFidele.libelle} ({exportFidele.etape}/{exportFidele.total})…
+                    </span>
+                    <span className="progression-export w-4/5 h-1 bg-white/15 overflow-hidden rounded-full">
+                      <span
+                        className="block h-full bg-grenat-400 transition-all"
+                        style={{
+                          width: `${Math.round(
+                            ((exportFidele.etape - 1) / exportFidele.total) * 100
+                          )}%`,
+                        }}
+                      />
+                    </span>
+                  </>
+                ) : (
+                  <span>PDF — mise en page d’origine, contenu FR</span>
+                )}
+              </span>
             </button>
           )}
         </div>

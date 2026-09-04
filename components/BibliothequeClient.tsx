@@ -96,21 +96,29 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {livres.map((livre, i) => (
             <article
               key={livre.id}
               className="carte-livre animate-fondu-monte group cursor-pointer"
               style={{ animationDelay: `${i * 60}ms` }}
+              tabIndex={0}
+              aria-label={`Ouvrir « ${livre.titre} »`}
               onClick={() => routeur.push(`/livres/${livre.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  routeur.push(`/livres/${livre.id}`);
+                }
+              }}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-2 min-w-0">
                 <div className="min-w-0">
                   <h3 className="font-display text-lg text-encre-100 leading-snug group-hover:text-grenat-300 transition-colors line-clamp-2">
                     {livre.titre}
                   </h3>
                   {livre.auteur && (
-                    <p className="text-encre-500 text-xs mt-0.5 italic">
+                    <p className="text-encre-500 text-xs mt-0.5 italic truncate">
                       {livre.auteur}
                     </p>
                   )}
@@ -122,24 +130,45 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
                 </span>
               </div>
 
-              <p className="text-[11px] text-encre-500">
+              <p className="text-[11px] text-encre-500 break-all min-w-0">
                 {livre.langue_source.toUpperCase()} →{' '}
                 {livre.langue_cible.toUpperCase()} · {livre.nom_fichier}
               </p>
 
               {progressions[livre.id] && (
-                <p
-                  className="text-[11px] text-grenat-300/90 mt-1 flex items-center gap-1.5"
-                  title="Où vous en étiez la dernière fois"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-grenat-400 animate-pouls-doux shrink-0" />
-                  Reprendre : {progressions[livre.id].libelle || 'lecture'} ·{' '}
-                  {Math.round(progressions[livre.id].ratio * 100)} %
-                </p>
+                <div className="min-w-0">
+                  <p
+                    className="text-[11px] text-grenat-300/90 flex items-center gap-1.5"
+                    title="Où vous en étiez la dernière fois"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-grenat-400 animate-pouls-doux shrink-0" />
+                    Reprendre :{' '}
+                    <span className="truncate">
+                      {progressions[livre.id].libelle || 'lecture'}
+                    </span>{' '}
+                    · {Math.round(progressions[livre.id].ratio * 100)} %
+                  </p>
+                  {/* Barre de reprise : lecture d'un coup d'œil, mobile inclus */}
+                  <div
+                    className="mt-1.5 h-1 rounded-full bg-nuit-700/70 overflow-hidden"
+                    aria-hidden
+                  >
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-grenat-600 to-grenat-400"
+                      style={{
+                        width: `${Math.round(
+                          progressions[livre.id].ratio * 100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
               )}
 
-              <div className="flex items-center justify-between text-[11px] text-encre-500 mt-auto pt-2 border-t border-nuit-700/60">
-                <span>Ajouté le {dateCourte(livre.created_at)}</span>
+              <div className="flex items-center justify-between gap-2 text-[11px] text-encre-500 mt-auto pt-2 border-t border-nuit-700/60">
+                <span className="truncate min-w-0">
+                  Ajouté le {dateCourte(livre.created_at)}
+                </span>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -147,7 +176,7 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
                     supprimer(livre);
                   }}
                   disabled={suppression === livre.id}
-                  className="text-encre-500 hover:text-grenat-400 transition-colors cursor-pointer disabled:opacity-40"
+                  className="text-encre-500 hover:text-grenat-400 transition-colors cursor-pointer disabled:opacity-40 shrink-0 px-2 py-1 rounded-md hover:bg-grenat-500/10"
                   title="Supprimer le livre"
                 >
                   {suppression === livre.id ? '…' : 'Supprimer'}
