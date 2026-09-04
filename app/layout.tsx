@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Playfair_Display, Lora } from 'next/font/google';
 import './globals.css';
+import FondAmbiance from '@/components/FondAmbiance';
 import PWA from '@/components/PWA';
 
 const playfair = Playfair_Display({
@@ -61,6 +62,7 @@ export default function RacineLayout({
     <html lang="fr" className={`${playfair.variable} ${lora.variable}`}>
       <body>
         {children}
+        <FondAmbiance />
         <PWA />
       </body>
     </html>

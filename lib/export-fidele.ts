@@ -60,10 +60,26 @@ export async function exporterPdfFidele(
   // 1. Original conservé (même téléchargement que « Original »).
   const donnees = new Uint8Array(await telecharger(livre.fichier_original));
 
+  // Garde-fou : le moteur « mise en page d'origine » est réservé aux
+  // originaux PDF (c'est la mise en page d'origine qui est conservée).
+  // Un .txt/.epub importé est conservé tel quel en base : on refuse
+  // proprement au lieu d'échouer dans pdf-lib avec un binaire message
+  // (« No PDF header found »), et on renvoie vers l'alternative.
+  if (!estPdfValide(donnees)) {
+    throw new Error(
+      'l’original conservé n’est pas un PDF (import .txt/.epub/.md) — ' +
+        'la mise en page d’origine n’existe pas ; utilisez « PDF traduit (re-paginé) » ou « Imprimer en PDF »'
+    );
+  }
+
   // 2. Scan de la mise en page d'origine (toutes les pages,
   //    worker pdf.js dédié — UI fluide).
+  //    Copie dédiée ET OBLIGATOIRE : pdf.js transfère son buffer au
+  //    worker (ArrayBuffer détaché côté main). Partager `donnees`
+  //    condamnerait l'étape 3 (pdf-lib) sur un buffer vide →
+  //    « No PDF header found (offset=0) » en production.
   pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-  const tache = pdfjs.getDocument({ data: donnees });
+  const tache = pdfjs.getDocument({ data: donnees.slice() });
   const docJs = (await tache.promise) as unknown as DocPdfJs;
   let scan: { pages: PageSourceFidele[]; textes: string[] };
   try {
@@ -76,6 +92,12 @@ export async function exporterPdfFidele(
     });
   } finally {
     await docJs.destroy?.();
+  }
+
+  // Garde-fou défensif : si le buffer a néanmoins été détaché
+  // (byteLength 0), on échoue avec un message clair et non binaire.
+  if (donnees.byteLength === 0) {
+    throw new Error('le fichier original a été libéré (buffer détaché) — réessayez');
   }
 
   // 3. Génératif PDF fidèle (tout est local ; chaque page est
@@ -128,4 +150,18 @@ function slugTitre(titre: string): string {
       .replace(/^-+|-+$/g, '')
       .slice(0, 60) || 'livre'
   );
+}
+
+/**
+ * Un fichier commence-t-il bien par l'en-tête PDF `%PDF-` ?
+ * (Spécification PDF : l'en-tête figure dans les premiers octets ;
+ *  on scanne les 10 Ko pour tolérer les préambules parasites.)
+ * Faux pour .txt / .epub (zip) / .md — ou un PDF tronqué.
+ */
+export function estPdfValide(octets: Uint8Array): boolean {
+  if (octets.length < 1024) return false;
+  const debut = octets.subarray(0, Math.min(octets.length, 10 * 1024));
+  const enTete = new TextDecoder('latin1').decode(debut);
+  const position = enTete.indexOf('%PDF-');
+  return position >= 0 && position < 1024;
 }

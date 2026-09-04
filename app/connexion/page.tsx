@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 
@@ -89,6 +90,13 @@ function PageConnexion() {
       <div className="w-full max-w-md animate-fondu-monte">
         {/* Emblème */}
         <div className="text-center mb-10">
+          <Image
+            src="/logo.png"
+            alt="Plume d’Ombres"
+            width={200}
+            height={200}
+            className="mx-auto h-28 w-28 md:h-32 md:w-32 object-contain mb-5 animate-fondu-monte"
+          />
           <p className="text-grenat-400 tracking-[0.45em] text-xs uppercase mb-3 animate-lueur-lente">
             ✦ votre nuit vous attend ✦
           </p>

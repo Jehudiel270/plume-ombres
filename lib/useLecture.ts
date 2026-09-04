@@ -49,32 +49,48 @@ function ecrireJson(clef: string, valeur: unknown): void {
 
 export function useLecture({
   livreId,
-  titreLivre,
   chapitres,
   totalCaracteres,
 }: {
   livreId: string;
-  titreLivre: string;
   /** Chapitres légers (id, position, titre) du livre. */
   chapitres: Array<{ id: string; position: number; titre: string }>;
   /** Nombre total de caractères du livre (pour l'estimation). */
   totalCaracteres: number;
 }) {
-  const [progression, setProgression] = useState<ProgressionLecture | null>(null);
-  const [stats, setStats] = useState<StatsLecture>({ parLivre: {} });
+  // Chargement initial : progression + stats. Initialisation paresseuse
+  // (localStorage lu une seule fois au premier rendu) — aucun setState
+  // synchrone dans un effet, pattern requis par les règles React Compiler
+  // d'eslint-plugin-react-hooks v7 (`set-state-in-effect`).
+  const [progression, setProgression] = useState<ProgressionLecture | null>(
+    () => {
+      const p = assainirProgression(lireJson(CLEF_PROGRESSION));
+      return p && p.livreId === livreId ? p : null;
+    }
+  );
+  const [stats, setStats] = useState<StatsLecture>(() => {
+    const s = assainirStats(lireJson(CLEF_STATS));
+    return ajouterVisite(s, livreId); // visite du livre comptée au montage
+  });
+  // Réajustement si le hook est réutilisé pour un autre livre
+  // (changement de prop `livreId`) : setState PENDANT le rendu, pattern
+  // officiel « ajuster l'état lors d'un changement de prop » — React
+  // re-rend immédiatement, sans perte de rendu intermédiaire.
+  const [livreVu, setLivreVu] = useState(livreId);
+  if (livreVu !== livreId) {
+    setLivreVu(livreId);
+    const p = assainirProgression(lireJson(CLEF_PROGRESSION));
+    setProgression(p && p.livreId === livreId ? p : null);
+    setStats(ajouterVisite(assainirStats(lireJson(CLEF_STATS)), livreId));
+  }
+  // Persistance des stats : écrire dans le localStorage est une
+  // synchronisation vers un système externe (le rôle même d'un effet).
+  useEffect(() => {
+    ecrireJson(CLEF_STATS, stats);
+  }, [stats]);
   const timerRef = useRef<number | null>(null);
   const chapitreActuelRef = useRef<string | null>(null);
   const chargeRef = useRef(0); // secondes accumulées pendant la session
-
-  // Chargement initial : progression + stats.
-  useEffect(() => {
-    const p = assainirProgression(lireJson(CLEF_PROGRESSION));
-    setProgression(p && p.livreId === livreId ? p : null);
-    setStats(assainirStats(lireJson(CLEF_STATS)));
-    // Compte la visite du livre.
-    setStats((s) => ajouterVisite(s, livreId));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [livreId]);
 
   // Mesure le temps de lecture : accumule les secondes tant que la
   // page est visible (document.visibilityState). Ne stocke le temps
@@ -130,7 +146,7 @@ export function useLecture({
         });
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Cleanup seul : les valeurs lues (refs, helpers) sont stables par design.
   }, [livreId]);
 
   const detailLecture = stats.parLivre[livreId] ?? null;

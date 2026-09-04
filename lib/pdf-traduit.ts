@@ -159,10 +159,7 @@ export async function genererPdfTraduit(
   const serifGras = await doc.embedFont(StandardFonts.TimesRomanBold);
   const serifItal = await doc.embedFont(StandardFonts.TimesRomanItalic);
 
-  const titreLivre = assainir(opts.titreLivre);
-  const auteur = opts.auteur ? assainir(opts.auteur).trim() : '';
   const zoneLargeur = geo.largeur - geo.margeGauche - geo.margeDroite;
-  const zoneHauteur = geo.hauteur - geo.margeHaut - geo.margeBas;
   const hautZone = geo.hauteur - geo.margeHaut;
   const basZone = geo.margeBas;
   const lineH = taille * interligne;

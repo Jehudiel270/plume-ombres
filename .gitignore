@@ -43,3 +43,15 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Logs et fichiers temporaires de dev
+*.log
+_tmp_*.ts
+_tmp_*.tsx
+
+# Sortie de build de contrôle (regénérée à la demande)
+build-final.txt
+build-final-verifie.txt
+
+# Fixtures de tests locales
+fixtures-originaux-non-pdf/

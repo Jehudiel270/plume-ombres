@@ -28,7 +28,7 @@ import { LANGUES } from '@/lib/types';
 import { useMoteurTraduction } from '@/lib/useMoteurTraduction';
 import { useLecture } from '@/lib/useLecture';
 import { CLEF_PROGRESSION } from '@/lib/progression';
-import { chercherTermes, type Plaque } from '@/lib/recherche';
+import { chercherTermes } from '@/lib/recherche';
 import Recherche from '@/components/Recherche';
 import RegleLecture from '@/components/RegleLecture';
 import {
@@ -104,7 +104,6 @@ export default function EspaceLivre({
     enregistrer,
   } = useLecture({
     livreId: livre.id,
-    titreLivre: livre.titre,
     chapitres,
     totalCaracteres,
   });
@@ -149,6 +148,23 @@ export default function EspaceLivre({
     repriseFait.current = true;
     setSelection(chapitreReprendre);
   }, [chapitreReprendre]);
+  /** Ratio enregistré pour un chapitre donné (0 si inconnu). */
+  function ratioLectureCible(chapitreId: string): number {
+    try {
+      const brut = window.localStorage.getItem(CLEF_PROGRESSION);
+      if (!brut) return 0;
+      const p = JSON.parse(brut) as {
+        livreId?: string;
+        chapitreId?: string;
+        ratio?: number;
+      };
+      if (p.livreId !== livre.id || p.chapitreId !== chapitreId) return 0;
+      return typeof p.ratio === 'number' ? Math.min(Math.max(p.ratio, 0), 1) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
   // Repositionnement une fois le chapitre chargé et le texte posé.
   useEffect(() => {
     if (!chapitreComplet) return;
@@ -170,23 +186,6 @@ export default function EspaceLivre({
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapitreComplet?.id]);
-
-  /** Ratio enregistré pour un chapitre donné (0 si inconnu). */
-  function ratioLectureCible(chapitreId: string): number {
-    try {
-      const brut = window.localStorage.getItem(CLEF_PROGRESSION);
-      if (!brut) return 0;
-      const p = JSON.parse(brut) as {
-        livreId?: string;
-        chapitreId?: string;
-        ratio?: number;
-      };
-      if (p.livreId !== livre.id || p.chapitreId !== chapitreId) return 0;
-      return typeof p.ratio === 'number' ? Math.min(Math.max(p.ratio, 0), 1) : 0;
-    } catch {
-      return 0;
-    }
-  }
 
   // ---------- Chargement d'un chapitre complet (textes) ----------
   // Chargement piloté par la sélection ; l'état « en chargement » est
@@ -598,20 +597,30 @@ export default function EspaceLivre({
         : [],
     [texteNet, term]
   );
-  // Le chapitre (ou la langue affichée) change : on repart à zéro.
-  useEffect(() => {
+  // Clé de la source (chapitre + langue affichée) : le retour à zéro est
+  // détecté au RENDU par comparaison avec la clé précédente (état
+  // « à réinitialiser »), pattern toléré par les règles React Compiler —
+  // aucun setState synchrone dans un effet.
+  const cleRecherche = `${texteNet.length}:${term}`;
+  const [clePrec, setClePrec] = useState(cleRecherche);
+  const [reinit, setReinit] = useState(false);
+  if (reinit) {
     setIndexActif(0);
-  }, [texteNet, term]);
-  useEffect(() => {
-    if (plaques.length > 0 && indexActif >= plaques.length) setIndexActif(0);
-  }, [plaques, indexActif]);
+    setReinit(false);
+  } else if (cleRecherche !== clePrec) {
+    setClePrec(cleRecherche);
+    setReinit(true);
+  }
+  // Garde-fou défensif : si les plaques ont rétréci, on borne l'index.
+  const indexAffiche =
+    plaques.length > 0 ? Math.min(indexActif, plaques.length - 1) : 0;
   // La plaque active est ramenée à l'écran (marque spéciale montée
   // dans le corps du chapitre).
   useEffect(() => {
     if (plaques.length === 0) return;
     const marque = document.querySelector('[data-ligne-recherche-active]');
     marque?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [indexActif, plaques.length]);
+  }, [indexAffiche, plaques.length]);
 
   /** Rendu du texte avec surlignage des occurrences recherchées ;
    * la plaque active porte un marqueur pour le défilement. */
@@ -624,7 +633,7 @@ export default function EspaceLivre({
       if (p.debut > curseur) morceaux.push(texte.slice(curseur, p.debut));
       const contenu = texte.slice(p.debut, p.fin);
       morceaux.push(
-        i === indexActif ? (
+        i === indexAffiche ? (
           <mark
             key={`actif-${i}`}
             data-ligne-recherche-active=""
@@ -835,40 +844,52 @@ export default function EspaceLivre({
             <Download size={14} aria-hidden />
             <span>Original</span>
           </button>
-          {livre.fichier_original && (
-            <button
-              type="button"
-              onClick={telechargerFidele}
-              disabled={!!exportFidele || exportEnCours || !!genPdf}
-              className="bouton-fidele mt-2 flex w-full items-center justify-center gap-2.5 !px-4 !py-2.5 text-sm"
-              title="Même PDF que l'original (couleur de page, marges, polices, images, ornement) avec le corps en français"
-            >
-              <Sparkles size={17} aria-hidden />
-              <span
-                className={exportFidele ? 'flex items-center gap-2 flex-col text-left' : ''}
+          {livre.fichier_original &&
+            ((livre.nom_fichier ?? '').toLowerCase().endsWith('.pdf') ? (
+              <button
+                type="button"
+                onClick={telechargerFidele}
+                disabled={!!exportFidele || exportEnCours || !!genPdf}
+                className="bouton-fidele mt-2 flex w-full items-center justify-center gap-2.5 !px-4 !py-2.5 text-sm"
+                title="Même PDF que l'original (couleur de page, marges, polices, images, ornement) avec le corps en français"
               >
-                {exportFidele ? (
-                  <>
-                    <span>
-                      {exportFidele.libelle} ({exportFidele.etape}/{exportFidele.total})…
-                    </span>
-                    <span className="progression-export w-4/5 h-1 bg-white/15 overflow-hidden rounded-full">
-                      <span
-                        className="block h-full bg-grenat-400 transition-all"
-                        style={{
-                          width: `${Math.round(
-                            ((exportFidele.etape - 1) / exportFidele.total) * 100
-                          )}%`,
-                        }}
-                      />
-                    </span>
-                  </>
-                ) : (
-                  <span>PDF — mise en page d’origine, contenu FR</span>
-                )}
-              </span>
-            </button>
-          )}
+                <Sparkles size={17} aria-hidden />
+                <span
+                  className={exportFidele ? 'flex items-center gap-2 flex-col text-left' : ''}
+                >
+                  {exportFidele ? (
+                    <>
+                      <span>
+                        {exportFidele.libelle} ({exportFidele.etape}/{exportFidele.total})…
+                      </span>
+                      <span className="progression-export w-4/5 h-1 bg-white/15 overflow-hidden rounded-full">
+                        <span
+                          className="block h-full bg-grenat-400 transition-all"
+                          style={{
+                            width: `${Math.round(
+                              ((exportFidele.etape - 1) / exportFidele.total) * 100
+                            )}%`,
+                          }}
+                        />
+                      </span>
+                    </>
+                  ) : (
+                    <span>PDF — mise en page d’origine, contenu FR</span>
+                  )}
+                </span>
+              </button>
+            ) : (
+              // Original .txt / .md / .epub : il n’y a pas de mise en
+              // page d’origine à conserver (pas de PDF source). On
+              // n’affiche plus un bouton qui échouait binairement
+              // (« No PDF header found ») — on oriente vers les deux
+              // alternatives qui produisent bien un PDF lisible.
+              <p className="mt-2 text-[11px] text-encre-500 bg-nuit-800/40 border border-nuit-700/40 rounded-xl px-3 py-2">
+                ✦ Original <code className="text-grenat-300">{(livre.nom_fichier ?? 'texte').match(/\.[a-z0-9]+$/i)?.[0] ?? ''}</code> —
+                la mise en page d’origine n’existe pas. PDF à vous :
+                « PDF traduit (re-paginé) » ou « Imprimer en PDF ».
+              </p>
+            ))}
         </div>
 
         {/* Message langue / info */}
@@ -1007,7 +1028,7 @@ export default function EspaceLivre({
         {/* Lecteur — façon livre : surface calme, colonne ~65 caractères */}
         <div
           id="lecteur-chapitre"
-          className="lecture velours p-6 sm:p-12 flex-1 min-h-[40vh]"
+          className="lecture velours lecture-transparente p-6 sm:p-12 flex-1 min-h-[40vh]"
         >
           {chargementChapitre ? (
             <p className="text-encre-500 text-sm animate-pouls-doux text-center">
@@ -1035,7 +1056,7 @@ export default function EspaceLivre({
                   term={term}
                   texte={texteNet}
                   plaques={plaques}
-                  indexActif={indexActif}
+                  indexActif={indexAffiche}
                   onTerm={setTerm}
                   onIndexActif={setIndexActif}
                 />

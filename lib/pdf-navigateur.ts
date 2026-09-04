@@ -20,7 +20,19 @@ export async function mesurerOriginalPdf(
   maxPages: number = 8
 ): Promise<GeoOrigine | null> {
   pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-  const tache: any = (pdfjs as any).getDocument({ data: donnees });
+  // Surface minimale du document demandé à pdf.js (les types de la
+  // distribution ne couvrent pas tout — et le worker détache le buffer,
+  // d'où la copie dédiée dans export-fidele.ts).
+  const tache = (pdfjs.getDocument({ data: donnees }) as unknown) as {
+    promise: Promise<{
+      numPages: number;
+      getPage(i: number): Promise<{
+        getViewport(o: { scale: number }): { width: number; height: number };
+        getTextContent(): Promise<{ items: unknown[] }>;
+      }>;
+      destroy?(): Promise<void> | void;
+    }>;
+  };
   const doc = await tache.promise;
   try {
     const n = Math.min(maxPages, doc.numPages);

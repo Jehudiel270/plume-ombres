@@ -1,28 +1,45 @@
 /* ============================================================
  * service-worker.js — PWA (100 % gratuite, sans dépendance).
  *
- * Stratégie simple et sûre :
- *  - App shell (pages + assets Next) : cache-first avec mise à
- *    jour en arrière-plan (stale-while-revalidate) — la lecture
- *    reste fluide hors-ligne.
- *  - API/Supabase : network-only (jamais mis en cache — les
- *    données ont besoin d'être réelles).
- *  - Mise à jour : versionnage par constante VERSION, purge du
- *    cache obsolète à l'installation.
+ * Stratégies par famille de requêtes (même origine uniquement) :
+ *  - App shell (navigation GET : /, /bibliotheque, /livres/…) —
+ *    NETWORK-FIRST : on préfère la version fraîche depuis le
+ *    réseau, et on met à jour le cache en fond ; hors-ligne,
+ *    repli sur la page mise en cache, sinon la racine « / »
+ *    (app shell, pré-chargée à l'installation).
+ *  - Assets statiques (JS/CSS/images, /_next, /icon-*, etc.) —
+ *    CACHE-FIRST + actualisation en arrière-plan : la lecture
+ *    reste fluide hors-ligne, les fichiers se réactualisent
+ *    discrètement dès que le réseau revient.
+ *  - API /api/ (*) — NETWORK-FIRST SANS CACHE : l'API est toujours
+ *    interrogée en réseau, NE JAMAIS mise en cache (données de
+ *    traduction, statuts, livres — les données doivent rester
+ *    réelles). Hors-ligne : réponse JSON 503 propre (jamais de
+ *    donnée vieille recrachée).
+ *  - Origines tierces (Supabase, CDN) — non interceptées : le
+ *    réseau les sert directement (aucun cache, aucune donnée
+ *    de traduction stockée localement).
+ *
+ * Mise à jour : versionnage par constante VERSION, purge des
+ * caches « plume-* » obsolètes à l'installation ET à
+ * l'activation.
  *
  * NB : c'est un fichier « vanilla » servi depuis /public, donc
  * la portée (scope) est la racine du site — aucune magic Next.
  * ============================================================ */
 
-const VERSION = 'plume-v1';
+const VERSION = 'plume-v2';
 const CACHE_APP = `${VERSION}-app`;
-const CACHE_MAX_ENTREES = 120; // borné pour rester léger
+const CACHE_MAX_ENTREES = 200; // borné pour rester léger
+
+/* ---------- Cycle de vie ---------- */
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_APP);
-      // Pré-charger l'app shell (root + page bibliothèque).
+      // Pré-charger l'app shell (racine + bibliothèque) :
+      // l'accueil et la bibliothèque restent utilisables hors-ligne.
       await cache.addAll(['/', '/bibliotheque']);
       // Purge des anciennes versions.
       const cles = await caches.keys();
@@ -49,33 +66,63 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/* ---------- Interception des requêtes ---------- */
+
 self.addEventListener('fetch', (event) => {
   const requete = event.request;
-  // On ne gère que le GET (les mutations restent réseau).
+  // On ne gère que le GET (les mutations réseau restent natives).
   if (requete.method !== 'GET') return;
 
   const url = new URL(requete.url);
-  // L'API / Supabase ne se met JAMAIS en cache.
-  if (
-    url.hostname !== self.location.hostname ||
-    url.pathname.startsWith('/api/')
-  ) {
+  // Origines tierces (Supabase, fournisseurs…) : jamais interceptées.
+  if (url.hostname !== self.location.hostname) return;
+
+  // -------- API /api/ : réseau d'abord, JAMAIS de cache --------
+  // Les données (livres, chapitres, traductions…) doivent rester
+  // réelles : on laisse passer la requête réseau, et si le réseau
+  // est mort, on renvoie une erreur JSON propre plutôt qu'une
+  // donnée potentiellement périmée.
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      (async () => {
+        try {
+          const reseau = await fetch(requete);
+          // Pas de cache : on renvoie la réponse telle quelle.
+          return reseau;
+        } catch {
+          // Hors-ligne : réponse d'erreur explicite (pas de donnée
+          // stockée à renvoyer).
+          return new Response(
+            JSON.stringify({
+              erreur: 'Hors-ligne — le serveur est injoignable.',
+            }),
+            {
+              status: 503,
+              headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            }
+          );
+        }
+      })()
+    );
     return;
   }
 
-  // Pages (navigation) : réseau d'abord, repli cache (offline).
+  // -------- Navigation (pages) : réseau → repli cache --------
   if (requete.mode === 'navigate') {
     event.respondWith(
       (async () => {
         try {
           const reseau = await fetch(requete);
           const cache = await caches.open(CACHE_APP);
-          cache.put(requete, reseau.clone());
-          bornerTache(cache);
+          if (reseau.ok) {
+            // On mémorise seulement les réponses valides.
+            cache.put(requete, reseau.clone());
+            bornerTache(cache);
+          }
           return reseau;
         } catch {
-          // Hors-ligne : on renvoie la page mise en cache, sinon
-          // la page racine (le meilleure repli « app shell »).
+          // Hors-ligne : page mise en cache, sinon la racine
+          // (app shell pré-chargée — le meilleur repli).
           const cache = await caches.open(CACHE_APP);
           const cacheReponse = await cache.match(requete);
           if (cacheReponse) return cacheReponse;
@@ -86,15 +133,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets statiques (JS/CSS/images) : cache-first + actualisation.
+  // -------- Assets statiques : cache-first + actualisation --------
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_APP);
       const enCache = await cache.match(requete);
       const rafraichir = fetch(requete)
         .then((reseau) => {
-          cache.put(requete, reseau.clone());
-          bornerTache(cache);
+          if (reseau.ok) {
+            cache.put(requete, reseau.clone());
+            bornerTache(cache);
+          }
           return reseau;
         })
         .catch(() => enCache);
@@ -106,8 +155,8 @@ self.addEventListener('fetch', (event) => {
 // Borne la taille du cache (évite de saturer le quota mobile).
 function bornerTache(cache) {
   cache.keys().then((cles) => {
-    if (cles.length > CACHE_MAX_ENTREES) {
-      cache.delete(cles[0]);
+    while (cles.length > CACHE_MAX_ENTREES) {
+      cache.delete(cles.shift());
     }
   });
 }

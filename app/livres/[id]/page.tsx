@@ -42,9 +42,13 @@ export default async function PageLivre({
       somme + ((c as { texte_source?: string }).texte_source?.length ?? 0),
     0
   );
-  const chapitresLegers = (chapitres ?? []).map(
-    ({ texte_source: _texte, ...leger }) => leger
-  );
+  const chapitresLegers = (chapitres ?? []).map((chapitre) => {
+    // texte_source ne sert qu'au comptage ci-dessus (payload SSR mince
+    // côté client) : on l'écarte au passage.
+    const { texte_source: _echappee, ...leger } = chapitre;
+    void _echappee;
+    return leger;
+  });
 
   const { data: profil } = await supabase
     .from('profiles')

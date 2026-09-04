@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
@@ -22,7 +23,14 @@ export default function BarreNavigation({ email, pseudo }: Props) {
   return (
     <header className="sticky top-0 z-30 backdrop-blur-xl bg-nuit-950/75 border-b border-nuit-700/60">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        <Link href="/bibliotheque" className="flex items-baseline gap-2 group">
+        <Link href="/bibliotheque" className="flex items-center gap-2.5 group">
+          <Image
+            src="/logo.png"
+            alt="Plume d’Ombres"
+            width={40}
+            height={40}
+            className="h-9 w-9 sm:h-10 sm:w-10 object-contain transition-transform duration-300 group-hover:scale-105"
+          />
           <span className="font-display text-xl text-encre-100">
             Plume <span className="texte-douche italic">d’Ombres</span>
           </span>

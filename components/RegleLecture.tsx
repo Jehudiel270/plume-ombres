@@ -46,19 +46,17 @@ function chargerPreferences(): PreferencesLecture {
  * bouton Aa + glissières dans un menu déroulant compact.
  */
 export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
-  const [prefs, setPrefs] = useState<PreferencesLecture>(PREFERENCES_PAR_DEFAUT);
+  // Initialisation paresseuse : la lecture du localStorage se fait pendant
+  // le rendu initial (un seul coup), sans état intermédiaire « chargé ».
+  const [prefs, setPrefs] = useState<PreferencesLecture>(
+    () => chargerPreferences()
+  );
   const [ouvert, setOuvert] = useState(false);
-  const [chargé, setChargé] = useState(false);
 
-  // Lecture une seule fois au montage (évite le flash de défaut).
+  // Persistance + application aux variables CSS : l'effet ne fait que
+  // synchroniser l'état React vers l'extérieur (localStorage + DOM) —
+  // aucun setState dans le corps de l'effet.
   useEffect(() => {
-    setPrefs(chargerPreferences());
-    setChargé(true);
-  }, []);
-
-  // Persistance + application aux variables CSS.
-  useEffect(() => {
-    if (!chargé) return;
     try {
       window.localStorage.setItem(CLEF_PREFERENCES, JSON.stringify(prefs));
     } catch {
@@ -71,7 +69,7 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
         cible.style.setProperty(cle, valeur);
       }
     }
-  }, [prefs, idLecteur, chargé]);
+  }, [prefs, idLecteur]);
 
   function maj(patch: Partial<PreferencesLecture>) {
     setPrefs((p) => assainirPreferences({ ...p, ...patch }));

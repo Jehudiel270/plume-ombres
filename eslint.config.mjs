@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Fichiers tiers / assets non lintés :
     "public/**",
     "node_modules/**",
+    // Scripts de debug / tests locaux (tsx, code volontairement pragmatique) :
+    "scripts/**",
   ]),
 ]);
 

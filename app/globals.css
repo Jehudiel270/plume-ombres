@@ -307,8 +307,21 @@ body {
     var(--ombre-carte);
 }
 
-/* ---------- Lecteur façon livre ----------
-   Les réglages de confort (police, taille, interligne, largeur,
+/* ---------- Fond d'ambiance (WebGL) ---------- */
+/* Canvas fixe derrière tout le contenu : la nuit vivante
+   (brume bordeaux/plum en dérive lente, braises, vignette, grain).
+   Le <body> garde son dégradé CSS en repli si WebGL échoue. */
+.fond-ambiance {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -10;
+  pointer-events: none;
+}
+
+/* ---------- Lecteur façon livre ---------- */
+/* Les réglages de confort (police, taille, interligne, largeur,
    justification, thème) sont portés par des variables CSS posées
    par le composant RegleLecture — d'où les var(--pref-*, defaut). */
 .lecture {
@@ -321,6 +334,26 @@ body {
     var(--pref-fond, var(--color-nuit-900));
   color: var(--pref-encre, var(--color-encre-100));
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Lecteur « page sur nuit » : fond légèrement translucide pour que
+   la brume d'ambiance (canvas WebGL) transparaît derrière le texte,
+   sans jamais pénaliser la lisibilité — le confort (thème clair…)
+   reste porté par les variables --pref-*. */
+.lecture.lecture-transparente {
+  background:
+    radial-gradient(
+      ellipse 70% 40% at 50% 0%,
+      color-mix(in srgb, var(--color-grenat-700) 10%, transparent),
+      transparent
+    ),
+    color-mix(
+      in srgb,
+      var(--pref-fond, var(--color-nuit-900)) 90%,
+      transparent
+    );
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 /* Colonne de lecture : largeur réglable en « ch » (défaut 65) */

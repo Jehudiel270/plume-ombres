@@ -20,20 +20,26 @@ interface EvenementInstall {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+/** Détection « déjà installée » (standalone) — initialisation paresseuse,
+ *  lue une seule fois au premier rendu : pas de setState synchrone dans
+ *  un effet (pattern exigé par les règles React Compiler, v7). */
+function estInstalleStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
 export default function PWA() {
+  const [evenement, setEvenement] = useState<EvenementInstall | null>(null);
   const [installable, setInstallable] = useState(false);
-  const [installed, setInstalled] = useState(false);
-  const evtRef = useState<EvenementInstall | null>(null);
-  const [evt, setEvt] = evtRef;
+  const [installe, setInstalle] = useState(estInstalleStandalone);
 
+  // Enregistrement du service worker + écoute des événements
+  // d'installation (Chromium / Android). Le body de l'effet ne fait que
+  // s'abonner à des événements système : aucun setState synchrone.
   useEffect(() => {
-    // Détection d'une installation déjà faite (standalone).
-    const estStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (estStandalone) setInstalled(true);
-
-    // Enregistrement du service worker (HTTPS requis ; localhost ok).
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
@@ -41,36 +47,35 @@ export default function PWA() {
           .catch((e) => console.warn('SW non enregistré :', e));
       });
     }
-
-    // Bouton d'installation.
-    const surInstall = (e: Event) => {
+    const surAjout = (e: Event) => {
       e.preventDefault();
-      setEvt(e as unknown as EvenementInstall);
+      setEvenement(e as unknown as EvenementInstall);
       setInstallable(true);
     };
     const surInstalle = () => {
-      setInstalled(true);
+      setInstalle(true);
       setInstallable(false);
     };
-    window.addEventListener('beforeinstallprompt', surInstall);
+    window.addEventListener('beforeinstallprompt', surAjout);
     window.addEventListener('appinstalled', surInstalle);
     return () => {
-      window.removeEventListener('beforeinstallprompt', surInstall);
+      window.removeEventListener('beforeinstallprompt', surAjout);
       window.removeEventListener('appinstalled', surInstalle);
     };
   }, []);
 
   // Rendu nul si rien à montrer (desktop sans prompt, ou déjà installé).
-  if (installed || !installable) return null;
+  if (installe || !installable) return null;
 
   async function installer() {
-    if (!evt) return;
-    await evt.prompt();
-    const choix = await evt.userChoice;
+    if (!evenement) return;
+    await evenement.prompt();
+    const choix = await evenement.userChoice;
     if (choix.outcome === 'accepted') {
+      setInstalle(true);
       setInstallable(false);
     }
-    setEvt(null);
+    setEvenement(null);
   }
 
   return (
@@ -81,7 +86,7 @@ export default function PWA() {
       title="Installer Plume d’Ombres comme application"
     >
       <span aria-hidden>⤓</span>
-      Installer l'application
+      Installer l&rsquo;application
     </button>
   );
 }
