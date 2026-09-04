@@ -3,8 +3,11 @@
 // Bibliothèque : grille des livres + zone d'import + suppression.
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Livre } from '@/lib/types';
+import { assainirProgression } from '@/lib/progression';
+import type { ProgressionLecture } from '@/lib/progression';
+import { CLEF_PROGRESSION } from '@/lib/progression';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import ZoneImport from './ZoneImport';
 
@@ -40,6 +43,22 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
   const routeur = useRouter();
   const [livres, setLivres] = useState<Livre[]>(livresInitiaux);
   const [suppression, setSuppression] = useState<string | null>(null);
+  // Points de lecture mémorisés (localStorage) — lus côté client seulement
+  // pour afficher le badge « Reprendre… » sur chaque carte.
+  const [progressions, setProgressions] = useState<
+    Record<string, ProgressionLecture>
+  >({});
+
+  useEffect(() => {
+    try {
+      const brut = window.localStorage.getItem(CLEF_PROGRESSION);
+      if (!brut) return;
+      const p = assainirProgression(JSON.parse(brut));
+      if (p) setProgressions({ [p.livreId]: p });
+    } catch {
+      /* stockage indisponible : pas de badge */
+    }
+  }, []);
 
   async function supprimer(livre: Livre) {
     if (
@@ -107,6 +126,17 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
                 {livre.langue_source.toUpperCase()} →{' '}
                 {livre.langue_cible.toUpperCase()} · {livre.nom_fichier}
               </p>
+
+              {progressions[livre.id] && (
+                <p
+                  className="text-[11px] text-grenat-300/90 mt-1 flex items-center gap-1.5"
+                  title="Où vous en étiez la dernière fois"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-grenat-400 animate-pouls-doux shrink-0" />
+                  Reprendre : {progressions[livre.id].libelle || 'lecture'} ·{' '}
+                  {Math.round(progressions[livre.id].ratio * 100)} %
+                </p>
+              )}
 
               <div className="flex items-center justify-between text-[11px] text-encre-500 mt-auto pt-2 border-t border-nuit-700/60">
                 <span>Ajouté le {dateCourte(livre.created_at)}</span>

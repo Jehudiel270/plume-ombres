@@ -38,7 +38,49 @@ export interface LivrePret {
 export function preparerLivre(texteBrut: string, nomFichier: string): LivrePret {
   const chapitresBruts = decouperEnChapitres(texteBrut);
 
-  const chapitres: ChapitrePret[] = chapitresBruts.map((c, index) => {
+  return assemblage(titreDepuisNom(nomFichier), '', chapitresBruts.map((c, index) => ({
+    numero: index,
+    titre: c.titre || `Chapitre ${index + 1}`,
+    texte: c.texte,
+  })));
+}
+
+/**
+ * Prépare un livre dont les chapitres sont déjà connus (ex. EPUB, où
+ * la table des matières fournit les titres). Même pipeline de
+ * segmentation que `preparerLivre`.
+ */
+export function preparerLivreDepuisChapitres(
+  chapitres: Array<{ titre: string; texte: string }>,
+  titre: string,
+  auteur: string
+): LivrePret {
+  return assemblage(
+    titre.trim() || 'Livre sans titre',
+    auteur.trim(),
+    chapitres.map((c, index) => ({
+      numero: index,
+      titre: c.titre.trim() || `Chapitre ${index + 1}`,
+      texte: c.texte,
+    }))
+  );
+}
+
+/** Titre d'un livre déduit du nom de fichier (extension retirée). */
+function titreDepuisNom(nomFichier: string): string {
+  return nomFichier.replace(/\.[^.]+$/, '').trim() || 'Livre sans titre';
+}
+
+/**
+ * Noyau commun : des pires (titre, texte) de chapitres → structure
+ * insérable (segments découpés par taille max).
+ */
+function assemblage(
+  titre: string,
+  auteur: string,
+  pires: Array<{ numero: number; titre: string; texte: string }>
+): LivrePret {
+  const chapitres: ChapitrePret[] = pires.map((c) => {
     const unites: Unite[] = decouperTexte(c.texte, MAX_CHARS_SEGMENT);
     const segments: SegmentBrut[] = unites.map((u, i) => ({
       position: i,
@@ -47,17 +89,15 @@ export function preparerLivre(texteBrut: string, nomFichier: string): LivrePret 
     }));
     return {
       id: crypto.randomUUID(),
-      position: index,
-      titre: c.titre || `Chapitre ${index + 1}`,
+      position: c.numero,
+      titre: c.titre,
       texte_source: c.texte,
       segments,
     };
   });
-
-  const nomSansExtension = nomFichier.replace(/\.[^.]+$/, '').trim();
   return {
-    titre: nomSansExtension || 'Livre sans titre',
-    auteur: '',
+    titre,
+    auteur,
     chapitres,
     totalSegments: chapitres.reduce((n, c) => n + c.segments.length, 0),
   };

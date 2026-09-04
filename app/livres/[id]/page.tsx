@@ -28,11 +28,23 @@ export default async function PageLivre({
     .maybeSingle();
   if (!livre) notFound();
 
+  // texte_source est nécessaire pour estimer le temps de lecture —
+  // on le compte côté serveur puis on le RETIRE avant de passer les
+  // chapitres au client (payload SSR mince).
   const { data: chapitres } = await supabase
     .from('chapitres')
-    .select('id, position, titre, statut')
+    .select('id, position, titre, statut, texte_source')
     .eq('livre_id', id)
     .order('position', { ascending: true });
+
+  const totalCaracteres = (chapitres ?? []).reduce(
+    (somme, c) =>
+      somme + ((c as { texte_source?: string }).texte_source?.length ?? 0),
+    0
+  );
+  const chapitresLegers = (chapitres ?? []).map(
+    ({ texte_source: _texte, ...leger }) => leger
+  );
 
   const { data: profil } = await supabase
     .from('profiles')
@@ -50,7 +62,8 @@ export default async function PageLivre({
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 animate-fondu-monte">
         <EspaceLivre
           livreInitial={livre as Livre}
-          chapitresInitiaux={(chapitres ?? []) as Chapitre[]}
+          chapitresInitiaux={chapitresLegers as Chapitre[]}
+          totalCaracteres={totalCaracteres}
         />
       </main>
     </>

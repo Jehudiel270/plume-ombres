@@ -266,7 +266,10 @@ body {
     var(--ombre-carte);
 }
 
-/* ---------- Lecteur façon livre ---------- */
+/* ---------- Lecteur façon livre ----------
+   Les réglages de confort (police, taille, interligne, largeur,
+   justification, thème) sont portés par des variables CSS posées
+   par le composant RegleLecture — d'où les var(--pref-*, defaut). */
 .lecture {
   background:
     radial-gradient(
@@ -274,12 +277,58 @@ body {
       color-mix(in srgb, var(--color-grenat-700) 10%, transparent),
       transparent
     ),
-    var(--color-nuit-900);
-  color: var(--color-encre-100);
+    var(--pref-fond, var(--color-nuit-900));
+  color: var(--pref-encre, var(--color-encre-100));
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Colonne de lecture : ~65 caractères, interligne aéré */
+/* Colonne de lecture : largeur réglable en « ch » (défaut 65) */
 .colonne-lecture {
-  max-width: 65ch;
+  max-width: var(--pref-largeur, 65ch);
   margin-inline: auto;
+}
+
+/* Corps du chapitre : les variables de préférence s'appliquent
+   ici (le composant lecture ne porte plus de classes hardcodées). */
+.corps-livre {
+  font-family: var(--pref-police, var(--font-lora));
+  font-size: var(--pref-taille, 17px);
+  line-height: var(--pref-interligne, 1.75);
+  text-align: var(--pref-alignment, left);
+}
+
+/* Surlignage de la recherche */
+.corps-livre mark {
+  background: color-mix(in srgb, var(--color-grenat-500) 35%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+/* Plaque active : halo pulsant pour la localiser en défilant. */
+[data-ligne-recherche-active] {
+  background: color-mix(in srgb, var(--color-grenat-400) 45%, transparent);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--color-grenat-400) 60%, transparent);
+  border-radius: 3px;
+  animation: halo-marque 1.6s ease-out infinite;
+}
+
+@keyframes halo-marque {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px
+      color-mix(in srgb, var(--color-grenat-400) 60%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px
+      color-mix(in srgb, var(--color-grenat-400) 25%, transparent);
+  }
+}
+
+/* Slider des réglages de lecture */
+input[type='range'].regl-lecture {
+  accent-color: var(--color-grenat-500);
+  height: 4px;
+  cursor: pointer;
 }

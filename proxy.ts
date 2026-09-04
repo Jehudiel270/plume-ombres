@@ -55,7 +55,10 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // On exclut les fichiers statiques et les routes API
   // (celles-ci vérifient elles-mêmes la session).
+  // ⚠ Le service worker ET le manifest ne doivent PAS être protégés :
+  // un service worker qui redirige en 307 est invalidé par le navigateur,
+  // ce qui fait échouer l'installation PWA.
   matcher: [
-    '/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!api/|_next/static|_next/image|favicon.ico|service-worker\\.js|sw\\.js|manifest\\.webmanifest|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };

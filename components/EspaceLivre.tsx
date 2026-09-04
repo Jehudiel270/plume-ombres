@@ -7,7 +7,14 @@
 // traduction (file d'attente, progression, annulation), export.
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import Link from 'next/link';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import { paginer } from '@/lib/pagination';
@@ -19,6 +26,11 @@ import type {
 } from '@/lib/types';
 import { LANGUES } from '@/lib/types';
 import { useMoteurTraduction } from '@/lib/useMoteurTraduction';
+import { useLecture } from '@/lib/useLecture';
+import { CLEF_PROGRESSION } from '@/lib/progression';
+import { chercherTermes, type Plaque } from '@/lib/recherche';
+import Recherche from '@/components/Recherche';
+import RegleLecture from '@/components/RegleLecture';
 
 const CODES = Object.keys(LANGUES) as CodeLangue[];
 
@@ -52,9 +64,12 @@ interface Compteurs {
 export default function EspaceLivre({
   livreInitial,
   chapitresInitiaux,
+  totalCaracteres,
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
+  /** Nombre total de caractères du livre (estimation du temps de lecture). */
+  totalCaracteres: number;
 }) {
   const supabaseRef = useRef(creerClientNavigateur());
   const requeteRef = useRef<string | null>(null);
@@ -71,6 +86,99 @@ export default function EspaceLivre({
   const [messageLangue, setMessageLangue] = useState<string | null>(null);
 
   const { actif, progression, lancer, annuler } = useMoteurTraduction();
+
+  // ---------- Progression de lecture + stats (100 % local) ----------
+  const {
+    tempsLecture,
+    tempsEstime,
+    etiquetteReprise,
+    chapitreReprendre,
+    enregistrer,
+  } = useLecture({
+    livreId: livre.id,
+    titreLivre: livre.titre,
+    chapitres,
+    totalCaracteres,
+  });
+
+  // Élément du lecteur mesuré pour calculer le ratio de texte lu.
+  const corpsLectureRef = useRef<HTMLDivElement | null>(null);
+
+  /** Ratio (0 → 1) du texte du chapitre déjà lu, dérivé du défilement. */
+  function ratioLecture(): number {
+    const corps = corpsLectureRef.current;
+    if (!corps) return 0;
+    // Le corps du chapitre est très haut : on mesure quelle longueur de
+    // texte est passée sous l'œil (le haut du corps remonte à l'écran).
+    const haut = corps.getBoundingClientRect().top;
+    const defilement = -haut; // px de texte déjà passés sous l'œil
+    const longueur = corps.scrollHeight * 0.8 || 1; // borne défensive
+    return Math.min(1, Math.max(0, defilement / longueur));
+  }
+
+  /** Persiste le point de lecture (débrayé : 1 s max entre écritures). */
+  const derniersEnregistrets = useRef(0);
+  useEffect(() => {
+    if (!selection) return;
+    const idChapitre = selection;
+    function surDefilement() {
+      const maintenant = Date.now();
+      if (maintenant - derniersEnregistrets.current < 1000) return;
+      derniersEnregistrets.current = maintenant;
+      enregistrer(idChapitre, ratioLecture());
+    }
+    surDefilement();
+    window.addEventListener('scroll', surDefilement, { passive: true });
+    return () => window.removeEventListener('scroll', surDefilement);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection, chapitreComplet?.id]);
+
+  // Au retour sur un livre déjà ouvert : on réouvre et on positionne
+  // la lecture là où l'utilisateur l'avait laissée.
+  const repriseFait = useRef(false);
+  useEffect(() => {
+    if (repriseFait.current || !chapitreReprendre) return;
+    repriseFait.current = true;
+    setSelection(chapitreReprendre);
+  }, [chapitreReprendre]);
+  // Repositionnement une fois le chapitre chargé et le texte posé.
+  useEffect(() => {
+    if (!chapitreComplet) return;
+    const id = chapitreComplet.id;
+    const timer = window.setTimeout(() => {
+      const corps = corpsLectureRef.current;
+      if (!corps) return;
+      const ratio = ratioLectureCible(id);
+      if (ratio <= 0.02) return;
+      // Le point de reprise est à `ratio` de la longueur du texte : on
+      // défile pour qu'il se trouve légèrement sous le haut de l'écran.
+      const defilement = ratio * 0.8 * corps.scrollHeight;
+      const hautAbsolu = corps.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        top: Math.max(0, hautAbsolu + defilement - window.innerHeight * 0.08),
+        behavior: 'auto',
+      });
+    }, 150);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapitreComplet?.id]);
+
+  /** Ratio enregistré pour un chapitre donné (0 si inconnu). */
+  function ratioLectureCible(chapitreId: string): number {
+    try {
+      const brut = window.localStorage.getItem(CLEF_PROGRESSION);
+      if (!brut) return 0;
+      const p = JSON.parse(brut) as {
+        livreId?: string;
+        chapitreId?: string;
+        ratio?: number;
+      };
+      if (p.livreId !== livre.id || p.chapitreId !== chapitreId) return 0;
+      return typeof p.ratio === 'number' ? Math.min(Math.max(p.ratio, 0), 1) : 0;
+    } catch {
+      return 0;
+    }
+  }
 
   // ---------- Chargement d'un chapitre complet (textes) ----------
   // Chargement piloté par la sélection ; l'état « en chargement » est
@@ -269,6 +377,59 @@ export default function EspaceLivre({
     imprimerLivre(livre.titre, chapitres);
   }, [livre.titre, chargerChapitresExport]);
 
+  /**
+   * Télécharge le livre TRADUIT en PDF — même gabarit que l'original
+   * (dimensions + marges du fichier source s'il est un PDF), texte
+   * justifié, lettrines. La génération tourne 100% dans le navigateur.
+   */
+  const [genPdf, setGenPdf] = useState<{ fait: number; total: number } | null>(
+    null
+  );
+  const telechargerPdfTraduit = useCallback(async () => {
+    if (livre.fichier_original && genPdf) return; // déjà en cours
+    try {
+      setGenPdf({ fait: 0, total: 1 });
+      const { genererPdfTraduit } = await import('@/lib/pdf-traduit');
+      // 1. Géométrie de l'original (PDF uniquement ; A4 sinon).
+      const estPdf =
+        (livre.nom_fichier ?? '').toLowerCase().endsWith('.pdf') &&
+        !!livre.fichier_original;
+      let geo;
+      if (estPdf) {
+        const { data } = await supabaseRef.current.storage
+          .from('originaux')
+          .download(livre.fichier_original!);
+        if (data) {
+          const { mesurerOriginalPdf } = await import('@/lib/pdf-navigateur');
+          geo = await mesurerOriginalPdf(await data.arrayBuffer());
+        }
+      }
+      if (geo) setGenPdf({ fait: 0, total: 2 });
+      // 2. Chapitres traduits en ordre.
+      const chapitres = await chargerChapitresExport();
+      // 3. Génération (barre de progression par chapitre).
+      const bytes = await genererPdfTraduit({
+        titreLivre: livre.titre,
+        auteur: livre.auteur,
+        chapitres,
+        geo: geo ?? undefined,
+        onChapitre: (traites, total) =>
+          setGenPdf({ fait: traites + 1, total }),
+      });
+      setGenPdf(null);
+      const base = (livre.nom_fichier ?? livre.titre).replace(/\.pdf$/i, '');
+      telechargerBlob(
+        new Blob([bytes as BlobPart], { type: 'application/pdf' }),
+        `${base} — traduit.pdf`
+      );
+    } catch (e) {
+      setGenPdf(null);
+      setMessageLangue(
+        `PDF traduit impossible : ${e instanceof Error ? e.message : 'erreur inconnue'}`
+      );
+    }
+  }, [livre, genPdf, chargerChapitresExport]);
+
   /** Télécharge le fichier ORIGINAL (mise en forme d'origine intacte). */
   const telechargerOriginal = useCallback(async () => {
     if (!livre.fichier_original) {
@@ -318,6 +479,61 @@ export default function EspaceLivre({
       return chapitreComplet.texte_traduit ?? chapitreComplet.texte_source;
     return chapitreComplet.texte_source;
   }, [chapitreComplet, lecture]);
+
+  const texteNet = useMemo(() => texteAffiche.trim(), [texteAffiche]);
+
+  // ---------- Recherche plein texte (chapitre affiché) ----------
+  const [term, setTerm] = useState('');
+  const [indexActif, setIndexActif] = useState(0);
+  const plaques = useMemo(
+    () =>
+      term.trim().length >= 2 && texteNet.length > 0
+        ? chercherTermes(texteNet, term)
+        : [],
+    [texteNet, term]
+  );
+  // Le chapitre (ou la langue affichée) change : on repart à zéro.
+  useEffect(() => {
+    setIndexActif(0);
+  }, [texteNet, term]);
+  useEffect(() => {
+    if (plaques.length > 0 && indexActif >= plaques.length) setIndexActif(0);
+  }, [plaques, indexActif]);
+  // La plaque active est ramenée à l'écran (marque spéciale montée
+  // dans le corps du chapitre).
+  useEffect(() => {
+    if (plaques.length === 0) return;
+    const marque = document.querySelector('[data-ligne-recherche-active]');
+    marque?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [indexActif, plaques.length]);
+
+  /** Rendu du texte avec surlignage des occurrences recherchées ;
+   * la plaque active porte un marqueur pour le défilement. */
+  const surligne = (texte: string) => {
+    if (plaques.length === 0) return texte;
+    const morceaux: ReactNode[] = [];
+    let curseur = 0;
+    plaques.forEach((p, i) => {
+      if (p.debut < curseur) return; // anomalie défensive
+      if (p.debut > curseur) morceaux.push(texte.slice(curseur, p.debut));
+      const contenu = texte.slice(p.debut, p.fin);
+      morceaux.push(
+        i === indexActif ? (
+          <mark
+            key={`actif-${i}`}
+            data-ligne-recherche-active=""
+          >
+            {contenu}
+          </mark>
+        ) : (
+          <mark key={`occ-${i}`}>{contenu}</mark>
+        )
+      );
+      curseur = p.fin;
+    });
+    if (curseur < texte.length) morceaux.push(texte.slice(curseur));
+    return morceaux;
+  };
 
   const pourcentage =
     compteurs && compteurs.total > 0
@@ -404,6 +620,18 @@ export default function EspaceLivre({
             <p className="text-[11px] text-encre-500">
               {LANGUES[livre.langue_source as CodeLangue]} →{' '}
               {LANGUES[livre.langue_cible as CodeLangue]}
+              {tempsEstime && (
+                <span title="Temps estimé de lecture du livre entier">
+                  {' '}
+                  · ⏱ ~{tempsEstime}
+                </span>
+              )}
+              {tempsLecture && (
+                <span title="Temps que vous y avez consacré">
+                  {' '}
+                  · lu : {tempsLecture}
+                </span>
+              )}
             </p>
           </div>
 
@@ -473,6 +701,17 @@ export default function EspaceLivre({
           >
             🖨 PDF
           </button>
+          <button
+            type="button"
+            onClick={telechargerPdfTraduit}
+            disabled={!!genPdf || exportEnCours}
+            className="bouton-principal !px-3 !py-1.5 text-xs"
+            title="Télécharger le livre TRADUIT en PDF (même gabarit que l'original)"
+          >
+            {genPdf
+              ? `⏳ ${genPdf.fait}/${genPdf.total === 2 ? '…' : genPdf.total} PDF`
+              : '⬇ PDF traduit'}
+          </button>
           {livre.fichier_original && (
             <button
               type="button"
@@ -485,6 +724,13 @@ export default function EspaceLivre({
             </button>
           )}
         </div>
+
+        {/* Message langue / info */}
+        {etiquetteReprise && (
+          <p className="text-[11px] text-encre-500 -mt-2 px-1">
+            ✦ Où vous êtes : {etiquetteReprise}
+          </p>
+        )}
 
         {messageLangue && (
           <p className="text-xs text-grenat-300 bg-grenat-700/15 border border-grenat-700/40 rounded-xl px-4 py-2">
@@ -613,7 +859,10 @@ export default function EspaceLivre({
         )}
 
         {/* Lecteur — façon livre : surface calme, colonne ~65 caractères */}
-        <div className="lecture velours p-6 sm:p-12 flex-1 min-h-[40vh]">
+        <div
+          id="lecteur-chapitre"
+          className="lecture velours p-6 sm:p-12 flex-1 min-h-[40vh]"
+        >
           {chargementChapitre ? (
             <p className="text-encre-500 text-sm animate-pouls-doux text-center">
               Ouverture du chapitre…
@@ -633,13 +882,31 @@ export default function EspaceLivre({
                 </h2>
                 <div className="liseret mx-auto mt-5" />
               </header>
+
+              {/* Barre outils du chapitre : recherche + réglages confort */}
+              <div className="flex items-center gap-2 mb-8 -mx-1 px-1">
+                <Recherche
+                  term={term}
+                  texte={texteNet}
+                  plaques={plaques}
+                  indexActif={indexActif}
+                  onTerm={setTerm}
+                  onIndexActif={setIndexActif}
+                />
+                <RegleLecture idLecteur="lecteur-chapitre" />
+              </div>
+
               {texteAffiche.trim().length === 0 ? (
                 <p className="text-encre-500 italic text-center text-sm">
                   Ce chapitre est vide.
                 </p>
               ) : (
-                <div className="whitespace-pre-wrap font-lecture text-[15px] sm:text-[17px] leading-[1.75] text-encre-100/95 first-letter:float-left first-letter:font-display first-letter:text-6xl first-letter:leading-[0.8] first-letter:pr-3 first-letter:text-grenat-400">
-                  {texteAffiche.trim()}
+                <div
+                  id="corps-livre"
+                  ref={corpsLectureRef}
+                  className="corps-livre whitespace-pre-wrap text-inherit/95 first-letter:float-left first-letter:font-display first-letter:text-6xl first-letter:leading-[0.8] first-letter:pr-3 first-letter:text-grenat-400"
+                >
+                  {surligne(texteNet)}
                 </div>
               )}
             </article>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Playfair_Display, Lora } from 'next/font/google';
 import './globals.css';
+import PWA from '@/components/PWA';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -21,10 +22,28 @@ export const metadata: Metadata = {
   },
   description:
     'Studio personnel de traduction littéraire pour la dark romance : import, découpage, traduction et réassemblage fidèle de vos textes.',
+  // PWA — icône plein écran iOS (« Ajouter à l'écran d'accueil »)
+  // et signal de nature d'application mobile.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Plume d’Ombres',
+  },
+  formatDetection: { telephone: false },
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icon-192.png',
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: '#0b0709',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RacineLayout({
@@ -32,7 +51,10 @@ export default function RacineLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr" className={`${playfair.variable} ${lora.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <PWA />
+      </body>
     </html>
   );
 }

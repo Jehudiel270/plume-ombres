@@ -1,23 +1,27 @@
 'use client';
 
 // ============================================================
-// ZoneImport.tsx — Import d'un livre (.txt / .md / .pdf).
-// - .txt / .md : lu tel quel (UTF-8).
-// - .pdf      : texte extrait dans le navigateur (pdf.js), puis
-//   le même pipeline (chapitres → segments → Supabase) s'applique.
-// RLS : l'utilisateur connecté est le propriétaire.
+// ZoneImport.tsx — Import d'un livre (.txt / .md / .pdf / .epub).
+// - .txt / .md : lus tels quels (UTF-8).
+// - .pdf       : texte extrait dans le navigateur (pdf.js).
+// - .epub      : zip dézippé localement (jszip) — chapitres lu de
+//   la spine (ordre de lecture), titre/auteur de l'OPF.
+// Tous les formats passent par le même pipeline
+// (chapitres → segments → Supabase) ; RLS : l'utilisateur connecté
+// est le propriétaire.
 // ============================================================
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
-import { preparerLivre } from '@/lib/import-livre';
+import { preparerLivre, preparerLivreDepuisChapitres } from '@/lib/import-livre';
+import { lireEpub } from '@/lib/import-epub';
 import type { CodeLangue } from '@/lib/types';
 import { LANGUES } from '@/lib/types';
 
 const CODES = Object.keys(LANGUES) as CodeLangue[];
 const TAILLE_LOT = 400; // lignes insérées par requête
-const EXTENSIONS = /\.(txt|md|markdown|pdf)$/i;
+const EXTENSIONS = /\.(txt|md|markdown|pdf|epub)$/i;
 
 export default function ZoneImport() {
   const routeur = useRouter();
@@ -61,7 +65,7 @@ export default function ZoneImport() {
   async function importerFichier(fichier: File) {
     if (!EXTENSIONS.test(fichier.name)) {
       setErreur(
-        'Format non supporté : choisis un fichier .txt, .md ou .pdf.'
+        'Format non supporté : choisis un fichier .txt, .md, .pdf ou .epub.'
       );
       return;
     }
@@ -69,11 +73,29 @@ export default function ZoneImport() {
     setEnCours(true);
 
     try {
-      const texte = await lireTexte(fichier);
+      // 1. Lire les chapitres selon le format du fichier.
+      let livre: ReturnType<typeof preparerLivre>;
 
-      // 1. Découpage en chapitres puis préparation des segments.
-      setEtape('Découpage du texte…');
-      const livre = preparerLivre(texte, fichier.name);
+      if (/\.(epub)$/i.test(fichier.name)) {
+        // EPUB : dézippage local (jszip), chapitres lus dans l'ordre
+        // de lecture (spine) — rien n'est envoyé à un serveur tiers.
+        setEtape('Ouverture de l’EPUB…');
+        const octets = await fichier.arrayBuffer();
+        const contenu = await lireEpub(octets);
+        if (contenu.chapitres.length === 0) {
+          throw new Error('Aucun texte exploitable dans cet EPUB.');
+        }
+        setEtape('Découpage en segments…');
+        livre = preparerLivreDepuisChapitres(
+          contenu.chapitres,
+          contenu.titre,
+          contenu.auteur
+        );
+      } else {
+        const texte = await lireTexte(fichier);
+        setEtape('Découpage du texte…');
+        livre = preparerLivre(texte, fichier.name);
+      }
       const supabase = creerClientNavigateur();
 
       // 2. Création du livre.
@@ -208,16 +230,17 @@ export default function ZoneImport() {
         </div>
         <p className="text-[11px] text-encre-500 md:max-w-60 leading-snug">
           Fichiers <code className="text-grenat-300">.txt</code>,{' '}
-          <code className="text-grenat-300">.md</code> ou{' '}
-          <code className="text-grenat-300">.pdf</code> — chapitres détectés
-          automatiquement, PDF extrait localement (rien n’est envoyé).
+          <code className="text-grenat-300">.md</code>,{' '}
+          <code className="text-grenat-300">.pdf</code> ou{' '}
+          <code className="text-grenat-300">.epub</code> — chapitres détectés
+          automatiquement, PDF/EPUB extraits localement (rien n’est envoyé).
         </p>
       </div>
 
       <input
         ref={inputRef}
         type="file"
-        accept=".txt,.md,.markdown,.pdf"
+        accept=".txt,.md,.markdown,.pdf,.epub"
         className="hidden"
         onChange={(e) => {
           const fichier = e.target.files?.[0];
@@ -256,8 +279,8 @@ export default function ZoneImport() {
               Déposer un manuscrit — glissez-le ici, ou cliquez pour parcourir
             </p>
             <p className="text-encre-500 text-xs mt-1 italic">
-              .txt, .md ou .pdf · jusqu’à ~1000 pages · découpage automatique,
-              traduction reprenable à tout moment
+              .txt, .md, .pdf ou .epub · jusqu’à ~1000 pages · découpage
+              automatique, traduction reprenable à tout moment
             </p>
           </>
         )}
