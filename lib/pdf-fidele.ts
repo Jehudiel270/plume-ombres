@@ -44,7 +44,7 @@ import {
   rgb,
   type PDFFont,
 } from 'pdf-lib';
-import { nettoyerTextePdf } from './texte-pdf';
+import { extraireTextePage, type ItemPdf } from './texte-pdf';
 
 // ---------- Types d'entrée (sortie du scanner pdf.js) ----------
 
@@ -138,11 +138,9 @@ export async function scannerPagesFideles(
     const vp = p.getViewport({ scale: 1 });
     const contenu = await p.getTextContent();
     const lins: LigneTexte[] = [];
-    // Flux de texte : MEME algorithme que extraireTexteDocument
-    // (mots séparés par espace, fin de ligne par hasEOL), puis
-    // nettoyage identique — c'est ce flux qui alimente l'alignement.
-    let ligneCourante = '';
-    const phrasesLigne: string[] = [];
+    // Géométrie : une entrée par item texte posé (pour mesurer le
+    // corps, l'interligne et la zone). Convention PDF : origine
+    // bas-gauche, y vers le haut — transform[5] = baseline.
     for (const brut of contenu.items as Array<{
       str?: string;
       hasEOL?: boolean;
@@ -151,10 +149,7 @@ export async function scannerPagesFideles(
       height?: number;
     }>) {
       const str = brut.str ?? '';
-      ligneCourante += (ligneCourante && str ? ' ' : '') + str;
       if (str.trim() !== '' && (brut.width ?? 0) > 0 && brut.transform) {
-        // Convention PDF : origine bas-gauche, y vers le haut —
-        // transform[5] est la baseline de la boîte posée.
         lins.push({
           x: brut.transform[4],
           y: brut.transform[5],
@@ -164,13 +159,11 @@ export async function scannerPagesFideles(
           dy: Math.abs(brut.transform[0]),
         });
       }
-      if (brut.hasEOL && str) {
-        phrasesLigne.push(ligneCourante);
-        ligneCourante = '';
-      }
     }
-    if (ligneCourante.trim() !== '') phrasesLigne.push(ligneCourante);
-    const texteNettoye = nettoyerTextePdf(phrasesLigne.join('\n'));
+    // Flux de texte : STRICTEMENT le même que extraireTexteDocument
+    // (extraireTextePage → paragraphes détectés par indentation) —
+    // c'est ce flux qui alimente l'alignement exact des pages.
+    const texteNettoye = extraireTextePage(contenu.items as ItemPdf[]);
     textes.push(texteNettoye);
     pages.push({ largeur: vp.width, hauteur: vp.height, lignes: lins });
   }
