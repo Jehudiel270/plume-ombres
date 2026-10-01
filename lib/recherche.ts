@@ -94,3 +94,123 @@ export function extraireContexte(
     (fin < texte.length ? '…' : '')
   );
 }
+
+// ============================================================
+// Recherche PLEIN LIVRE (tous les chapitres d'un coup).
+//
+// Le moteur réutilise `chercherTermes` (accents ignorés, casse
+// ignorée) et agrège les occurrences par chapitre, avec pour
+// chaque chapitre :
+//  - son identifiant et sa position (→ lien direct),
+//  - une ancre stable (`chapitre-<position>`) pour le saut,
+//  - le NOMBRE TOTAL d'occurrences (comptage exact),
+//  - des EXTRAITS avec contexte (plafonnés pour la charge utile).
+// ============================================================
+
+/** Chapitre minimal attendu par la recherche plein livre. */
+export interface ChapitreRecherche {
+  /** Identifiant du chapitre en base. */
+  id: string;
+  /** Position dans le livre (0 = premier). */
+  position: number;
+  /** Titre affiché. */
+  titre: string;
+  /** Texte à parcourir (traduit de préférence). */
+  texte: string;
+}
+
+/** Un extrait : plaque (pour surligner) + contexte textuel. */
+export interface ExtraitRecherche {
+  /** Plage [debut, fin) dans le texte du chapitre. */
+  plaque: Plaque;
+  /** Contexte lisible autour de l'occurrence. */
+  contexte: string;
+}
+
+/** Résultat de recherche pour un chapitre donné. */
+export interface ResultatChapitreRecherche {
+  chapitreId: string;
+  position: number;
+  titre: string;
+  /** Ancre de lien direct (ex. « chapitre-3 »). */
+  ancre: string;
+  /** Nombre TOTAL d'occurrences dans ce chapitre. */
+  nbOccurrences: number;
+  /** Extraits avec contexte (plafonnés). */
+  extraits: ExtraitRecherche[];
+}
+
+/** Résultat global d'une recherche plein livre. */
+export interface ResultatRechercheLivre {
+  /** Terme recherché (tel que saisi, rogné). */
+  terme: string;
+  /** Somme des occurrences sur tout le livre. */
+  totalOccurrences: number;
+  /** Nombre de chapitres contenant au moins une occurrence. */
+  nbChapitresTouches: number;
+  /** Chapitres touchés, dans l'ordre de lecture. */
+  chapitres: ResultatChapitreRecherche[];
+}
+
+/** Préfixe des ancres de chapitre (liens directs). */
+export const ANCRE_CHAPITRE_PREFIXE = 'chapitre-';
+
+/** Ancre de lien direct vers un chapitre (position 0 → « chapitre-1 »). */
+export function ancreChapitre(position: number): string {
+  return `${ANCRE_CHAPITRE_PREFIXE}${position + 1}`;
+}
+
+/**
+ * Recherche un terme dans TOUS les chapitres d'un livre.
+ *
+ * @param chapitres chapitres du livre (tout ordre ; triés par position)
+ * @param terme     terme recherché (accents/casse ignorés, min. 2 car.)
+ * @param options   `maxExtraitsParChapitre` (défaut 20) et `marge` du
+ *                  contexte (défaut 80) — le comptage reste exact même
+ *                  quand les extraits sont plafonnés.
+ */
+export function chercherDansLivre(
+  chapitres: ChapitreRecherche[],
+  terme: string,
+  options: { maxExtraitsParChapitre?: number; marge?: number } = {}
+): ResultatRechercheLivre {
+  const requete = terme.trim();
+  const maxExtraits = Math.max(1, options.maxExtraitsParChapitre ?? 20);
+  const marge = options.marge ?? 80;
+
+  const vide: ResultatRechercheLivre = {
+    terme: requete,
+    totalOccurrences: 0,
+    nbChapitresTouches: 0,
+    chapitres: [],
+  };
+  if (requete.length < 2) return vide;
+
+  const ordonnes = [...chapitres].sort((a, b) => a.position - b.position);
+  const resultats: ResultatChapitreRecherche[] = [];
+  let total = 0;
+
+  for (const chapitre of ordonnes) {
+    const plaques = chercherTermes(chapitre.texte, requete);
+    if (plaques.length === 0) continue;
+    total += plaques.length;
+    resultats.push({
+      chapitreId: chapitre.id,
+      position: chapitre.position,
+      titre: chapitre.titre,
+      ancre: ancreChapitre(chapitre.position),
+      nbOccurrences: plaques.length,
+      extraits: plaques.slice(0, maxExtraits).map((plaque) => ({
+        plaque,
+        contexte: extraireContexte(chapitre.texte, plaque, marge),
+      })),
+    });
+  }
+
+  return {
+    terme: requete,
+    totalOccurrences: total,
+    nbChapitresTouches: resultats.length,
+    chapitres: resultats,
+  };
+}
