@@ -5,36 +5,39 @@
 // TRANSLATOR_DEFAULT ('libretranslate' | 'mymemory').
 // Cette logique ne s'exécute que côté serveur (routes API) :
 // aucune clé ni URL interne n'est exposée au navigateur.
+//
+// Une CHAÎNE DE SECOURS automatique est également disponible :
+// voir traduireAvecSecours() / ordreSecours() (providers/fallback).
 // ============================================================
 
 import type {
   FournisseurTraduction,
   OptionsTraduction,
 } from './types';
-import { FournisseurLibreTranslate } from './libretranslate';
-import { FournisseurMyMemory } from './mymemory';
-import { FournisseurGemini, cleGemini } from './gemini';
-import { FournisseurGoogleLibre } from './google';
+import { cleGemini } from './gemini';
 import type { IdFournisseur } from '@/lib/types';
 
-/** Liste exhaustive des fournisseurs disponibles. */
-export function tousLesFournisseurs(): FournisseurTraduction[] {
-  return [
-    new FournisseurLibreTranslate(),
-    new FournisseurMyMemory(),
-    new FournisseurGemini(),
-    new FournisseurGoogleLibre(),
-  ];
-}
+// Ré-export de l'API de la chaîne de secours (index → fallback, sans cycle).
+export {
+  tousLesFournisseurs,
+  fournisseurParId,
+  nomFournisseurParId,
+  ordreSecours,
+  delaiSecoursMs,
+  classerEchec,
+  moteurUtilise,
+  idMoteurUtilise,
+  traduireAvecSecours,
+  ErreurChaineSecours,
+  ORDRE_SECOURS_DEFAUT,
+  VAR_ORDRE,
+  VAR_DELAI,
+  VAR_JOURNAL,
+  type CategorieEchec,
+  type ResultatTraductionSecours,
+} from './fallback';
 
-/** Fournisseur demandé par son identifiant. */
-export function fournisseurParId(id: string): FournisseurTraduction {
-  const fournisseur = tousLesFournisseurs().find((f) => f.id === id);
-  if (!fournisseur) {
-    throw new Error(`Fournisseur de traduction inconnu : ${id}`);
-  }
-  return fournisseur;
-}
+import { fournisseurParId } from './fallback';
 
 /**
  * Fournisseur actif (choix par ordre de préférence) :
@@ -43,6 +46,9 @@ export function fournisseurParId(id: string): FournisseurTraduction {
  * 2. sinon ou 'auto' : Gemini si une clé GEMINI_API_KEY est présente,
  *    puis Google libre (rapide, sans clé).
  * LibreTranslate reste joignable explicitement pour le mode 100 % local.
+ *
+ * Note : pour une bascule automatique entre moteurs, utiliser
+ * traduireAvecSecours() (voir providers/fallback).
  */
 export function fournisseurActif(): FournisseurTraduction {
   const explicite = process.env.TRANSLATOR_DEFAULT;
