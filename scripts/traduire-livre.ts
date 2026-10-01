@@ -2,14 +2,16 @@
 // traduire-livre.ts — Traduit le livre PDF de test EN→FR et
 // sauvegarde le résultat complet sur disque.
 // Usage : npx tsx scripts/traduire-livre.ts [fichierSortie]
-// Fournisseur : auto (Gemini si clé, sinon Google libre).
+// Moteurs : chaîne de secours automatique
+//   LibreTranslate → Gemini → Google → MyMemory (ordre par défaut,
+//   configurable via TRANSLATOR_FALLBACK_ORDER).
 // ============================================================
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { extraireTexteDocument, type DocumentPdf } from '../lib/texte-pdf';
 import { decouperTexte } from '../lib/segmenter';
-import { fournisseurActif } from '../lib/providers';
+import { ordreSecours, traduireAvecSecours } from '../lib/providers';
 
 const ENTREE = 'C:/Users/dosso/dev/test-corpus/The_Predator_RuNyx.pdf';
 const SORTIE = process.argv[2] ?? 'C:/Users/dosso/dev/test-corpus/The_Predator_FR.md';
@@ -30,12 +32,15 @@ async function principal() {
   // Segments = paragraphes (≤ 6000 car.), avec leur « suite » (espacement).
   const unites = decouperTexte(texte, 6000);
 
-  const fournisseur = fournisseurActif();
-  console.log(`— Traduction EN→FR via ${fournisseur.nom} (×${CONCURRENCE}) —`);
+  const ordre = ordreSecours();
+  console.log(
+    `— Traduction EN→FR, chaîne de secours ${ordre.join(' → ')} (×${CONCURRENCE}) —`
+  );
 
   const traductions: string[] = new Array(unites.length).fill('');
   let suivant = 0;
   let erreurs = 0;
+  const parMoteur: Record<string, number> = {};
   const debut = Date.now();
 
   const travailleurs = Array.from({ length: CONCURRENCE }, async () => {
@@ -48,10 +53,12 @@ async function principal() {
         continue;
       }
       try {
-        traductions[i] = await fournisseur.traduire(u.source, {
+        const resultat = await traduireAvecSecours(u.source, {
           source: 'en',
           cible: 'fr',
         });
+        traductions[i] = resultat.traduit;
+        parMoteur[resultat.fournisseur] = (parMoteur[resultat.fournisseur] ?? 0) + 1;
       } catch {
         erreurs += 1;
         traductions[i] = u.source; // repli : texte source conservé
@@ -65,6 +72,10 @@ async function principal() {
   console.log(
     `\n  ${totalCar.toLocaleString('fr')} car. → ${dureeS.toFixed(1)} s (${Math.round(totalCar / dureeS).toLocaleString('fr')} car/s) · erreurs : ${erreurs}`
   );
+  const detailMoteurs = Object.entries(parMoteur)
+    .map(([id, n]) => `${id}×${n}`)
+    .join(' ');
+  if (detailMoteurs) console.log(`  moteurs réellement utilisés : ${detailMoteurs}`);
 
   // Réassemblage : chaque unité traduite + sa « suite », paragraphes aérés.
   const corps = unites
