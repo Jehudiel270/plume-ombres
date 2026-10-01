@@ -67,9 +67,18 @@ function dateCourte(iso: string): string {
 
 interface Props {
   livresInitiaux: Livre[];
+  /**
+   * Nombre de chapitres en erreur, par identifiant de livre
+   * (calculé côté serveur — C5 : « chapitres en erreur visibles »).
+   * Un livre absent de la table n'a aucun chapitre en erreur.
+   */
+  chapitresEnErreur?: Record<string, number>;
 }
 
-export default function BibliothequeClient({ livresInitiaux }: Props) {
+export default function BibliothequeClient({
+  livresInitiaux,
+  chapitresEnErreur = {},
+}: Props) {
   const routeur = useRouter();
   const [livres, setLivres] = useState<Livre[]>(livresInitiaux);
   const [suppression, setSuppression] = useState<string | null>(null);
@@ -113,7 +122,7 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
   async function supprimer(livre: Livre) {
     if (
       !window.confirm(
-        `Définitivement ? « ${livre.titre} » ne murmura plus.`
+        `Définitivement ? « ${livre.titre} » quittera votre bibliothèque, avec sa traduction.`
       )
     ) {
       return;
@@ -229,26 +238,54 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
 
       {/* ---------------- État vide : bibliothèque vide ---------------- */}
       {livres.length === 0 ? (
-        <div className="velours p-12 text-center animate-fondu-monte">
+        <div className="velours p-10 sm:p-12 text-center animate-fondu-monte">
           <p className="text-5xl mb-4 opacity-80" aria-hidden>
             🖋️
           </p>
           <p className="text-encre-100 font-display text-2xl">
             Une page blanche vous tend les bras.
           </p>
-          <p className="text-encre-500 text-sm mt-3 max-w-md mx-auto leading-relaxed italic">
-            Déposez un premier manuscrit ci-dessus et laissez l’encre couler :
-            le découpage, la traduction et la reprise sont automatiques.
+          <div className="liseret mx-auto mt-4" />
+          <p className="text-encre-500 text-sm mt-5 max-w-lg mx-auto leading-relaxed italic">
+            Déposez un premier manuscrit dans la zone ci-dessus : l’extraction du
+            texte, le découpage en chapitres, la traduction et la reprise sont
+            automatiques. Vous n’avez rien à préparer.
           </p>
-          {/* CTA d'import : ancre la zone de dépôt déjà présente plus
-              haut (l'URL d'import « réelle » est bien /bibliotheque). */}
-          <a
-            href="#zone-import"
-            className="bouton-principal mt-6 inline-flex"
-          >
-            <span aria-hidden>🕯️</span>
-            Importer votre premier livre
-          </a>
+
+          {/* Formats acceptés — le rappel utile au tout premier import */}
+          <ul className="flex flex-wrap items-center justify-center gap-2 mt-6">
+            {[
+              { ext: '.txt', conseil: 'le plus fiable' },
+              { ext: '.md', conseil: 'titres reconnus' },
+              { ext: '.epub', conseil: 'chapitres repris' },
+              { ext: '.pdf', conseil: 'texte sélectionnable' },
+            ].map((f) => (
+              <li
+                key={f.ext}
+                className="rounded-full border border-nuit-700 bg-white/[0.03] px-3 py-1.5 text-[11px] text-encre-300"
+              >
+                <span className="font-display text-grenat-300">{f.ext}</span>
+                <span className="text-encre-500"> — {f.conseil}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-7">
+            {/* CTA d'import : ancre la zone de dépôt déjà présente plus
+                haut (l'URL d'import « réelle » est bien /bibliotheque). */}
+            <a href="#zone-import" className="bouton-principal">
+              <span aria-hidden>🕯️</span>
+              Importer votre premier livre
+            </a>
+            <a href="/faq" className="bouton-fantome">
+              Voir la FAQ
+            </a>
+          </div>
+
+          <p className="text-encre-500/80 text-[11px] mt-6 italic">
+            Un PDF scanné (photocopie) ne contient pas de texte : préférez .txt, .md
+            ou .epub.
+          </p>
         </div>
       ) : (
         <>
@@ -313,10 +350,18 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-encre-500 break-all min-w-0">
-                    {livre.langue_source.toUpperCase()} →{' '}
-                    {livre.langue_cible.toUpperCase()} · {livre.nom_fichier}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <p className="text-[11px] text-encre-500 break-all min-w-0">
+                      {livre.langue_source.toUpperCase()} →{' '}
+                      {livre.langue_cible.toUpperCase()} · {livre.nom_fichier}
+                    </p>
+                    <span
+                      aria-hidden
+                      className="shrink-0 text-[11px] text-encre-500 group-hover:text-grenat-300 transition-colors"
+                    >
+                      Ouvrir →
+                    </span>
+                  </div>
 
                   {progressions[livre.id] && (
                     <div className="min-w-0">
@@ -346,6 +391,20 @@ export default function BibliothequeClient({ livresInitiaux }: Props) {
                         />
                       </div>
                     </div>
+                  )}
+
+                  {/* Chapitres en erreur (C5) : un livre peut être
+                      marqué « traduit » avec des chapitres à reprendre —
+                      on le montre sur la carte au lieu de le cacher. */}
+                  {(chapitresEnErreur[livre.id] ?? 0) > 0 && (
+                    <p className="text-[11px] text-amber-300 flex items-center gap-1.5 min-w-0">
+                      <span aria-hidden>⚠</span>
+                      <span className="truncate">
+                        {chapitresEnErreur[livre.id] === 1
+                          ? '1 chapitre à reprendre'
+                          : `${chapitresEnErreur[livre.id]} chapitres à reprendre`}
+                      </span>
+                    </p>
                   )}
 
                   <div className="flex items-center justify-between gap-2 text-[11px] text-encre-500 mt-auto pt-2 border-t border-nuit-700/60">
