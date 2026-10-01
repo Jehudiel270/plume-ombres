@@ -37,14 +37,29 @@ export async function proxy(request: NextRequest) {
   const chemin = request.nextUrl.pathname;
   const surPageConnexion = chemin.startsWith('/connexion');
 
+  // Pages PUBLIQUES (chantier UX C4/C6) : landing, tarifs, FAQ et pages
+  // légales doivent rester lisibles AVANT toute inscription — c'est même
+  // leur raison d'être. Le garde-fou de session ne s'y applique pas.
+  const PAGES_PUBLIQUES = [
+    '/',
+    '/tarifs',
+    '/faq',
+    '/contact',
+    '/mentions-legales',
+    '/conditions',
+    '/confidentialite',
+  ];
+  const surPagePublique = PAGES_PUBLIQUES.includes(chemin);
+
   // Pages privées : on exige une session.
-  if (!user && !surPageConnexion) {
+  if (!user && !surPageConnexion && !surPagePublique) {
     const url = new URL('/connexion', request.url);
     url.searchParams.set('suivant', chemin);
     return NextResponse.redirect(url);
   }
 
-  // Déjà connecté : la page de connexion est inutile.
+  // Déjà connecté : sur une page publique, on laisse lire (la landing
+  // sert aussi d'espace de présentation) ; seule /connexion redirige.
   if (user && surPageConnexion) {
     return NextResponse.redirect(new URL('/bibliotheque', request.url));
   }

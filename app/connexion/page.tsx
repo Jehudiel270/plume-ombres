@@ -18,7 +18,11 @@ function PageConnexion() {
   const paramsRecherche = useSearchParams();
   const suivant = paramsRecherche.get('suivant') ?? '/bibliotheque';
 
-  const [mode, setMode] = useState<'connexion' | 'inscription'>('connexion');
+  // Arrivée depuis la landing page avec ?mode=inscription : on ouvre
+  // directement l'onglet Inscription (le formulaire reste le même).
+  const [mode, setMode] = useState<'connexion' | 'inscription'>(
+    paramsRecherche.get('mode') === 'inscription' ? 'inscription' : 'connexion'
+  );
   const [email, setEmail] = useState('');
   const [pseudo, setPseudo] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
