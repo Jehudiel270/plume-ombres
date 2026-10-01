@@ -93,7 +93,8 @@ export default function EspaceLivre({
   const [exportEnCours, setExportEnCours] = useState(false);
   const [messageLangue, setMessageLangue] = useState<string | null>(null);
 
-  const { actif, progression, lancer, annuler } = useMoteurTraduction();
+  const { actif, progression, lancer, annuler, reprendre } =
+    useMoteurTraduction();
 
   // ---------- Progression de lecture + stats (100 % local) ----------
   const {
@@ -238,6 +239,47 @@ export default function EspaceLivre({
   useEffect(() => {
     rafraichirCompteurs();
   }, [rafraichirCompteurs, actif]);
+
+  // ---------- Reprise automatique des segments orphelins « en_cours » ----------
+  // Au chargement / changement de chapitre : un onglet fermé (ou un crash)
+  // en pleine traduction laisse des segments bloqués en « en_cours » que la
+  // file ne reprend jamais (elle ne lit que « en_attente »/« erreur »). Au-delà
+  // de ~10 min on les remet en attente, et si le chapitre se prétendait
+  // « traduit »/« en_traduction » avec ce trou, on le corrige.
+  useEffect(() => {
+    if (!selection || actif) return;
+    const id = selection;
+    let ignore = false;
+    (async () => {
+      const repris = await reprendre(supabaseRef.current, id);
+      if (ignore || repris === 0) return;
+      const { data } = await supabaseRef.current
+        .from('chapitres')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (ignore || !data) return;
+      const chap = data as Chapitre;
+      if (chap.statut === 'traduit' || chap.statut === 'en_traduction') {
+        await supabaseRef.current
+          .from('chapitres')
+          .update({ statut: 'a_traduire' })
+          .eq('id', id);
+        chap.statut = 'a_traduire';
+      }
+      const statut = chap.statut;
+      setChapitres((cs) =>
+        cs.map((c) => (c.id === id ? { ...c, statut } : c))
+      );
+      setChapitreComplet((courant) =>
+        courant && courant.id === id ? { ...courant, statut } : courant
+      );
+      rafraichirCompteurs();
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [selection, actif, reprendre, rafraichirCompteurs]);
 
   // ---------- Fin d'un chapitre côté moteur ----------
   const majChapitre = useCallback(
