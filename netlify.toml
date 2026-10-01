@@ -1,0 +1,63 @@
+# ============================================================
+# netlify.toml — Plume d'Ombres (Next.js 16, App Router)
+#
+# Bascule Vercel -> Netlify, PRÉPARÉE mais NON déployée.
+# Le runtime Next.js de Netlify (adaptateur OpenNext,
+# @netlify/plugin-nextjs) est détecté et installé
+# AUTOMATIQUEMENT au build : ne PAS l'épingler dans package.json
+# (voir DEPLOIEMENT-NETLIFY.md, section « Adapter »).
+# ============================================================
+
+[build]
+  # package.json expose déjà "build": "next build"
+  command = "npm run build"
+  # Publish directory attendu par l'adaptateur Next.js de Netlify.
+  publish = ".next"
+
+[build.environment]
+  # Next.js 16 exige Node >= 20.9. On épingle la LTS 22 pour la
+  # reproductibilité (Netlify sait installer n'importe quelle
+  # version gérée par nvm).
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# ------------------------------------------------------------------
+# netlify dev (développement local uniquement ; sans effet au déploiement)
+# Règle Netlify : si `command` ET `targetPort` sont présents,
+# `framework` DOIT valoir "#custom", sinon la commande est ignorée.
+# ------------------------------------------------------------------
+[dev]
+  command = "npm run dev"
+  targetPort = 3000
+  port = 8888
+  framework = "#custom"
+
+# ------------------------------------------------------------------
+# En-têtes HTTP
+# ------------------------------------------------------------------
+
+# Le service worker PWA (public/service-worker.js) est un fichier
+# statique servi par le CDN. On empêche sa mise en cache pour que les
+# mises à jour du SW (constante VERSION) soient prises en compte.
+# Sa portée est déjà "/" puisqu'il est servi à la racine du site.
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Les bundles Next.js portent un hash dans leur nom : immuables.
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# ------------------------------------------------------------------
+# Points VOLONTAIREMENT absents :
+#  - pas de [[plugins]] : l'adaptateur Next.js est installé
+#    automatiquement (l'épingler désactiverait les mises à jour).
+#  - pas de [functions] / timeout : la limite d'exécution synchrone
+#    (60 s) n'est PAS configurable (voir DEPLOIEMENT-NETLIFY.md).
+#  - pas de cron / scheduled function : le projet n'en utilise aucune.
+#  - pas de redirects : le garde d'accès vit dans proxy.ts (ex-middleware
+#    Next 16), exécuté par l'adaptateur via Edge Functions.
+# ------------------------------------------------------------------
