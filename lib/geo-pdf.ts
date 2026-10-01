@@ -5,7 +5,10 @@
 // est DÉCOUPLÉ de l'extraction pdf.js : il reçoit des mesures brutes
 // normalisées et renvoie un GeoOrigine. Ainsi il est :
 //  - testable en Node (sans navigateur ni worker),
-//  - réutilisable côté navigateur (mesurerOriginalPdf le fed).
+//  - réutilisable côté navigateur : mesurerOriginalPdf le fed À
+//    L'IMPORT PDF (fichier en mémoire) ; `resumerGeo` en tire les 3
+//    nombres stockés en base, que l'export relit via
+//    `geoDepuisLivre` — le binaire n'est plus nécessaire.
 //
 // Une « page mesurée » est exprimée en points PDF (1 pt = 1/72 po),
 // origine en BAS-GAUCHE, axes positifs x à droite et y en haut :
@@ -143,4 +146,93 @@ export function calculerGeo(pages: PageBrute[]): GeoOrigine | null {
     ...(tailleCorps !== undefined ? { tailleCorps } : {}),
     ...(hauteurLigne !== undefined ? { hauteurLigne } : {}),
   };
+}
+
+// ============================================================
+// Géométrie STOCKÉE EN BASE — 3 nombres, plus aucun binaire.
+//
+// À l'import d'un PDF (fichier en mémoire), on mesure la géométrie
+// (calculerGeo) puis on la RÉSUME en 3 nombres enregistrés sur la
+// ligne `livres` : largeur, hauteur, marge d'en-bloc. À l'export, on
+// relit ces 3 nombres et on RECONSTRUIT une GeoOrigine complète —
+// jamais depuis un fichier stocké côté serveur.
+//
+// NB : la marge d'en-bloc est unique (appliquée aux 4 bords) ; c'est
+// le contrat « 3 nombres ». Une restitution fidèle par bord
+// (G/D/H/B) serait une suite possible, hors périmètre.
+// ============================================================
+
+/** Colonnes `public.livres` portant la géométrie résumée. */
+export const COLONNES_GEOMETRIE = [
+  'pdf_largeur',
+  'pdf_hauteur',
+  'pdf_marge',
+] as const;
+
+/** Les 3 nombres tels qu'enregistrés sur la ligne `livres`. */
+export interface GeometrieStockee {
+  /** Largeur de page (points). */
+  largeur: number;
+  /** Hauteur de page (points). */
+  hauteur: number;
+  /** Marge d'en-bloc, appliquée aux 4 bords (points). */
+  margeEnBloc: number;
+}
+
+/** Ligne `livres` réduite aux 3 colonnes de géométrie. */
+export interface LigneGeometrie {
+  pdf_largeur: number | null;
+  pdf_hauteur: number | null;
+  pdf_marge: number | null;
+}
+
+/**
+ * Résume une géométrie mesurée en 3 nombres STOCKABLES.
+ * Retourne null si la géométrie est absente (import non-PDF, PDF
+ * sans texte) — dans ce cas rien n'est écrit en base.
+ */
+export function resumerGeo(geo: GeoOrigine | null): GeometrieStockee | null {
+  if (!geo) return null;
+  if (!(geo.largeur > 0) || !(geo.hauteur > 0)) return null;
+  // La marge latérale (gauche) représente l'en-bloc : pages de corps
+  // justifiées → margeGauche ≈ margeDroite ≈ bord du bloc de texte.
+  return {
+    largeur: Math.round(geo.largeur),
+    hauteur: Math.round(geo.hauteur),
+    margeEnBloc: Math.round(geo.margeGauche),
+  };
+}
+
+/**
+ * Reconstruit une GeoOrigine depuis les 3 nombres stockés.
+ * Retourne null si l'un des 3 manque (→ l'export retombe sur A4).
+ */
+export function geoDepuisStockage(
+  g: GeometrieStockee | null | undefined
+): GeoOrigine | null {
+  if (!g) return null;
+  const { largeur, hauteur, margeEnBloc } = g;
+  if (!Number.isFinite(largeur) || largeur <= 0) return null;
+  if (!Number.isFinite(hauteur) || hauteur <= 0) return null;
+  const marge = Number.isFinite(margeEnBloc) ? Math.max(0, margeEnBloc) : 0;
+  return {
+    largeur: Math.round(largeur),
+    hauteur: Math.round(hauteur),
+    margeGauche: marge,
+    margeDroite: marge,
+    margeHaut: marge,
+    margeBas: marge,
+  };
+}
+
+/** Reconstruit la géométrie depuis une ligne `livres` (lecture export). */
+export function geoDepuisLivre(l: LigneGeometrie): GeoOrigine | null {
+  if (l.pdf_largeur == null || l.pdf_hauteur == null || l.pdf_marge == null) {
+    return null;
+  }
+  return geoDepuisStockage({
+    largeur: l.pdf_largeur,
+    hauteur: l.pdf_hauteur,
+    margeEnBloc: l.pdf_marge,
+  });
 }

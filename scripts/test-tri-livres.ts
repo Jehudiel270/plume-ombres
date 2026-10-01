@@ -41,6 +41,9 @@ function livre(id: string, titre: string, statut: StatutLivre, il: number): Livr
     langue_cible: 'fr',
     nom_fichier: `${id}.txt`,
     fichier_original: null,
+    pdf_largeur: null,
+    pdf_hauteur: null,
+    pdf_marge: null,
     statut,
     // Décalage de 24h entre chaque livre (le plus « il » = le plus récent)
     created_at: new Date(Date.UTC(2026, 0, 1) + (il + 1) * 86400000).toISOString(),

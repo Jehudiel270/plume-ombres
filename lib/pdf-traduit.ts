@@ -3,7 +3,11 @@
 //
 // Sortie : un PDF lisible « façon livre » qui reprend la
 // GÉOMÉTRIE de l'original si elle est connue (taille de page,
-// marges d'en-bloc), sinon un cadet A4 confortable. Police serif
+// marges d'en-bloc), sinon un cadet A4 confortable. La géométrie
+// provient désormais des 3 nombres stockés en base sur la ligne
+// `livres` (pdf_largeur, pdf_hauteur, pdf_marge) — relus via
+// `geo-pdf.geoDepuisLivre` et passés ici en `geo` ; plus aucun
+// fichier original n'est requis. Police serif
 // (Times), texte JUSTIFIÉ, titres de chapitres centrés,
 // lettrine en tête de chapitre. 100% pdf-lib : fonctionne dans le
 // navigateur (téléchargement direct) comme dans Node (tests).
