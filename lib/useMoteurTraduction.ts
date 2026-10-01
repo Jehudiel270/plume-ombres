@@ -14,12 +14,40 @@
 import { useCallback, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { paginer } from '@/lib/pagination';
+import { chapitreEntierementTraduit } from '@/lib/types';
 import type {
   Chapitre,
   Livre,
   Segment,
   StatutChapitre,
 } from '@/lib/types';
+
+/** Âge au-delà duquel un segment `en_cours` est considéré orphelin. */
+export const SEUIL_SEGMENT_EN_COURS_MS = 10 * 60 * 1000; // ~10 min
+
+/**
+ * Reprise des segments orphelins : un onglet fermé / un crash en pleine
+ * traduction laisse des segments bloqués en `en_cours`, jamais retraités
+ * par la file (qui ne lit que `en_attente`/`erreur`). Au-delà du seuil,
+ * on les remet dans la file (`en_attente`). Idempotent et sûr en
+ * concurrence : un segment activement traité a un `updated_at` récent.
+ * Renvoie le nombre de segments requalifiés.
+ */
+export async function reprendreSegmentsEnCours(
+  supabase: SupabaseClient,
+  chapitreId: string,
+  seuilMs: number = SEUIL_SEGMENT_EN_COURS_MS
+): Promise<number> {
+  const limite = new Date(Date.now() - seuilMs).toISOString();
+  const { data } = await supabase
+    .from('segments')
+    .update({ statut: 'en_attente', erreur: null })
+    .eq('chapitre_id', chapitreId)
+    .eq('statut', 'en_cours')
+    .lt('updated_at', limite)
+    .select('id');
+  return data?.length ?? 0;
+}
 
 export interface Progression {
   /** Segments déjà traduits (fait) dans le lot courant. */
@@ -98,25 +126,27 @@ export function useMoteurTraduction() {
 
       if (annule) {
         // On ne touche pas au texte déjà assemblé ; on reflète juste
-        // ce qui reste à faire.
-        const reste = liste.some(
-          (s) => s.statut === 'en_attente' || s.statut === 'erreur'
-        );
+        // ce qui reste à faire. Garde-fou : le chapitre n'est
+        // « traduit » que si aucun segment n'a de trou.
+        const complet = chapitreEntierementTraduit(liste);
         await supabase
           .from('chapitres')
-          .update({ statut: reste ? 'a_traduire' : 'traduit' })
+          .update({ statut: complet ? 'traduit' : 'a_traduire' })
           .eq('id', chapitre.id);
-        if (!reste) {
+        if (complet) {
           majChapitre(chapitre, assemblerChapitre(liste), 'traduit');
         }
         return;
       }
 
       const texteAssemble = assemblerChapitre(liste);
-      const resteErreur = liste.some(
-        (s) => s.statut === 'erreur' || s.statut === 'en_attente'
-      );
-      const statut: StatutChapitre = resteErreur ? 'erreur' : 'traduit';
+      // Garde-fou : statut « traduit » réservé aux chapitres dont TOUS
+      // les segments ont un texte cible non vide. Sinon un segment resté
+      // `en_cours` (orphelin) ou une traduction vide laisserait un trou
+      // silencieux dans un chapitre présenté comme traduit.
+      const statut: StatutChapitre = chapitreEntierementTraduit(liste)
+        ? 'traduit'
+        : 'erreur';
       await supabase
         .from('chapitres')
         .update({ statut, texte_traduit: texteAssemble })
@@ -160,6 +190,11 @@ export function useMoteurTraduction() {
             .from('chapitres')
             .update({ statut: 'en_traduction' })
             .eq('id', chapitre.id);
+
+          // Reprise défensive : les segments orphelins restés `en_cours`
+          // (crash, onglet fermé) repassent en file avant de la
+          // construire, sinon ils ne seraient jamais retraités.
+          await reprendreSegmentsEnCours(supabase, chapitre.id);
 
           const file = await paginer<Segment>((debut, fin) =>
             supabase
@@ -298,7 +333,14 @@ export function useMoteurTraduction() {
     [actif, cloreChapitre]
   );
 
-  return { actif, progression, lancer, annuler };
+  /** Reprise ponctuelle des segments `en_cours` périmés d'un chapitre. */
+  const reprendre = useCallback(
+    (supabase: SupabaseClient, chapitreId: string) =>
+      reprendreSegmentsEnCours(supabase, chapitreId),
+    []
+  );
+
+  return { actif, progression, lancer, annuler, reprendre };
 }
 
 /** Retry avec backoff : jusqu'à MAX_ESSAIS tentatives par segment. */
@@ -327,6 +369,12 @@ async function traduireAvecEssais(
           fournisseur?: string;
         };
         if (typeof donnees.traduit === 'string') {
+          // Segment renvoyé vide par le moteur : on refuse le faux succès
+          // (sinon le segment serait marqué `fait` avec un trou). L'erreur
+          // déclenche une nouvelle tentative, puis un statut `erreur`.
+          if (donnees.traduit.trim() === '') {
+            throw new Error('Traduction vide renvoyée par le moteur.');
+          }
           return {
             ok: true,
             texte: donnees.traduit,

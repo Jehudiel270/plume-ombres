@@ -81,6 +81,28 @@ export interface Segment {
   updated_at: string;
 }
 
+/**
+ * Un segment est « complet » (aucun trou) si sa traduction cible est
+ * non vide. Cas particulier assumé : une source vide n'a rien à
+ * traduire — un `traduit` vide y est légitime et ne bloque pas le
+ * chapitre.
+ */
+export function segmentComplet(segment: Segment): boolean {
+  if (segment.statut !== 'fait') return false;
+  if ((segment.traduit ?? '').trim().length > 0) return true;
+  return segment.source.trim().length === 0;
+}
+
+/**
+ * Garde-fou : un chapitre n'est « entièrement traduit » que si TOUS ses
+ * segments sont complets (texte cible non vide). Empêche de marquer un
+ * chapitre « traduit » en laissant un trou (segment resté `en_cours`,
+ * échec silencieux, traduction vide).
+ */
+export function chapitreEntierementTraduit(segments: Segment[]): boolean {
+  return segments.every(segmentComplet);
+}
+
 /** Identifiant de fournisseur de traduction. */
 export type IdFournisseur =
   | 'libretranslate'

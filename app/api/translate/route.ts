@@ -68,6 +68,15 @@ export async function POST(request: NextRequest) {
       );
     }
     const traduit = await fournisseur.traduire(texte, { source, cible });
+    // Un moteur peut renvoyer une chaîne vide / blanche : c'est un échec,
+    // pas une traduction. On le signale (502) pour que le client réessaie
+    // au lieu d'écrire un segment `fait` vide qui trouerait le chapitre.
+    if (typeof traduit !== 'string' || traduit.trim() === '') {
+      return NextResponse.json(
+        { erreur: 'Le moteur a renvoyé une traduction vide.' },
+        { status: 502 }
+      );
+    }
     return NextResponse.json({
       traduit,
       fournisseur: fournisseur.id,
