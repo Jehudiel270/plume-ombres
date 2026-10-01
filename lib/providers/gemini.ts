@@ -14,6 +14,7 @@ import type {
   OptionsTraduction,
 } from './types';
 import { decouperEnFragments, attendre } from './fragments';
+import { composerInstructionSysteme } from '@/lib/glossaire';
 import type { IdFournisseur } from '@/lib/types';
 
 const MAX_PAR_REQUETE = 6000;
@@ -84,15 +85,17 @@ export class FournisseurGemini implements FournisseurTraduction {
           systemInstruction: {
             parts: [
               {
-                text:
+                text: composerInstructionSysteme(
                   'Tu es un traducteur littéraire expert spécialisé en dark romance. ' +
-                  'Traduis le texte fourni depuis ' +
-                  source +
-                  ' vers un ' +
-                  cible +
-                  ' naturel, fluide et évocateur, en conservant le ton, le registre ' +
-                  'et les émotions du texte original. Ne traduis jamais les noms ' +
-                  'propres. Ne renvoie que la traduction, sans commentaire ni note.',
+                    'Traduis le texte fourni depuis ' +
+                    source +
+                    ' vers un ' +
+                    cible +
+                    ' naturel, fluide et évocateur, en conservant le ton, le registre ' +
+                    'et les émotions du texte original. Ne traduis jamais les noms ' +
+                    'propres. Ne renvoie que la traduction, sans commentaire ni note.',
+                  options
+                ),
               },
             ],
           },

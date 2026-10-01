@@ -121,3 +121,73 @@ export const LANGUES: Record<CodeLangue, string> = {
   pt: 'Portugais',
   de: 'Allemand',
 };
+
+// ============================================================
+// Glossaire par livre (cohérence de traduction — P1.1)
+//
+// Un livre = un glossaire ; chaque entrée impose une traduction
+// pour un nom propre ou un terme (insensible à la casse, car la
+// recherche se fait sur `source_normalisee`). Ces types miroitent
+// les tables `glossaires` / `glossaire_entrees`.
+// ============================================================
+
+/** Nature d'une entrée de glossaire. */
+export type CategorieGlossaire = 'personnage' | 'lieu' | 'terme' | 'autre';
+
+/** Entrée de glossaire persistée : source → traduction IMPOSÉE. */
+export interface EntreeGlossaire {
+  id: number;
+  glossaire_id: string;
+  /** Forme source telle que saisie (affichage). */
+  source: string;
+  /** Forme normalisée (minuscules, espaces réduits) — clé d'unicité. */
+  source_normalisee: string;
+  /** Traduction imposée, réutilisée telle quelle par le moteur. */
+  traduction: string;
+  categorie: CategorieGlossaire;
+  /** true = imposée par l'utilisateur (jamais écrasée par une suggestion). */
+  verrouillee: boolean;
+  /** Nombre d'occurrences observées dans le livre (0 si inconnu). */
+  occurrences: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Glossaire d'un livre (au plus un par livre). */
+export interface Glossaire {
+  id: string;
+  livre_id: string;
+  langue_source: string;
+  langue_cible: string;
+  actif: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Candidat détecté automatiquement dans le texte (nom propre récurrent). */
+export interface CandidatGlossaire {
+  source: string;
+  occurrences: number;
+  /** Score heuristique de confiance (plus haut = plus probable). */
+  score: number;
+  /** Extrait de contexte où le candidat a été relevé. */
+  exemple: string;
+}
+
+/** Paire source → traduction, format compact transmis au moteur. */
+export interface PaireGlossaire {
+  source: string;
+  traduction: string;
+}
+
+/** Contexte glissant transmis au moteur avec la requête. */
+export interface ContexteGlissant {
+  /** Rappel court : termes déjà fixés + fin des segments précédents. */
+  extrait: string;
+  /** Caractères utilisés (contrainte de budget). */
+  caracteres: number;
+  /** Estimation de tokens (≈ caractères / 4). */
+  tokensEstimes: number;
+  /** true si une partie a été coupée pour tenir dans le budget. */
+  tronque: boolean;
+}
