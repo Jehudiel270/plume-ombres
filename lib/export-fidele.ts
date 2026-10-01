@@ -2,8 +2,11 @@
 // export-fidele.ts — Côté NAVIGATEUR du système pdf-fidele.
 //
 // Bouton « PDF — mise en page d'origine, contenu français » :
-//   1. télécharge l'original conservé en base (bucket Supabase,
-//      même chemin que le téléchargement simple) ;
+//   1. obtient l'original EN MÉMOIRE — jamais depuis un fichier
+//      stocké côté serveur : soit les octets passés par l'appelant
+//      (fichier encore en mémoire à l'import), soit le cache de la
+//      session d'import (lib/original-en-memoire). Le bucket
+//      « originaux » n'est plus utilisé (chantier B2/B5) ;
 //   2. scanne la mise en page d'origine (pdf.js — même passage
 //      que l'import : textesPages est le flux exact de la base) ;
 //   3. appelle le moteur `genererPdfFidele` (pdf-lib, 100 %
@@ -23,6 +26,7 @@ import {
   type DocPdfJs,
   type PageSourceFidele,
 } from './pdf-fidele';
+import { octetsOriginalEnMemoire } from './original-en-memoire';
 import type { Livre } from './types';
 
 export interface ProgresFidele {
@@ -31,34 +35,44 @@ export interface ProgresFidele {
   libelle?: string;
 }
 
+/** Source de l'original — EN MÉMOIRE uniquement (plus de stockage). */
+export type SourceOriginal =
+  | Uint8Array
+  | ArrayBuffer
+  /**
+   * @deprecated Ancien chemin de téléchargement du bucket. Conservé le
+   * temps que l'UI soit mise à jour ; n'est utilisé que si
+   * `livre.fichier_original` est renseigné (et par ordre décroissant :
+   * les octets passés ou le cache mémoire sont prioritaires).
+   */
+  | ((chemin: string) => Promise<ArrayBuffer>);
+
 /**
  * Télécharge le PDF « mise en page d'origine, contenu français ».
  * Lance seulement le téléchargement si tout s'est bien passé.
- * @param livre      livre complet (fichier_original en base requis).
+ * @param livre      livre ciblé (`fichier_original` n'est lu que par
+ *                   l'ancien chemin, déprécié).
  * @param chapitres  chapitres TELS QUE STOCKÉS (titre, texte_source,
  *                   texte_traduit) — l'alignement exact se fait sur
  *                   `texte_source` (sous-texte exact du flux d'import) ;
  *                   le français est projeté page par page sur ces
  *                   bornes exactes (aucun mot perdu ni dupliqué).
- * @param telecharger récupère l'original du stockage (bouton « Original »)
- *                   en retournant l'ArrayBuffer du fichier.
+ * @param source     l'original EN MÉMOIRE : octets bruts du PDF
+ *                   (recommandé), ou — déprécié — fonction de
+ *                   téléchargement. Si absent, on lit le cache de la
+ *                   session d'import (lib/original-en-memoire).
  * @param onProgres  (etape, total, libellé) — 6 étapes.
  */
 export async function exporterPdfFidele(
   livre: Pick<Livre, 'id' | 'titre' | 'langue_cible' | 'fichier_original'>,
   chapitres: ChapitreFidele[],
-  telecharger: (chemin: string) => Promise<ArrayBuffer>,
+  source: SourceOriginal | null | undefined,
   onProgres: (p: ProgresFidele) => void
 ): Promise<void> {
   onProgres({ etape: 1, total: 6 });
-  if (!livre.fichier_original) {
-    throw new Error(
-      'Ce livre n’a pas de fichier original à conserver en base.'
-    );
-  }
 
-  // 1. Original conservé (même téléchargement que « Original »).
-  const donnees = new Uint8Array(await telecharger(livre.fichier_original));
+  // 1. Original EN MÉMOIRE (jamais depuis un fichier stocké côté serveur).
+  const donnees = await resoudreOctets(livre, source);
 
   // Garde-fou : le moteur « mise en page d'origine » est réservé aux
   // originaux PDF (c'est la mise en page d'origine qui est conservée).
@@ -122,6 +136,38 @@ export async function exporterPdfFidele(
   telechargerBlob(
     resultat.octets,
     slugTitre(livre.titre) + '-fidelle.pdf'
+  );
+}
+
+/**
+ * Résout les octets de l'original, EN MÉMOIRE uniquement. Ordre :
+ *   1. octets passés directement par l'appelant (recommandé) ;
+ *   2. cache de la session d'import (lib/original-en-memoire) ;
+ *   3. ancien chemin déprécié : fonction de téléchargement, utilisée
+ *      seulement si `livre.fichier_original` est renseigné.
+ * Échoue avec un message clair si aucune source n'est disponible —
+ * l'original n'étant plus conservé côté serveur, l'export fidèle
+ * n'est possible que pendant la session d'import (fichier en mémoire)
+ * ou en repassant le PDF.
+ */
+async function resoudreOctets(
+  livre: Pick<Livre, 'id' | 'fichier_original'>,
+  source: SourceOriginal | null | undefined
+): Promise<Uint8Array> {
+  if (source instanceof Uint8Array) return source;
+  if (source instanceof ArrayBuffer) return new Uint8Array(source);
+
+  const memoire = octetsOriginalEnMemoire(livre.id);
+  if (memoire) return memoire;
+
+  // Ancien chemin (déprécié) : le bucket n'est plus alimenté par
+  // l'import, donc `fichier_original` est normalement null.
+  if (typeof source === 'function' && livre.fichier_original) {
+    return new Uint8Array(await source(livre.fichier_original));
+  }
+
+  throw new Error(
+    'L’original n’est plus conservé côté serveur : « PDF — mise en page d’origine » n’est disponible que pendant la session d’import (fichier en mémoire) ou en repassant le PDF.'
   );
 }
 

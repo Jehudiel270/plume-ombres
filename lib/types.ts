@@ -33,8 +33,21 @@ export interface Livre {
   langue_source: string;
   langue_cible: string;
   nom_fichier: string | null;
-  /** Chemin du fichier original stocké (bucket « originaux »), si conservé. */
+  /**
+   * Chemin du fichier original stocké (bucket « originaux »).
+   * @deprecated Plus alimenté : l'original n'est plus conservé côté
+   * serveur (chantier B2/B5). Conservé le temps que l'UI soit mise à
+   * jour ; supprimable une fois le bucket vidé.
+   */
   fichier_original: string | null;
+  /**
+   * Géométrie du PDF importé, réduite à 3 nombres (points PDF) :
+   * mesurée à l'import (fichier en mémoire), relue à l'export.
+   * Null pour un import .txt/.md/.epub (ou PDF sans texte).
+   */
+  pdf_largeur: number | null;
+  pdf_hauteur: number | null;
+  pdf_marge: number | null;
   statut: StatutLivre;
   created_at: string;
   updated_at: string;

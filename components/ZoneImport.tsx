@@ -16,6 +16,8 @@ import { useRouter } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import { preparerLivre, preparerLivreDepuisChapitres } from '@/lib/import-livre';
 import { lireEpub } from '@/lib/import-epub';
+import { resumerGeo, type GeometrieStockee } from '@/lib/geo-pdf';
+import { memoriserOriginal } from '@/lib/original-en-memoire';
 import type { CodeLangue } from '@/lib/types';
 import { LANGUES } from '@/lib/types';
 
@@ -96,6 +98,21 @@ export default function ZoneImport() {
         setEtape('Découpage du texte…');
         livre = preparerLivre(texte, fichier.name);
       }
+
+      // 1b. PDF : mesurer la mise en page (fichier ENCORE EN MÉMOIRE) et
+      // la réduire aux 3 nombres stockés en base — le binaire n'est plus
+      // nécessaire ensuite. Rien n'est envoyé sur le serveur ; l'original
+      // n'est gardé qu'en mémoire pour la session d'import en cours.
+      const estPdf = /\.pdf$/i.test(fichier.name);
+      let geo: GeometrieStockee | null = null;
+      let octetsPdf: Uint8Array | null = null;
+      if (estPdf) {
+        setEtape('Mesure de la mise en page du PDF…');
+        const { mesurerOriginalPdf } = await import('@/lib/pdf-navigateur');
+        octetsPdf = new Uint8Array(await fichier.arrayBuffer());
+        // pdf.js détache son buffer : on lui passe une copie.
+        geo = resumerGeo(await mesurerOriginalPdf(octetsPdf.slice()));
+      }
       const supabase = creerClientNavigateur();
 
       // 2. Création du livre.
@@ -116,29 +133,12 @@ export default function ZoneImport() {
         throw new Error(errLivre?.message ?? 'Impossible de créer le livre.');
       }
 
-      // 2b. Conservation du fichier ORIGINAL (mise en forme intacte) :
-      // stocké dans le bucket privé « originaux », téléchargeable ensuite.
-      let cheminOriginal: string | null = null;
-      try {
-        const extension = fichier.name.includes('.')
-          ? fichier.name.slice(fichier.name.lastIndexOf('.'))
-          : '';
-        cheminOriginal = `${livreInsere.id}${extension}`;
-        const { error: errUpload } = await supabase.storage
-          .from('originaux')
-          .upload(cheminOriginal, fichier, {
-            contentType: fichier.type || 'application/octet-stream',
-            upsert: true,
-          });
-        if (errUpload) throw errUpload;
-      } catch (e) {
-        // L'import ne doit pas échouer si la conservation échoue :
-        cheminOriginal = null;
-        console.warn(
-          'Original non conservé :',
-          e instanceof Error ? e.message : e
-        );
-      }
+      // 2b. Plus AUCUN téléversement du fichier original : le texte est
+      // déjà intégralement en base (chapitres.texte_source +
+      // segments.source) et la géométrie tient en 3 nombres. Le binaire
+      // n'est gardé qu'EN MÉMOIRE, le temps de la session d'import, pour
+      // l'export « PDF — mise en page d'origine » (fichier en mémoire).
+      if (octetsPdf) memoriserOriginal(livreInsere.id, octetsPdf);
 
       // 3. Insertion des chapitres puis des segments (par lots).
       for (const chapitre of livre.chapitres) {
@@ -169,10 +169,20 @@ export default function ZoneImport() {
         }
       }
 
-      // 4. Le livre est prêt à être traduit (avec l'original conservé si possible).
+      // 4. Le livre est prêt à être traduit. La géométrie est enregistrée
+      // en 3 nombres (import PDF) ; plus aucun original côté serveur.
       await supabase
         .from('livres')
-        .update({ statut: 'pret', fichier_original: cheminOriginal })
+        .update({
+          statut: 'pret',
+          ...(geo
+            ? {
+                pdf_largeur: geo.largeur,
+                pdf_hauteur: geo.hauteur,
+                pdf_marge: geo.margeEnBloc,
+              }
+            : {}),
+        })
         .eq('id', livreInsere.id);
 
       setEtape(null);
