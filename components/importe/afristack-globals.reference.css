@@ -1,0 +1,162 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   AfriStack — identité visuelle « fintech africaine »
+   Palette : nuit profonde + or/sable + vert vegetation.
+   ============================================================ */
+
+:root {
+  --nuit: #0b0f14;
+  --nuit-2: #121821;
+  --sable: #e8d5a3;
+  --or: #d4a24c;
+  --or-vif: #f0b64b;
+  --vegetation: #1f9d6b;
+  --encre-100: #f2efe8;
+  --encre-400: #9aa4b2;
+  --encre-600: #5c6675;
+  --bord: #1e2833;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--nuit);
+  color: var(--encre-100);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+/* ---------- Composants ---------- */
+
+.carte {
+  background: linear-gradient(180deg, var(--nuit-2) 0%, #0e141c 100%);
+  border: 1px solid var(--bord);
+  border-radius: 16px;
+}
+
+.bouton-or {
+  background: linear-gradient(180deg, var(--or-vif) 0%, var(--or) 100%);
+  color: #241a05;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 1.3rem;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.bouton-or:hover {
+  filter: brightness(1.08);
+}
+.bouton-or:active {
+  transform: translateY(1px);
+}
+.bouton-or:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bouton-fantome {
+  background: transparent;
+  color: var(--encre-100);
+  border: 1px solid var(--bord);
+  border-radius: 10px;
+  padding: 0.7rem 1.3rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.bouton-fantome:hover {
+  border-color: var(--or);
+}
+
+.champ {
+  width: 100%;
+  background: #0a0e13;
+  border: 1px solid var(--bord);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  color: var(--encre-100);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.champ:focus {
+  border-color: var(--or);
+}
+
+.etiquette {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--encre-400);
+  margin-bottom: 0.4rem;
+}
+
+.pastille {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--bord);
+  color: var(--encre-400);
+}
+
+.pastille-verte {
+  border-color: rgba(31, 157, 107, 0.4);
+  background: rgba(31, 157, 107, 0.12);
+  color: #5fd6a4;
+}
+
+.pastille-or {
+  border-color: rgba(212, 162, 76, 0.4);
+  background: rgba(212, 162, 76, 0.12);
+  color: var(--or-vif);
+}
+
+/* ---------- Animations légères ---------- */
+
+@keyframes monter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.anime-monter {
+  animation: monter 0.4s ease both;
+}
+
+@keyframes pouls {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.anime-pouls {
+  animation: pouls 1.6s ease-in-out infinite;
+}
