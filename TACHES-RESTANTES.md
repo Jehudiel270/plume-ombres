@@ -115,7 +115,7 @@
 ## CHECKLIST MONÉTISATION
 
 ### P0 — BLOQUANT (avant d'encaisser le moindre euro)
-- [ ] **P0.1** **Hébergement commercial** : Vercel Hobby interdit tout usage commercial (dons inclus) → passer à Pro (~20 $/mois) ou changer d'hébergeur avant toute monétisation.
+- [x] **P0.1** **Hébergement commercial — TRANCHÉ (vague 9)** : cible = **Netlify Free** (usage commercial explicitement autorisé, 0 €, sans carte bancaire), configuration `netlify.toml` déjà prête et documentée dans `DEPLOIEMENT-NETLIFY.md`. **Reste une action MANUELLE de Carrel** : créer le compte Netlify et connecter le dépôt (branche `main`). Alternative : Vercel Pro ~20 $/mois.
 - [x] **P0.2** Quota d'usage par compte (caractères traduits/mois), mesuré et affiché.
 - [x] **P0.3** Rate-limiting serveur sur `/api/translate` (aujourd'hui : appels illimités).
 - [x] **P0.4** Moteur de production fiabilisé (chantier A) — **CODE LIVRÉ (vague 6)** : chaîne de repli ordonnée + santé réelle. ⚠️ **La bascule prod n'est effective qu'après A5** (renseigner `LIBRETRANSLATE_URL` + `GEMINI_API_KEY` dans les variables Vercel) : sans elles, la chaîne traverse LibreTranslate (injoignable) et Gemini (clé absente) avant d'atteindre Google non officiel — elle ne CASSE plus, mais elle n'est pas encore privée.
@@ -124,7 +124,7 @@
 - [x] **P0.7** Bug de reprise `en_cours` corrigé (tâche C10).
 - [x] **P0.8** Landing page publique (tâche C4).
 - [ ] **P0.9** Paiement + abonnement + pages de confirmation succès/échec. **MODÈLE TRANCHÉ (vague 6) → PAY-AS-YOU-GO par crédits prépayés, PAS d'abonnement mensuel obligatoire** (voir encadré ci-dessous).
-- [ ] **P0.10** Décision stockage tranchée (chantier B) : plus aucun fichier original conservé par défaut.
+- [x] **P0.10** Décision stockage — **TRANCHÉE : on CONSERVE le stockage actuel**. Décision explicite de Carrel (vague 8) : aucune fonctionnalité retirée. L'allègement du chantier B (B1→B6, ne plus garder les originaux) est **abandonné** ; à réévaluer seulement si le poids ou le coût devient problématique.
 
 > ### Décision P0.9 — « pay as you go » (crédits prépayés)
 > **Pourquoi ce modèle plutôt qu'un abonnement mensuel** : la clientèle visée paie en Mobile Money, avec des revenus irréguliers. Un prélèvement mensuel est une barrière à l'entrée et un risque d'impayés ; le prépayé convertit mieux, encaisse d'avance et supprime tout recouvrement.
@@ -159,7 +159,7 @@
 - [ ] **P3.1** OCR des PDF scannés ; import DOCX.
 - [ ] **P3.2** Traduction simultanée vers plusieurs langues cibles.
 - [ ] **P3.3** Nettoyage : 3 voies d'export PDF, thème « encre », ~30 scripts de dev, vrai `npm test`.
-- [ ] **P3.4** PWA hors-ligne réelle (aujourd'hui le service worker ne sert que la coquille).
+- [~] **P3.4** PWA — **mise à jour automatique LIVRÉE (vague 8)** : le service worker s'enregistre désormais même quand l'évènement `load` est différé par le navigateur (bug RÉEL corrigé — sans cela, aucun service worker ne s'installait), la nouvelle version prend la main immédiatement (`skipWaiting`) et **la page se recharge toute seule** ; vérification de mise à jour au retour sur l'onglet, au retour du réseau et toutes les 15 min. Preuve réelle : `plume-v3` → `plume-v4` détectée et rechargée **sans fermer l'onglet**. Reste : un vrai mode hors-ligne (aujourd'hui la coquille seule est mise en cache).
 - [ ] **P3.5** TeraBox en archivage étendu si le spike B11 est concluant.
 
 ---
@@ -171,7 +171,7 @@
 | Vague | Contenu | But |
 |---|---|---|
 | **W7** | **A9** (catalogue de langues étendu à 71) + ajouts | **FAIT** — 71 langues, preuve réelle sur 7 paires |
-| **W8** | **B1 → B6, B10** (ne plus stocker les originaux — reporté de W7) + **C5, C7, C8** (bibliothèque, pages d'état, accessibilité) + **P1.3** (chapitres en erreur visibles) | Allègement + finir l'interface |
+| **W8** | **C5, C7, C8** (bibliothèque, pages d'état, accessibilité) + **P1.3** (chapitres en erreur visibles) + correctif PWA (mise à jour automatique) | **EN COURS** — ajouts uniquement, aucun retrait |
 | **W9** | **P0.1** (hébergement commercial), **P0.9** (pay-as-you-go : crédits, FedaPay), **P0.5** (CGU/CGV + information sur le transit du texte), **P0.10** | **Vague qui permet d'encaisser** |
 | **W10** | **P1.4** (mot de passe oublié), **P1.6** (monitoring), **P1.7** (sauvegarde BDD), **A11** (alerte cron) | **FAIT** — statut public `ok`/`degrade`, veille 15 min, sauvegarde 13 307 lignes vérifiée |
 | **W11** | **P2** (reprise serveur, batching, catégories, stats) puis **P3** | Après lancement |
