@@ -1,0 +1,146 @@
+/* ============================================================
+   FondAmbiance.module.css — Décor d'ambiance « nuit d'encre ».
+
+   Principe : un décor de DARK ROMANCE, calme et cohérent, qui
+   habille la page sans jamais toucher à la lecture.
+
+   · COHÉRENCE — toutes les teintes sont tirées des jetons de la
+     palette courante (--color-nuit-*, --color-grenat-*,
+     --color-violet-rom-*, --color-or-ros-300). Changer de palette
+     change tout le décor sans une ligne de JS : brume et braises,
+     nuit d'orage, encre, sang et or, papier clair.
+   · JAMAIS DEVANT — position: fixed, z-index: -10, pointer-events:
+     none : le décor reste strictement derrière le contenu (le
+     lecteur translucide garde son propre fond).
+   · LISIBILITÉ — lumières ancrées aux BORDS (recoins, horizon),
+     aucune tache lumineuse au centre : là où vit le texte, le fond
+     reste au plus près de la couleur de base.
+   · LÉGER — 0 WebGL, 0 boucle requestAnimationFrame, 0 requête :
+     de simples dégradés CSS. La seule animation (dérive de brume)
+     est en transform/opacity, donc composée par le GPU, et se coupe
+     sous prefers-reduced-motion ou html[data-fond="fixe"].
+   ============================================================ */
+
+/* ---------- 1) Assise : nuit + lumières de bord ---------------- */
+.decor {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  overflow: hidden;
+  isolation: isolate;
+
+  /* Réglages par défaut (palettes sombres) — surchargés pour « claire ». */
+  --lueur-chaude: 26%;
+  --lueur-froide: 22%;
+  --braise: 7%;
+  --voile-haut: 45%;
+  --brume-forte: 18%;
+  --brume-douce: 14%;
+  --brume-opacite: 0.5;
+  --vignette-force: 55%;
+  --vignette-teinte: #000000;
+  --grain: 0.045;
+
+  background-color: var(--color-nuit-950);
+  background-image:
+    /* braises : horizon chaud, tout en bas, très diffus */
+    radial-gradient(
+      150% 80% at 50% 124%,
+      color-mix(in srgb, var(--color-or-ros-300) var(--braise), transparent),
+      transparent 62%
+    ),
+    /* lueur bordeaux, coin haut-gauche */
+    radial-gradient(
+      120% 80% at 4% -16%,
+      color-mix(in srgb, var(--color-grenat-700) var(--lueur-chaude), transparent),
+      transparent 58%
+    ),
+    /* lueur froide (violet/orage), coin haut-droit */
+    radial-gradient(
+      115% 76% at 100% -12%,
+      color-mix(in srgb, var(--color-violet-rom-600) var(--lueur-froide), transparent),
+      transparent 56%
+    ),
+    /* voile supérieur : assombrit doucement le haut sans tache */
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-nuit-850) var(--voile-haut), transparent),
+      transparent 46%
+    );
+}
+
+/* Palette claire « papier » : mêmes couches, dosées pour ne pas
+   salir la page (aplats doux, jamais de tache). */
+:global(html[data-palette='claire']) .decor {
+  --lueur-chaude: 8%;
+  --lueur-froide: 6%;
+  --braise: 4%;
+  --voile-haut: 34%;
+  --brume-forte: 10%;
+  --brume-douce: 7%;
+  --brume-opacite: 0.18;
+  --vignette-force: 10%;
+  --vignette-teinte: #4c2f7a; /* encre prune des bords */
+  --grain: 0.025;
+}
+
+/* ---------- 2) Brume : voile diagonal qui dérive ------------------- */
+/* Un large dégradé linéaire (et non des « taches ») : le fondu est
+   continu, aucune structure circulaire ne peut apparaître. */
+.brume {
+  position: absolute;
+  inset: -30%;
+  opacity: var(--brume-opacite);
+  will-change: transform;
+  background: linear-gradient(
+    108deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-grenat-700) var(--brume-forte), transparent) 34%,
+    color-mix(in srgb, var(--color-violet-rom-600) var(--brume-douce), transparent) 62%,
+    transparent 100%
+  );
+  animation: derive-brume 180s ease-in-out infinite alternate;
+}
+
+@keyframes derive-brume {
+  from {
+    transform: translate3d(-4%, 0, 0) scale(1.05);
+  }
+  to {
+    transform: translate3d(4%, -1%, 0) scale(1.12);
+  }
+}
+
+/* ---------- 3) Grain fin : casse l'aplat et le banding ------------- */
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+/* ---------- 4) Vignette : resserre l'obscurité sur les bords ------- */
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    138% 112% at 50% 38%,
+    transparent 54%,
+    color-mix(in srgb, var(--vignette-teinte) var(--vignette-force), transparent)
+      100%
+  );
+}
+
+/* ---------- 5) Repli : décor figé, sans mouvement ------------------ */
+/* Le décor reste identique (il est déjà là, sans JS) ; seule la
+   dérive de brume s'arrête. */
+@media (prefers-reduced-motion: reduce) {
+  .brume {
+    animation: none;
+  }
+}
+:global(html[data-fond='fixe']) .brume {
+  animation: none;
+}
