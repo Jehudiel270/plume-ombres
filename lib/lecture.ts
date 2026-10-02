@@ -254,3 +254,75 @@ export function ecrirePreferences(pref: PreferencesLecture): void {
     /* stockage plein / navigation privée : non bloquant */
   }
 }
+
+// ============================================================
+// Allègement des données (chantier B1 / B10) — les SEGMENTS sont la
+// source de vérité unique du texte. Les colonnes
+// `chapitres.texte_source` et `chapitres.texte_traduit` sont
+// REDONDANTES : on cesse de les écrire à l'import et on recalcule
+// tout (estimation de lecture, exports, détection de repères)
+// depuis les segments. Fonctions PURES, sans DOM (Node-testables),
+// qui remplacent toute lecture de ces deux colonnes.
+// ============================================================
+
+/** Segment minimal suffisant pour reconstruire un texte complet. */
+export interface SegmentReconstructible {
+  source: string;
+  suite: string;
+  traduit?: string | null;
+}
+
+/**
+ * Nombre de caractères « utiles » d'un chapitre, recalculé depuis
+ * ses segments (source + espacement). Remplace le comptage sur
+ * `chapitres.texte_source` qui servait à l'estimation de lecture.
+ */
+export function caracteresDepuisSegments(
+  segments: readonly SegmentReconstructible[]
+): number {
+  let total = 0;
+  for (const s of segments) {
+    total += (s.source ?? '').length + (s.suite ?? '').length;
+  }
+  return total;
+}
+
+/**
+ * Reconstitue le texte source d'un chapitre depuis ses segments
+ * (concaténation 1:1 `source + suite`). Égal au texte NORMALISÉ de
+ * l'import (les retours à la ligne « mous » y sont devenus des
+ * espaces) — c'est précisément le texte traduit et lu à l'écran.
+ */
+export function reconstituerSourceDepuisSegments(
+  segments: readonly SegmentReconstructible[]
+): string {
+  return segments.map((s) => (s.source ?? '') + (s.suite ?? '')).join('');
+}
+
+/**
+ * Reconstitue le texte traduit assemblé d'un chapitre depuis ses
+ * segments (`traduit + suite`). Retourne `null` si aucun segment
+ * n'est traduit — équivalent de `chapitres.texte_traduit` NULL.
+ */
+export function reconstituerTraduitDepuisSegments(
+  segments: readonly SegmentReconstructible[]
+): string | null {
+  if (!segments.some((s) => (s.traduit ?? '').length > 0)) return null;
+  return segments.map((s) => (s.traduit ?? '') + (s.suite ?? '')).join('');
+}
+
+/**
+ * Estimation du temps de lecture d'un chapitre, recalculée depuis
+ * ses segments. Même formule que `lib/stats.ts` (≈ 250 mots/min,
+ * un mot français ≈ 6 caractères) afin de rester cohérente avec
+ * `estimerSecondesLecture` — sans dépendre de `texte_source`.
+ */
+export function estimerSecondesLectureDepuisSegments(
+  segments: readonly SegmentReconstructible[],
+  motsParMinute = 250
+): number {
+  const caracteres = caracteresDepuisSegments(segments);
+  if (caracteres <= 0) return 0;
+  const mots = caracteres / 6;
+  return Math.max(60, Math.round((mots / motsParMinute) * 60));
+}

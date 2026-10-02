@@ -68,7 +68,20 @@ export interface Chapitre {
   livre_id: string;
   position: number;
   titre: string;
+  /**
+   * @deprecated REDONDANT avec la table `segments` : la concaténation
+   * 1:1 `source + suite` (cf. `reconstituerSourceDepuisSegments`
+   * dans lib/lecture.ts) restitue ce texte. Plus écrit à l'import
+   * (chantier B1) ; l'estimation de lecture et la détection de
+   * repères se recalculent depuis les segments. Colonne vouée à
+   * être supprimée — ne plus la lire.
+   */
   texte_source: string;
+  /**
+   * @deprecated REDONDANT avec `segments` : `reconstituerTraduitDepuisSegments`
+   * (lib/lecture.ts) restitue la traduction assemblée. Colonne vouée
+   * à être supprimée — ne plus la lire.
+   */
   texte_traduit: string | null;
   statut: StatutChapitre;
   updated_at: string;

@@ -2,6 +2,11 @@
 // import-livre.ts — Préparation d'un livre importé.
 // Lit le fichier brut, découpe en chapitres puis en segments,
 // et produit les enregistrements à insérer dans Supabase.
+//
+// Chantier B1 : le texte N'EST PLUS recopié dans
+// `chapitres.texte_source` — les segments (`source` + `suite`)
+// sont la source de vérité unique. Le champ `texte_source` n'est
+// donc plus alimenté (cf. ChapitrePret.texte_source déprécié).
 // ============================================================
 
 import { decouperEnChapitres, decouperTexte, type Unite } from './segmenter';
@@ -23,7 +28,15 @@ export interface ChapitrePret {
   id: string;
   position: number;
   titre: string;
-  texte_source: string;
+  /**
+   * @deprecated Le texte du chapitre est porté par `segments`
+   * (`source` + `suite`), source de vérité UNIQUE : recopier le
+   * chapitre entier doublait le stockage (chantier B1). Plus
+   * alimenté à l'import ; conservé optionnel le temps que tous les
+   * appelants lisent les segments (cf. lib/lecture.ts). Ne pas
+   * réintroduire : `supabase` appliquera le défaut '' si absent.
+   */
+  texte_source?: string;
   segments: SegmentBrut[];
 }
 
@@ -91,7 +104,6 @@ function assemblage(
       id: crypto.randomUUID(),
       position: c.numero,
       titre: c.titre,
-      texte_source: c.texte,
       segments,
     };
   });
