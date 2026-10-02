@@ -11,6 +11,17 @@ export interface OptionsTraduction {
   cible: string;
   /** Signal d'annulation (fetch AbortSignal). */
   signal?: AbortSignal;
+  /**
+   * Bloc de directives à injecter dans le PROMPT des moteurs qui en
+   * acceptent un (Gemini) : glossaire imposé + contexte glissant.
+   * Champ facultatif — les appels existants ne changent pas.
+   */
+  directives?: string;
+  /**
+   * Paires source → traduction à IMPOSER après traduction (moteurs
+   * sans prompt : Google, MyMemory, LibreTranslate). Champ facultatif.
+   */
+  glossaire?: ReadonlyArray<{ source: string; traduction: string }>;
 }
 
 export interface FournisseurTraduction {

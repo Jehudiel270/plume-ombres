@@ -15,7 +15,11 @@ import type {
   OptionsTraduction,
 } from './types';
 import { cleGemini } from './gemini';
+import { appliquerGlossaire } from '@/lib/glossaire';
 import type { IdFournisseur } from '@/lib/types';
+
+export type { FournisseurTraduction, OptionsTraduction } from './types';
+export { composerInstructionSysteme } from '@/lib/glossaire';
 
 // Ré-export de l'API de la chaîne de secours (index → fallback, sans cycle).
 export {
@@ -62,11 +66,19 @@ export function fournisseurActif(): FournisseurTraduction {
 /**
  * Traduit un texte en le découpant au besoin (le fournisseur choisi
  * est déjà sélectionné côté serveur par la route API).
+ *
+ * P1.1 — signature INCHANGÉE. De façon additive :
+ *  • `options.directives` est transmis tel quel au fournisseur, qui
+ *    l'injecte dans son prompt s'il en accepte un (Gemini) ;
+ *  • `options.glossaire` est IMPOSÉ après coup sur la traduction
+ *    renvoyée (les moteurs sans prompt ne lisent pas de directives).
  */
 export async function traduireAvec(
   fournisseur: FournisseurTraduction,
   texte: string,
   options: OptionsTraduction
 ): Promise<string> {
-  return fournisseur.traduire(texte, options);
+  const brut = await fournisseur.traduire(texte, options);
+  if (!options.glossaire || options.glossaire.length === 0) return brut;
+  return appliquerGlossaire(brut, options.glossaire).texte;
 }

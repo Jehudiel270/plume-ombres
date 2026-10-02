@@ -14,10 +14,17 @@
 import { useCallback, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { paginer } from '@/lib/pagination';
+import {
+  chargerPairesGlossaire,
+  construireContexteGlissant,
+  MAX_ENTREES_PROMPT,
+  MAX_SEGMENTS_CONTEXTE,
+} from '@/lib/glossaire';
 import { chapitreEntierementTraduit } from '@/lib/types';
 import type {
   Chapitre,
   Livre,
+  PaireGlossaire,
   Segment,
   StatutChapitre,
 } from '@/lib/types';
@@ -87,6 +94,10 @@ interface CorpsTraduction {
   texte: string;
   source: string;
   cible: string;
+  /** P1.1 : paires source → traduction imposées (glossaire actif). */
+  glossaire?: PaireGlossaire[];
+  /** P1.1 : rappel de contexte glissant (segments précédents). */
+  contexte?: string;
 }
 
 export function useMoteurTraduction() {
@@ -165,9 +176,23 @@ export function useMoteurTraduction() {
         chapitre: Chapitre,
         texteTraduit: string,
         statut: StatutChapitre
-      ) => void
+      ) => void,
+      /**
+       * P1.1 — paramètre FACULTATIF (additif) : paires de glossaire à
+       * imposer. Omis, le glossaire actif du livre est chargé depuis
+       * Supabase ; une erreur de chargement ne bloque jamais le lot.
+       */
+      options?: { glossaire?: readonly PaireGlossaire[] }
     ) => {
       if (chapitres.length === 0 || actif) return;
+
+      // Glossaire actif du livre (source → traduction imposée), borné
+      // pour ne pas exploser la taille des requêtes.
+      const glossaireActif: PaireGlossaire[] = (
+        options?.glossaire ?? (await chargerPairesGlossaire(supabase, livre.id))
+      )
+        .filter((p) => p.source.trim() && p.traduction.trim())
+        .slice(0, MAX_ENTREES_PROMPT);
 
       const controleur = new AbortController();
       signalAnnulation.current = controleur;
@@ -205,6 +230,17 @@ export function useMoteurTraduction() {
               .order('position', { ascending: true })
               .range(debut, fin)
           );
+
+          // P1.1 — vue complète du chapitre : sert au contexte glissant
+          // (segments déjà traduits situés AVANT le segment courant).
+          const segmentsChapitre = await paginer<Segment>((debut, fin) =>
+            supabase
+              .from('segments')
+              .select('*')
+              .eq('chapitre_id', chapitre.id)
+              .order('position', { ascending: true })
+              .range(debut, fin)
+          );
           if (file.length === 0) {
             if (!controleur.signal.aborted) {
               await cloreChapitre(supabase, chapitre, majChapitre, false);
@@ -238,11 +274,27 @@ export function useMoteurTraduction() {
               .update({ statut: 'en_cours' })
               .eq('id', segment.id);
 
+            // P1.1 — contexte glissant : les N segments précédents DÉJÀ
+            // traduits du même chapitre, sous budget (les termes fixés,
+            // eux, sont envoyés via `glossaire` et composés une seule
+            // fois dans le prompt côté serveur — pas de doublon).
+            const precedents = segmentsChapitre
+              .filter((s) => s.position < segment.position)
+              .slice(-MAX_SEGMENTS_CONTEXTE)
+              .map((s) => ({ source: s.source, traduit: s.traduit }));
+            const contexte = construireContexteGlissant({
+              segments: precedents,
+            });
+
             const resultat = await traduireAvecEssais(
               {
                 texte,
                 source: livre.langue_source,
                 cible: livre.langue_cible,
+                ...(glossaireActif.length > 0
+                  ? { glossaire: glossaireActif }
+                  : {}),
+                ...(contexte.extrait ? { contexte: contexte.extrait } : {}),
               },
               segment.tentative,
               controleur.signal
