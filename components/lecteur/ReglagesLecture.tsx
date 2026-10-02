@@ -168,7 +168,7 @@ function GroupeRadio<T extends string | number>({
           title={o.titre}
           onClick={() => onChoix(o.valeur)}
           onKeyDown={(e) => surTouche(e, i)}
-          className={`flex-1 rounded-lg px-2 py-1.5 text-micro border transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-grenat-400 ${
+          className={`flex-1 min-h-11 rounded-lg px-2 py-1.5 text-micro border transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-grenat-400 ${
             o.valeur === valeur
               ? 'border-grenat-600 bg-nuit-700/60 text-encre-100'
               : 'border-nuit-700 text-encre-500 hover:text-encre-300'
@@ -246,7 +246,7 @@ function Bascule({
     <div className="mb-2">
       <label
         htmlFor={id}
-        className="flex items-center gap-2 cursor-pointer select-none"
+        className="flex items-center gap-2 min-h-11 cursor-pointer select-none"
       >
         <input
           id={id}
@@ -412,7 +412,7 @@ export default function ReglagesLecture({
           // glisserait donc avec le texte et sortirait de l'écran sur
           // un chapitre long. Ancrage absolu + défilement interne =
           // panneau toujours visible, du pouce comme à la souris.
-          className="absolute right-0 top-full z-40 mt-2 velours !bg-nuit-800/95 backdrop-blur-md p-4 text-left animate-fondu-monte w-[min(21rem,calc(100vw-2.5rem))] max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain"
+          className="absolute right-0 top-full z-40 mt-2 velours !bg-nuit-800/95 backdrop-blur-md p-4 text-left animate-fondu-monte w-[min(21rem,calc(100vw-2.5rem))] max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain max-w-[calc(100vw-1.5rem)]"
         >
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs uppercase tracking-[0.2em] text-encre-500">
@@ -421,7 +421,7 @@ export default function ReglagesLecture({
             <button
               type="button"
               onClick={() => fermer()}
-              className="text-encre-500 hover:text-encre-100 text-xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 rounded"
+              className="grid place-items-center min-h-11 min-w-11 -mr-1 rounded text-encre-500 hover:text-encre-100 text-xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400"
               aria-label="Fermer les réglages"
             >
               ✕
@@ -542,7 +542,7 @@ export default function ReglagesLecture({
           <button
             type="button"
             onClick={reinitialiser}
-            className="w-full mt-2 text-micro text-encre-500 hover:text-grenat-300 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 rounded"
+            className="w-full mt-2 inline-flex items-center justify-center min-h-11 text-micro text-encre-500 hover:text-grenat-300 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 rounded"
           >
             Réinitialiser les réglages
           </button>
