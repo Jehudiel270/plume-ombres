@@ -13,7 +13,14 @@
 // Configurable sans redéploiement :
 //   TRANSLATOR_FALLBACK_ORDER='gemini,google,mymemory,libretranslate'
 //   TRANSLATOR_FALLBACK_TIMEOUT_MS=20000   (délai par tentative)
+//   TRANSLATOR_FALLBACK_ESSAIS=1           (tentatives par moteur, borné)
 //   TRANSLATOR_FALLBACK_LOG=0              (coupe le journal)
+//
+// MODE « PRIVÉ STRICT » (TRANSLATOR_PRIVE_STRICT=1) : seule la file
+// AUTO-HÉBERGÉE (LibreTranslate) est autorisée. Ce verrou est appliqué
+// AU CŒUR de la chaîne (ordreSecours + traduireAvecSecours) et non
+// dans les appelants : une route API comme une tâche d'arrière-plan
+// (script, worker) ne peut donc PAS le contourner.
 //
 // Journalisation DISCRÈTE : on ne consigne que l'identifiant du
 // moteur, la catégorie d'échec et la durée — JAMAIS le moindre
@@ -29,6 +36,8 @@ import { FournisseurLibreTranslate } from './libretranslate';
 import { FournisseurMyMemory } from './mymemory';
 import { FournisseurGemini } from './gemini';
 import { FournisseurGoogleLibre } from './google';
+import { attendre } from './fragments';
+import { appliquerGlossaire } from '@/lib/glossaire';
 import type { IdFournisseur } from '@/lib/types';
 
 /** Ordre de secours par défaut (raisonnable, du plus local au plus lointain). */
@@ -52,6 +61,19 @@ const DELAI_SECOURS_DEFAUT_MS = 20000;
 export const VAR_ORDRE = 'TRANSLATOR_FALLBACK_ORDER';
 export const VAR_DELAI = 'TRANSLATOR_FALLBACK_TIMEOUT_MS';
 export const VAR_JOURNAL = 'TRANSLATOR_FALLBACK_LOG';
+/** Verrou « privé strict » : n'autorise que les moteurs auto-hébergés. */
+export const VAR_PRIVE_STRICT = 'TRANSLATOR_PRIVE_STRICT';
+/** Nombre maximal de tentatives PAR moteur (borné). */
+export const VAR_ESSAIS = 'TRANSLATOR_FALLBACK_ESSAIS';
+/** Plafond dur des tentatives par moteur (anti-boucle). */
+export const MAX_ESSAIS_PAR_MOTEUR = 3;
+
+/**
+ * Seuls moteurs qui garantissent la CONFIDENTIALITÉ du texte :
+ * une instance auto-hébergée, sur laquelle nous sommes seuls
+ * maîtres des données. Liste blanche du mode privé strict.
+ */
+export const IDS_PRIVES: readonly IdFournisseur[] = ['libretranslate'];
 
 /** Liste exhaustive des fournisseurs disponibles. */
 export function tousLesFournisseurs(): FournisseurTraduction[] {
@@ -87,12 +109,62 @@ export function nomFournisseurParId(id: IdFournisseur): string {
 }
 
 /**
+ * Vrai si le moteur traite le texte en DEHORS de notre infrastructure
+ * auto-hébergée — donc si le contenu quitte notre contrôle.
+ */
+export function fournisseurEstPrive(id: IdFournisseur): boolean {
+  return IDS_PRIVES.includes(id);
+}
+
+/**
+ * Libellé HONNÊTE du moteur : indique explicitement où va le texte.
+ * Sert à l'affichage utilisateur (promesse produit : texte privé).
+ */
+export function descriptionMoteur(id: IdFournisseur): string {
+  switch (id) {
+    case 'libretranslate':
+      return 'LibreTranslate (auto-hébergé — texte privé, jamais transmis à un tiers)';
+    case 'gemini':
+      return 'Gemini (Google — le texte est transmis à Google)';
+    case 'google':
+      return 'Google non officiel (sans contrat — le texte est transmis à Google)';
+    case 'mymemory':
+      return 'MyMemory (service public — le texte est transmis à MyMemory)';
+  }
+}
+
+/**
+ * MODE PRIVÉ STRICT — actif si TRANSLATOR_PRIVE_STRICT vaut
+ * 1 / true / on / oui (insensible à la casse). Quand il est actif,
+ * AUCUN moteur tiers n'est autorisé : seule la file auto-hébergée.
+ */
+export function modePriveStrict(): boolean {
+  const v = process.env[VAR_PRIVE_STRICT]?.trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'on' || v === 'oui';
+}
+
+/** Moteurs autorisés : file privée seule en mode privé strict. */
+export function moteursAutorises(): readonly IdFournisseur[] {
+  return modePriveStrict() ? IDS_PRIVES : IDS_CONNUS;
+}
+
+/**
  * Ordre effectif de la chaîne de secours.
  * Lit TRANSLATOR_FALLBACK_ORDER (identifiants séparés par des
  * virgules) ; ignore les inconnues et les doublons ; retombe sur
  * l'ordre par défaut si la valeur est absente ou inexploitable.
+ *
+ * GARDE-FOU CENTRAL : en mode privé strict, l'ordre est FORCÉ à la
+ * seule file auto-hébergée — quel que soit TRANSLATOR_FALLBACK_ORDER.
+ * Un appelant (route, script, worker) ne peut pas le contourner.
  */
 export function ordreSecours(): IdFournisseur[] {
+  if (modePriveStrict()) {
+    journaliser('mode privé strict : ordre forcé (auto-hébergé)', {
+      ordre: IDS_PRIVES.join(','),
+    });
+    return [...IDS_PRIVES];
+  }
   const brut = process.env[VAR_ORDRE];
   if (!brut || !brut.trim()) return [...ORDRE_SECOURS_DEFAUT];
   const retenus: IdFournisseur[] = [];
@@ -113,6 +185,17 @@ export function ordreSecours(): IdFournisseur[] {
 export function delaiSecoursMs(): number {
   const n = Number(process.env[VAR_DELAI]);
   return Number.isFinite(n) && n > 0 ? n : DELAI_SECOURS_DEFAUT_MS;
+}
+
+/**
+ * Nombre de tentatives PAR moteur, borné à MAX_ESSAIS_PAR_MOTEUR.
+ * Défaut 1 (bascule immédiate sur le moteur suivant) — aucune
+ * boucle infinie possible.
+ */
+export function essaisSecours(): number {
+  const n = Number(process.env[VAR_ESSAIS]);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(Math.floor(n), MAX_ESSAIS_PAR_MOTEUR);
 }
 
 /** Catégorie d'échec normalisée — sert uniquement au journal. */
@@ -194,8 +277,16 @@ export interface ResultatTraductionSecours {
   fournisseur: IdFournisseur;
   /** Nom d'affichage du moteur qui a réellement servi. */
   nomFournisseur: string;
+  /** Libellé honnête (indique où va le texte). */
+  description: string;
+  /** Vrai si le moteur retenu est auto-hébergé (texte privé). */
+  prive: boolean;
+  /** Vrai si le mode privé strict était actif pour cet appel. */
+  priveStrict: boolean;
   /** Nombre de moteurs essayés avant le succès (≥ 1). */
   essais: number;
+  /** Nombre total de tentatives réseau consommées (≥ essais). */
+  tentatives: number;
   /** Durée de la tentative gagnante (ms). */
   dureeMs: number;
 }
@@ -217,7 +308,13 @@ export class ErreurChaineSecours extends Error {
 }
 
 /** Dernier moteur ayant réellement servi (état local au processus). */
-let dernierMoteur: { id: IdFournisseur; nom: string } | null = null;
+let dernierMoteur: { id: IdFournisseur; nom: string; prive: boolean } | null =
+  null;
+
+/** Vrai si le dernier moteur ayant servi était auto-hébergé (privé). */
+export function dernierMoteurPrive(): boolean {
+  return dernierMoteur?.prive ?? false;
+}
 
 /**
  * Fonction publique : nom du moteur réellement utilisé lors du
@@ -254,50 +351,107 @@ function annulerAvecDelai(
  * Traduit un texte en essayant chaque moteur de la chaîne jusqu'au
  * premier succès. Renvoie la traduction ET le moteur réellement
  * utilisé. Lève ErreurChaineSecours si tous les moteurs échouent.
+ *
+ * Garanties :
+ *  • ORDONNÉ : les moteurs sont essayés dans l'ordre effectif ;
+ *  • BORNÉ : `essaisSecours()` tentatives par moteur (≤ 3) et un
+ *    délai maximal par tentative — jamais de boucle ni de blocage ;
+ *  • PRIVÉ STRICT : en mode privé, l'ordre est réduit à la file
+ *    auto-hébergée, ici même (impossible à contourner par l'appelant) ;
+ *  • GLOSSAIRE : les paires imposées sont appliquées au résultat,
+ *    quel que soit le moteur retenu ;
+ *  • SANS PERTE : une exception n'est propagée que si TOUTE la
+ *    chaîne a échoué (ErreurChaineSecours) — l'appelant peut alors
+ *    réessayer le segment sans avoir corrompu d'état.
  */
 export async function traduireAvecSecours(
   texte: string,
   options: OptionsTraduction,
   ordre: readonly IdFournisseur[] = ordreSecours()
 ): Promise<ResultatTraductionSecours> {
-  if (ordre.length === 0) {
-    throw new Error('Chaîne de secours vide : aucun moteur configuré.');
+  const priveStrict = modePriveStrict();
+  // Verrou central : en mode privé strict, on ne garde que la file
+  // auto-hébergée, MÊME si un appelant a fourni un ordre élargi.
+  const ordreEffectif = priveStrict
+    ? ordre.filter((id) => fournisseurEstPrive(id))
+    : ordre;
+
+  if (ordreEffectif.length === 0) {
+    throw new Error(
+      priveStrict
+        ? 'Mode privé strict : aucun moteur auto-hébergé disponible.'
+        : 'Chaîne de secours vide : aucun moteur configuré.'
+    );
   }
 
   const echecs: Array<{ id: IdFournisseur; categorie: CategorieEchec }> = [];
+  const maxEssais = essaisSecours();
+  let tentativesTotal = 0;
 
-  for (let i = 0; i < ordre.length; i++) {
-    const id = ordre[i];
+  for (let i = 0; i < ordreEffectif.length; i++) {
+    const id = ordreEffectif[i];
     const fournisseur = fournisseurParId(id);
-    const debut = Date.now();
-    const { signal, nettoyer } = annulerAvecDelai(options.signal, delaiSecoursMs());
 
-    try {
-      const traduit = await fournisseur.traduire(texte, { ...options, signal });
-      const dureeMs = Date.now() - debut;
-      dernierMoteur = { id, nom: fournisseur.nom };
-      journaliser('succès', { moteur: id, essai: i + 1, duree_ms: dureeMs });
-      return {
-        traduit,
-        fournisseur: id,
-        nomFournisseur: fournisseur.nom,
-        essais: i + 1,
-        dureeMs,
-      };
-    } catch (e) {
-      const { categorie, statut } = classerEchec(e);
-      echecs.push({ id, categorie });
+    for (let essai = 0; essai < maxEssais; essai++) {
       if (options.signal?.aborted) {
-        journaliser('annulé', { moteur: id });
-        throw e;
+        throw options.signal.reason ?? new DOMException('Annulé.', 'AbortError');
       }
-      journaliser('échec → bascule', {
-        moteur: id,
-        cause: categorie,
-        ...(statut ? { http: statut } : {}),
-      });
-    } finally {
-      nettoyer();
+      if (essai > 0) await attendre(300 * essai);
+      tentativesTotal += 1;
+      const debut = Date.now();
+      const { signal, nettoyer } = annulerAvecDelai(
+        options.signal,
+        delaiSecoursMs()
+      );
+
+      try {
+        const brut = await fournisseur.traduire(texte, { ...options, signal });
+        let traduit = brut;
+        if (options.glossaire && options.glossaire.length > 0) {
+          traduit = appliquerGlossaire(brut, options.glossaire).texte;
+        }
+        if (typeof traduit !== 'string' || traduit.trim() === '') {
+          throw new Error('Le moteur a renvoyé une traduction vide.');
+        }
+        const dureeMs = Date.now() - debut;
+        const prive = fournisseurEstPrive(id);
+        dernierMoteur = { id, nom: fournisseur.nom, prive };
+        journaliser('succès', {
+          moteur: id,
+          essai: i + 1,
+          tentative: essai + 1,
+          prive: prive ? 1 : 0,
+          duree_ms: dureeMs,
+        });
+        return {
+          traduit,
+          fournisseur: id,
+          nomFournisseur: fournisseur.nom,
+          description: descriptionMoteur(id),
+          prive,
+          priveStrict,
+          essais: i + 1,
+          tentatives: tentativesTotal,
+          dureeMs,
+        };
+      } catch (e) {
+        const { categorie, statut } = classerEchec(e);
+        if (options.signal?.aborted) {
+          journaliser('annulé', { moteur: id });
+          throw e;
+        }
+        journaliser('échec tentative', {
+          moteur: id,
+          cause: categorie,
+          tentative: essai + 1,
+          ...(statut ? { http: statut } : {}),
+        });
+        // Dernier essai de ce moteur épuisé : on enregistre l'échec
+        // du moteur et on bascule sur le suivant.
+        if (essai === maxEssais - 1) echecs.push({ id, categorie });
+      } finally {
+        nettoyer();
+      }
     }
   }
 
