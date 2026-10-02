@@ -12,7 +12,7 @@
 // ============================================================
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   assainirProgression,
   CLEF_PROGRESSION,
@@ -92,6 +92,15 @@ export function useLecture({
   const chapitreActuelRef = useRef<string | null>(null);
   const chargeRef = useRef(0); // secondes accumulées pendant la session
 
+  // Liste des chapitres lue par `enregistrer` via une ref : le callback
+  // reste ainsi d'IDENTITÉ STABLE quand la liste change de statut (chaque
+  // traduction, chaque reprise), donc les effets qui le consomment
+  // (défilement du lecteur) ne sont plus ré-armés inutilement.
+  const chapitresRef = useRef(chapitres);
+  useEffect(() => {
+    chapitresRef.current = chapitres;
+  }, [chapitres]);
+
   // Mesure le temps de lecture : accumule les secondes tant que la
   // page est visible (document.visibilityState). Ne stocke le temps
   // QUE comme durée "de lecture" — pas d'horodatage "maintenant".
@@ -126,14 +135,19 @@ export function useLecture({
     [livreId]
   );
 
-  /** Enregistre la progression du chapitre (appelé par le lecteur). */
-  function enregistrer(chapitreId: string, ratio: number) {
-    const chapitre = chapitres.find((c) => c.id === chapitreId);
-    if (!chapitre) return;
-    chapitreActuelRef.current = chapitreId;
-    const libelle = `Chapitre ${chapitre.position + 1}`;
-    majProgression(chapitreId, ratio, libelle);
-  }
+  /** Enregistre la progression du chapitre (appelé par le lecteur).
+   *  Callback STABLE : lit les chapitres via ref, dépend seulement de
+   *  `majProgression` (elle-même stable tant que le livre ne change pas). */
+  const enregistrer = useCallback(
+    (chapitreId: string, ratio: number) => {
+      const chapitre = chapitresRef.current.find((c) => c.id === chapitreId);
+      if (!chapitre) return;
+      chapitreActuelRef.current = chapitreId;
+      const libelle = `Chapitre ${chapitre.position + 1}`;
+      majProgression(chapitreId, ratio, libelle);
+    },
+    [majProgression]
+  );
 
   // À la sortie : on cumule le temps de lecture de la session.
   useEffect(() => {
@@ -151,27 +165,40 @@ export function useLecture({
 
   const detailLecture = stats.parLivre[livreId] ?? null;
   const estimee = formaterDuree(estimerSecondesLectureLivre(totalCaracteres));
+  const chapitreReprendre =
+    progression?.chapitreId &&
+    chapitres.some((c) => c.id === progression.chapitreId)
+      ? progression.chapitreId
+      : null;
 
-  return {
-    /** Progression existante (pour afficher « Reprendre »). */
-    progression,
-    /** Temps déjà passé sur ce livre (formaté), ou null. */
-    tempsLecture: detailLecture
-      ? formaterDuree(detailLecture.secondes)
-      : null,
-    /** Estimation du temps de lecture du livre entier. */
-    tempsEstime: estimee,
-    /** Libellé court « Chapitre 3 · 62 % ». */
-    etiquetteReprise: progression ? formaterReprise(progression) : null,
-    /** Le chapitre à réouvrir (id) s'il existe encore. */
-    chapitreReprendre:
-      progression?.chapitreId &&
-      chapitres.some((c) => c.id === progression.chapitreId)
-        ? progression.chapitreId
+  // Objet de retour mémoïsé : identités stables d'un rendu à l'autre
+  // tant que rien de pertinent ne change (les consommateurs mémoïsés
+  // ne se réveillent plus pour rien).
+  return useMemo(
+    () => ({
+      /** Progression existante (pour afficher « Reprendre »). */
+      progression,
+      /** Temps déjà passé sur ce livre (formaté), ou null. */
+      tempsLecture: detailLecture
+        ? formaterDuree(detailLecture.secondes)
         : null,
-    /** Enregistre le point de lecture courant. */
-    enregistrer,
-  };
+      /** Estimation du temps de lecture du livre entier. */
+      tempsEstime: estimee,
+      /** Libellé court « Chapitre 3 · 62 % ». */
+      etiquetteReprise: progression ? formaterReprise(progression) : null,
+      /** Le chapitre à réouvrir (id) s'il existe encore. */
+      chapitreReprendre,
+      /** Enregistre le point de lecture courant (identité stable). */
+      enregistrer,
+    }),
+    [
+      progression,
+      detailLecture,
+      estimee,
+      chapitreReprendre,
+      enregistrer,
+    ]
+  );
 }
 
 // --- Aides non exportées ---------------------------------------------
