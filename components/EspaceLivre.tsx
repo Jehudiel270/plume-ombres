@@ -28,12 +28,17 @@ import { creerClientNavigateur } from '@/lib/supabase/client';
 import { paginer } from '@/lib/pagination';
 import type { Chapitre, Livre, StatutChapitre } from '@/lib/types';
 import { useMoteurTraduction } from '@/lib/useMoteurTraduction';
-import { useLecture } from '@/lib/useLecture';
+import {
+  ratioLectureColonnes,
+  ratioLectureVertical,
+  useLecture,
+} from '@/lib/useLecture';
 import { CLEF_PROGRESSION } from '@/lib/progression';
 import Sommaire from '@/components/lecteur/Sommaire';
 import BarreActions from '@/components/lecteur/BarreActions';
 import CommandesTraduction from '@/components/lecteur/CommandesTraduction';
 import Lecteur from '@/components/lecteur/Lecteur';
+import { usePreferencesLecture } from '@/components/lecteur/ReglagesLecture';
 import { useExports } from '@/components/lecteur/useExports';
 import type { ChapitreLeger, Compteurs } from '@/components/lecteur/partages';
 
@@ -89,6 +94,21 @@ export default function EspaceLivre({
 
   // Élément du lecteur mesuré pour calculer le ratio de texte lu.
   const corpsLectureRef = useRef<HTMLDivElement | null>(null);
+  // Cadre défilant du mode « deux colonnes » (défilement horizontal).
+  const cadreLectureRef = useRef<HTMLDivElement | null>(null);
+
+  /** Préférences de confort de lecture (localStorage), partagées avec
+   *  le lecteur : elles pilotent la typographie ET la géométrie, donc
+   *  tout changement doit ré-armer les mesures de progression. */
+  const preferences = usePreferencesLecture();
+
+  /** Le mode deux colonnes n'est actif que sur grand écran (le CSS
+   *  ignore les colonnes en dessous de 1024 px). */
+  const enColonnes = useCallback((): boolean => {
+    const cadre = cadreLectureRef.current;
+    if (!cadre || cadre.dataset.colonnes !== '2') return false;
+    return window.matchMedia('(min-width: 1024px)').matches;
+  }, []);
 
   // Géométrie du corps du chapitre MESURÉE UNE FOIS par chapitre (et au
   // redimensionnement), puis réutilisée à chaque défilement : le calcul du
@@ -111,13 +131,14 @@ export default function EspaceLivre({
     derniereMesureRef.current = Date.now();
   }, []);
 
-  /** Ratio (0 → 1) du texte du chapitre déjà lu, dérivé du défilement.
-   *  Arithmétique pure : aucune lecture de mise en page. */
+  /** Ratio (0 → 1) du texte du chapitre déjà lu.
+   *  Deux modes : défilement VERTICAL (une colonne, arithmétique pure)
+   *  ou défilement HORIZONTAL du cadre (deux colonnes). */
   const ratioLecture = useCallback((): number => {
+    if (enColonnes()) return ratioLectureColonnes(cadreLectureRef.current);
     const { haut, longueur } = geometrieRef.current;
-    const defilement = window.scrollY - haut; // px de texte passés sous l'œil
-    return Math.min(1, Math.max(0, defilement / longueur));
-  }, []);
+    return ratioLectureVertical({ haut, longueur }, window.scrollY);
+  }, [enColonnes]);
 
   /** Persiste le point de lecture (débrayé : 1 s max entre écritures,
    *  un seul calcul par image via requestAnimationFrame). */
@@ -140,14 +161,29 @@ export default function EspaceLivre({
       });
     }
     surDefilement();
-    window.addEventListener('scroll', surDefilement, { passive: true });
+    // `capture: true` : attrape aussi le défilement HORIZONTAL du cadre
+    // à deux colonnes (les événements de défilement d'un élément ne
+    // remontent pas jusqu'à window en phase de bouillonnement).
+    window.addEventListener('scroll', surDefilement, {
+      passive: true,
+      capture: true,
+    });
     window.addEventListener('resize', mesurerCorps);
     return () => {
       if (image) window.cancelAnimationFrame(image);
-      window.removeEventListener('scroll', surDefilement);
+      window.removeEventListener('scroll', surDefilement, { capture: true });
       window.removeEventListener('resize', mesurerCorps);
     };
-  }, [selection, chapitreComplet?.id, enregistrer, ratioLecture, mesurerCorps]);
+  }, [
+    selection,
+    chapitreComplet?.id,
+    enregistrer,
+    ratioLecture,
+    mesurerCorps,
+    // Un changement de réglage (taille, interligne, mesure, colonnes…)
+    // change la géométrie : on ré-arme la mesure et le défilement.
+    preferences.prefs,
+  ]);
 
   // Au retour sur un livre déjà ouvert : on réouvre et on positionne
   // la lecture là où l'utilisateur l'avait laissée.
@@ -186,9 +222,21 @@ export default function EspaceLivre({
   useEffect(() => {
     if (!idChapitreAffiche) return;
     const timer = window.setTimeout(() => {
+      const ratio = ratioLectureCible(idChapitreAffiche);
+      // Deux colonnes : le point de reprise se retrouve dans le
+      // défilement horizontal du cadre.
+      if (enColonnes()) {
+        const cadre = cadreLectureRef.current;
+        if (!cadre) return;
+        const course = cadre.scrollWidth - cadre.clientWidth;
+        cadre.scrollTo({
+          left: ratio <= 0.02 ? 0 : Math.max(0, ratio * course),
+          behavior: 'auto',
+        });
+        return;
+      }
       // On mesure une fois la géométrie, puis on n'utilise que des nombres.
       mesurerCorps();
-      const ratio = ratioLectureCible(idChapitreAffiche);
       if (ratio <= 0.02) return;
       const { haut, longueur } = geometrieRef.current;
       // Le point de reprise est à `ratio` de la longueur du texte : on
@@ -199,7 +247,7 @@ export default function EspaceLivre({
       });
     }, 150);
     return () => window.clearTimeout(timer);
-  }, [idChapitreAffiche, mesurerCorps, ratioLectureCible]);
+  }, [idChapitreAffiche, mesurerCorps, ratioLectureCible, enColonnes]);
 
   // ---------- Chargement d'un chapitre complet (textes) ----------
   // Chargement piloté par la sélection ; l'état « en chargement » est
@@ -420,6 +468,15 @@ export default function EspaceLivre({
 
   const texteNet = useMemo(() => texteAffiche.trim(), [texteAffiche]);
 
+  /** Langue du texte AFFICHÉ (source ou traduction) : elle pilote la
+   *  césure (`hyphens: auto` a besoin d'un code de langue correct) et
+   *  l'annonce du corps de texte aux lecteurs d'écran. */
+  const langueAffichee = useMemo(() => {
+    const brute =
+      lecture === 'traduit' ? livre.langue_cible : livre.langue_source;
+    return /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(brute ?? '') ? brute : 'fr';
+  }, [lecture, livre.langue_source, livre.langue_cible]);
+
   const chapitreActuel = useMemo(
     () => chapitres.find((c) => c.id === selection) ?? null,
     [chapitres, selection]
@@ -442,6 +499,7 @@ export default function EspaceLivre({
    *  un point de lecture enregistré). Callback stable. */
   const naviguerVers = useCallback((id: string) => {
     window.scrollTo({ top: 0, behavior: 'auto' });
+    cadreLectureRef.current?.scrollTo({ left: 0, behavior: 'auto' });
     setSelection(id);
   }, []);
 
@@ -508,18 +566,22 @@ export default function EspaceLivre({
           langueCible={livre.langue_cible}
         />
 
-        {/* Lecteur — façon livre : surface calme, colonne ~65 caractères */}
+        {/* Lecteur — confort de lecture : mesures, thème et
+            espacements pilotés par les préférences (localStorage). */}
         <Lecteur
           chapitreComplet={chapitreComplet}
           chargementChapitre={chargementChapitre}
           texteNet={texteNet}
           corpsRef={corpsLectureRef}
+          cadreRef={cadreLectureRef}
           chapitrePrecedentId={chapitrePrecedentId}
           chapitreSuivantId={chapitreSuivantId}
           onNaviguer={naviguerVers}
           onOuvrirTiroir={ouvrirTiroir}
           position={indexSelection + 1}
           total={chapitres.length}
+          preferences={preferences}
+          langue={langueAffichee}
         />
       </section>
     </div>

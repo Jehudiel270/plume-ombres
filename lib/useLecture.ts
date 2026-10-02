@@ -201,6 +201,44 @@ export function useLecture({
   );
 }
 
+// --- Ratios de lecture (F5) ------------------------------------------
+
+/** Borne un ratio dans [0, 1] (valeur non finie → 0). */
+export function assainirRatio(ratio: number): number {
+  if (!isFinite(ratio)) return 0;
+  return Math.min(1, Math.max(0, ratio));
+}
+
+/**
+ * Ratio (0 → 1) lu sur le défilement VERTICAL de la page, à partir
+ * d'une géométrie mesurée une fois (`haut` = position du corps du
+ * chapitre dans la page, `longueur` = longueur de texte « utile »).
+ * Arithmétique pure : aucune lecture de mise en page.
+ */
+export function ratioLectureVertical(
+  geometrie: { haut: number; longueur: number },
+  defilementPage: number
+): number {
+  const { haut, longueur } = geometrie;
+  if (!isFinite(longueur) || longueur <= 0) return 0;
+  return assainirRatio((defilementPage - haut) / longueur);
+}
+
+/**
+ * Ratio (0 → 1) lu sur le défilement HORIZONTAL du cadre à deux
+ * colonnes : la course totale vaut `scrollWidth - clientWidth`.
+ * Un texte qui tient entièrement dans les deux colonnes (aucune
+ * course) vaut 0 : on n'invente pas une progression.
+ */
+export function ratioLectureColonnes(
+  cadre: { scrollLeft: number; scrollWidth: number; clientWidth: number } | null
+): number {
+  if (!cadre) return 0;
+  const course = cadre.scrollWidth - cadre.clientWidth;
+  if (!isFinite(course) || course <= 1) return 0;
+  return assainirRatio(cadre.scrollLeft / course);
+}
+
 // --- Aides non exportées ---------------------------------------------
 
 /** Nouvelle date ISO (utilisée uniquement comme repère d'ordre). */

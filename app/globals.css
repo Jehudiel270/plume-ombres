@@ -585,19 +585,152 @@ html[data-fond='fixe'] .fond-fixe {
   -webkit-backdrop-filter: blur(6px);
 }
 
-/* Colonne de lecture : largeur réglable en « ch » (défaut 65) */
+/* Surface de lecture : marges respirantes RÉGLABLES (--pref-marges)
+   et respiration verticale adaptée à la hauteur d'écran. */
+.surface-lecture {
+  padding-block: clamp(1.25rem, 3.5vw, 2.75rem);
+  padding-inline: var(--pref-marges, 1.75rem);
+}
+
+/* Colonne de lecture : mesure réglable en CARACTÈRES (largeur ×
+   facteur de la police, en multiples de la taille de police), centrée
+   — la mesure ne dépend plus de la taille de la fenêtre. */
 .colonne-lecture {
-  max-width: var(--pref-largeur, 65ch);
+  max-width: var(--pref-largeur, 34em);
   margin-inline: auto;
 }
 
-/* Corps du chapitre : les variables de préférence s'appliquent
-   ici (le composant lecture ne porte plus de classes hardcodées). */
+/* Deux colonnes : la mesure reste celle de la préférence, la page
+   s'élargit donc de deux colonnes + la gouttière. */
+.colonne-lecture[data-colonnes='2'] {
+  max-width: calc(var(--pref-largeur, 34em) * 2 + var(--pref-gouttiere, 3rem));
+}
+
+/* Cadre du texte : neutre en une colonne ; en deux colonnes il devient
+   un défilement HORIZONTAL borné en hauteur (colonnes « tournées »
+   comme des pages), sans jamais déborder sur la page. */
+.cadre-lecture {
+  position: relative;
+}
+.cadre-lecture[data-colonnes='2'] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  height: clamp(22rem, 72vh, 60rem);
+  outline: none;
+}
+.cadre-lecture[data-colonnes='2']:focus-visible {
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--color-grenat-500) 55%, transparent);
+  border-radius: 6px;
+}
+
+/* Corps du chapitre : les variables de préférence s'appliquent ici. */
 .corps-livre {
   font-family: var(--pref-police, var(--font-lora));
   font-size: var(--pref-taille, 17px);
   line-height: var(--pref-interligne, 1.75);
   text-align: var(--pref-alignment, left);
+  text-justify: inter-word;
+  /* Césure pilotée par les préférences ; un mot trop long ne déborde
+     jamais (les traductions produisent parfois des mots très longs). */
+  hyphens: var(--pref-cesure, manual);
+  -webkit-hyphens: var(--pref-cesure, manual);
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* Paragraphes : l'espacement remplace les lignes vides, le retrait de
+   première ligne est optionnel, et une coupure de colonne/page ne
+   scinde JAMAIS un paragraphe (fini les orphelines d'une ligne). */
+.corps-livre p {
+  margin: 0 0 var(--pref-espacement, 0.9em);
+  text-indent: var(--pref-retrait, 0);
+  white-space: pre-line;
+  orphans: 2;
+  widows: 2;
+  break-inside: avoid;
+  scroll-margin-top: 6rem;
+}
+.corps-livre p:last-child {
+  margin-bottom: 0;
+}
+/* Le premier paragraphe du chapitre et celui qui suit un changement de
+   scène ne prennent pas de retrait (règle typographique du livre). */
+.corps-livre > div:first-child > p:first-child,
+.corps-livre .repere-scene + p {
+  text-indent: 0;
+}
+
+/* Séparateur de scène : centré, sans justification ni retrait, jamais
+   orphelin en bas de colonne ou de page. */
+.corps-livre .repere-scene {
+  text-align: center;
+  text-indent: 0;
+  hyphens: none;
+  -webkit-hyphens: none;
+  margin: calc(var(--pref-espacement, 0.9em) * 1.75) 0;
+  color: color-mix(in srgb, currentColor 55%, transparent);
+  letter-spacing: 0.3em;
+  font-size: 0.95em;
+  break-after: avoid;
+}
+
+/* Lettrine : grande initiale du premier paragraphe (désactivée si le
+   réglage de retrait l'exige — jamais de double indentation). */
+.corps-livre .lettrine {
+  text-indent: 0;
+}
+.corps-livre .lettrine::first-letter {
+  float: left;
+  font-family: var(--font-display, var(--pref-police));
+  font-size: 3.3em;
+  line-height: 0.82;
+  padding-right: 0.12em;
+  color: var(--color-grenat-400);
+}
+
+/* En-tête de chapitre : titre équilibré, jamais coupé, jamais collé
+   à la barre d'outils ni caché sous un ancrage. */
+.entete-chapitre {
+  margin-bottom: clamp(1.75rem, 4vw, 3rem);
+  scroll-margin-top: 6rem;
+}
+.titre-chapitre {
+  font-family: var(--font-display, var(--pref-police));
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.4rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--color-encre-100);
+  hyphens: none;
+  -webkit-hyphens: none;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+/* En deux colonnes (grand écran) : deux colonnes de la mesure choisie,
+   remplies verticalement — le débordement part vers la droite. */
+.corps-livre[data-colonnes='2'] {
+  column-count: 2;
+  column-gap: var(--pref-gouttiere, 3rem);
+  column-fill: auto;
+  height: 100%;
+}
+
+/* En deux colonnes, une colonne au moins reste lisible : sous 1024 px
+   (et sur un écran trop bas), le réglage est ignoré proprement. */
+@media (max-width: 1023px), (max-height: 420px) {
+  .cadre-lecture[data-colonnes='2'] {
+    overflow: visible;
+    height: auto;
+  }
+  .corps-livre[data-colonnes='2'] {
+    column-count: 1;
+    height: auto;
+  }
+  .colonne-lecture[data-colonnes='2'] {
+    max-width: var(--pref-largeur, 34em);
+  }
 }
 
 /* Surlignage de la recherche */

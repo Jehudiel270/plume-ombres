@@ -7,8 +7,10 @@ import {
 } from '../lib/recherche';
 import {
   assainirPreferences,
+  espacementEffectif,
   preferencesEnCss,
   PREFERENCES_PAR_DEFAUT,
+  ESPACEMENT_MINI_SANS_RETRAIT,
   BORNES,
 } from '../lib/lecture';
 import {
@@ -23,6 +25,11 @@ import {
   assainirProgression,
   formaterReprise,
 } from '../lib/progression';
+import {
+  decouperEnParagraphes,
+  estSeparateurScene,
+  grouperEnBlocs,
+} from '../lib/pagination';
 
 let echecs = 0;
 function verifier(nom: string, condition: boolean) {
@@ -79,10 +86,95 @@ verifier('valeurs valides respectées', p3.theme === 'parchemin' && p3.taille ==
 // ---------- preferencesEnCss ----------
 const css = preferencesEnCss({ ...PREFERENCES_PAR_DEFAUT, taille: 20, largeur: 70, justifie: true });
 verifier('css : taille px', css['--pref-taille'] === '20px');
-verifier('css : largeur ch', css['--pref-largeur'] === '70ch');
+verifier('css : mesure = largeur × facteur de caractère, en em de la taille', css['--pref-largeur'] === 'calc(var(--pref-taille) * 35.000)');
 verifier('css : justification', css['--pref-alignment'] === 'justify');
 const cssParchemin = preferencesEnCss({ ...PREFERENCES_PAR_DEFAUT, theme: 'parchemin' });
 verifier('css : parchemin → encre sombre', cssParchemin['--pref-encre'] === '#2e2430');
+
+// ---------- F5 : réglages ajoutés (aucune perte des anciens) ----------
+const p4 = assainirPreferences(null);
+verifier(
+  'F5 : les six anciens réglages survivent (theme/police/taille/interligne/largeur/justifie)',
+  p4.theme === 'nuit' && p4.police === 'lora' && p4.taille === 17 && p4.interligne === 1.75 && p4.largeur === 68 && p4.justifie === false
+);
+verifier(
+  'F5 : réglages ajoutés présents (espacement/retrait/césure/colonnes/marges/lettrine)',
+  p4.espacement === 0.9 && p4.retrait === false && p4.cesure === true && p4.colonnes === 1 && p4.marges === 'normale' && p4.lettrine === true
+);
+const p5 = assainirPreferences({ theme: 'encre', taille: 19, interligne: 2, largeur: 70, justifie: true, espacement: 9, retrait: true, cesure: false, colonnes: 7, marges: 'inepte', lettrine: false });
+verifier('F5 : préférences héritées relues telles quelles', p5.theme === 'encre' && p5.taille === 19 && p5.justifie === true && p5.largeur === 70);
+verifier('F5 : espacement borné au max', p5.espacement === BORNES.espacement.max);
+verifier('F5 : marges inconnues → défaut', p5.marges === 'normale');
+verifier('F5 : colonnes hors {1,2} → 1', p5.colonnes === 1);
+verifier('F5 : retrait/césure/lettrine booléens respectés', p5.retrait === true && p5.cesure === false && p5.lettrine === false);
+// Une préférence enregistrée par la version précédente (sans les nouveaux
+// réglages) doit être honorée : rien n'est perdu, rien n'est rejeté.
+const ancienne = assainirPreferences({ theme: 'parchemin', police: 'monospace', taille: 21, interligne: 2.2, largeur: 55, justifie: true });
+verifier(
+  'F5 : préférences d’une version antérieure conservées à l’identique',
+  ancienne.theme === 'parchemin' && ancienne.police === 'monospace' && ancienne.taille === 21 && ancienne.interligne === 2.2 && ancienne.largeur === 55 && ancienne.justifie === true
+);
+verifier('F5 : nouveaux réglages comblés par les défauts', ancienne.espacement === 0.9 && ancienne.marges === 'normale' && ancienne.colonnes === 1 && ancienne.lettrine === true);
+const cssF5 = preferencesEnCss({ ...PREFERENCES_PAR_DEFAUT, espacement: 1.4, retrait: true, cesure: false, colonnes: 2, marges: 'large', lettrine: false });
+verifier('F5 css : espacement em', cssF5['--pref-espacement'] === '1.40em');
+verifier('F5 css : retrait em', cssF5['--pref-retrait'] === '1.6em');
+verifier('F5 css : césure auto/manual', cssF5['--pref-cesure'] === 'manual');
+verifier('F5 css : marges rem', cssF5['--pref-marges'] === '3.25rem');
+verifier('F5 css : gouttière seulement en deux colonnes', cssF5['--pref-colonnes'] === '2' && cssF5['--pref-gouttiere'] === '3rem' && preferencesEnCss(PREFERENCES_PAR_DEFAUT)['--pref-gouttiere'] === '0px');
+verifier('F5 css : lettrine en 0/1', cssF5['--pref-lettrine'] === '0' && preferencesEnCss(PREFERENCES_PAR_DEFAUT)['--pref-lettrine'] === '1');
+verifier('F5 : espacement mini garanti sans retrait', espacementEffectif({ ...PREFERENCES_PAR_DEFAUT, espacement: 0, retrait: false }) === ESPACEMENT_MINI_SANS_RETRAIT && espacementEffectif({ ...PREFERENCES_PAR_DEFAUT, espacement: 0, retrait: true }) === 0);
+verifier('F5 css : anciennes variables intactes', cssF5['--pref-taille'] === '17px' && cssF5['--pref-alignment'] === 'left' && typeof cssF5['--pref-police'] === 'string' && typeof cssF5['--pref-fond'] === 'string' && typeof cssF5['--pref-encre'] === 'string' && cssF5['--pref-interligne'] === '1.75');
+
+// ---------- F5 : structure typographique (paragraphes + scènes) ----------
+const fixture = [
+  'Premier paragraphe du chapitre, sur une seule ligne.',
+  '',
+  'Deuxième paragraphe.',
+  '',
+  '   ',
+  '* * *',
+  '',
+  'Après la scène : le paragraphe suivant ne prend pas de retrait.',
+  '',
+  '⁂',
+  '',
+  'Dernier paragraphe avec un mot très long aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa fin.',
+].join('\n');
+
+const blocs = decouperEnParagraphes(fixture);
+verifier('F5 : 6 blocs (4 paragraphes + 2 scènes détectées)', blocs.length === 6);
+verifier('F5 : offsets → reconstitution exacte du texte rogné', blocs.every((b) => fixture.slice(b.debut, b.fin) === b.texte));
+verifier('F5 : séparateur « * * * » reconnu comme scène', blocs[2].type === 'scene' && blocs[2].texte === '* * *');
+verifier('F5 : ornement « ⁂ » reconnu comme scène', blocs[4]?.type === 'scene');
+verifier('F5 : les paragraphes restent des paragraphes', blocs[0].type === 'paragraphe' && blocs[1].type === 'paragraphe' && blocs[5].type === 'paragraphe');
+verifier('F5 : aucun bloc vide', blocs.every((b) => b.texte.trim().length > 0));
+verifier('F5 : les blancs de séparation ne sont PAS dans les blocs', blocs[0].texte === 'Premier paragraphe du chapitre, sur une seule ligne.');
+
+// Faux positifs : une ligne de texte ne devient jamais un ornement.
+verifier('F5 : ligne de texte → pas une scène', !estSeparateurScene('Elle partit.'));
+verifier('F5 : tiret de dialogue → pas une scène', !estSeparateurScene('— Je ne savais pas, dit-elle.'));
+verifier('F5 : « --- » → scène', estSeparateurScene('---') && estSeparateurScene('***') && estSeparateurScene('...'));
+verifier('F5 : un seul tiret isolé → scène', estSeparateurScene('—'));
+
+// Un chapitre sans ligne vide reste un seul paragraphe (aucune perte).
+const unSeul = 'Une seule ligne de texte, sans aucune séparation.';
+const bUn = decouperEnParagraphes(unSeul);
+verifier('F5 : chapitre d’une ligne → 1 bloc intact', bUn.length === 1 && bUn[0].texte === unSeul && bUn[0].debut === 0 && bUn[0].fin === unSeul.length);
+
+// Les offsets restent compatibles avec la recherche plein texte.
+const terme = 'scène';
+const plaques = chercherTermes(fixture, terme);
+verifier('F5 : recherche toujours alignée sur les offsets', plaques.length === 1 && fixture.slice(plaques[0].debut, plaques[0].fin) === 'scène');
+const porteur = blocs.find((b) => plaques[0].debut >= b.debut && plaques[0].fin <= b.fin);
+verifier('F5 : l’occurrence tombe dans un bloc identifiable', !!porteur);
+
+// Regroupement en paquets : jamais de coupe au milieu d’un bloc.
+const gros = Array.from({ length: 120 }, (_, i) => `Paragraphe numéro ${i} — ${'x'.repeat(160)}`).join('\n\n');
+const blocsGros = decouperEnParagraphes(gros);
+const paquets = grouperEnBlocs(blocsGros, 20000);
+verifier('F5 : le regroupement conserve tous les blocs, dans l’ordre', paquets.flat().length === blocsGros.length && paquets.flat().every((b, i) => b.debut === blocsGros[i].debut));
+verifier('F5 : chaque paquet fait au moins la moitié de la cible (sauf le dernier)', paquets.slice(0, -1).every((p) => p.reduce((s, b) => s + (b.fin - b.debut), 0) >= 10000));
+verifier('F5 : un petit texte → un seul paquet', grouperEnBlocs(blocs, 20000).length === 1);
 
 // ---------- stats de lecture ----------
 const s0: StatsLecture = { parLivre: {} };
