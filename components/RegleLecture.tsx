@@ -138,7 +138,7 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
           role="dialog"
           aria-label="Réglages de lecture"
           tabIndex={-1}
-          className="absolute right-0 top-full mt-2 z-40 velours p-4 text-left animate-fondu-monte max-h-[80vh] overflow-y-auto overscroll-contain w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
+          className="absolute right-0 top-full mt-2 z-40 velours backdrop-blur-md p-4 text-left animate-fondu-monte max-h-[80vh] overflow-y-auto overscroll-contain w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
         >
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs uppercase tracking-[0.2em] text-encre-500">
@@ -214,13 +214,13 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
             />
           </div>
 
-          {/* Justification */}
-          <label className="flex items-center gap-2 mb-3 cursor-pointer">
+          {/* Justification — label = cible tactile pleine hauteur (44 px) */}
+          <label className="flex items-center gap-2 mb-3 min-h-11 cursor-pointer">
             <input
               type="checkbox"
               checked={prefs.justifie}
               onChange={(e) => maj({ justifie: e.target.checked })}
-              className="accent-grenat-500"
+              className="h-5 w-5 accent-grenat-500"
             />
             <span className="text-xs text-encre-300">Justifier le texte</span>
           </label>
