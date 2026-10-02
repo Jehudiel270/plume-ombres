@@ -55,3 +55,6 @@ build-final-verifie.txt
 
 # Fixtures de tests locales
 fixtures-originaux-non-pdf/
+
+# Sortie des tests d'export EPUB (générée à la demande)
+.epub-test/
