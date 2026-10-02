@@ -25,11 +25,17 @@
 - [ ] **A3.** Exposer en HTTPS : sous-domaine + Caddy (Let's Encrypt). Sans URL publique, LibreTranslate reste inutilisable en prod (défaut actuel : `127.0.0.1:5000`).
 - [ ] **A4.** Bench réel sur la VM : caractères/seconde mesurés, temps par livre de 600 pages. Remplacer les estimations par des chiffres.
 - [ ] **A5.** Configurer `LIBRETRANSLATE_URL` et `LIBRETRANSLATE_API_KEY` dans les variables de production Vercel.
-- [ ] **A6.** **Chaîne de fallback automatique** dans `fournisseurActif()` : LibreTranslate → Gemini → Google → MyMemory, avec bascule sur échec. (Aujourd'hui : fournisseur unique, aucun repli.)
-- [ ] **A7.** Surveillance : health-check de la VM + alerte si indisponible (cron).
-- [ ] **A8.** Trancher et **afficher** le défaut de production (LibreTranslate privé/lent vs Gemini rapide/données chez Google). L'utilisateur doit savoir ce que devient son texte.
+- [x] **A6.** **Chaîne de fallback automatique** — LIVRÉE (vague 6). `traduireAvecSecours()` essaie les moteurs DANS L'ORDRE (LibreTranslate → Gemini → Google → MyMemory) et bascule automatiquement sur échec (réseau, timeout, 429/quota, 5xx, réponse invalide ou vide). Délai maximal par tentative (`TRANSLATOR_FALLBACK_TIMEOUT_MS`, défaut 20 s) et tentatives BORNÉES par moteur (`TRANSLATOR_FALLBACK_ESSAIS`, défaut 1, plafond 3). Ordre configurable sans redéploiement. La route `/api/translate` utilise désormais la chaîne (plus de fournisseur unique). Preuve réelle : panne du moteur privé provoquée en plein chapitre → bascule mesurée, 0 segment perdu, 0 doublon.
+- [x] **A7.** **Contrôle de santé RÉEL** — LIVRÉ (vague 6) : `lib/providers/sante.ts` sonde chaque moteur par un appel court, résultat mis en cache (`TRANSLATOR_SANTE_TTL_MS`, défaut 5 min) ; route `GET /api/translate/sante` **réservée aux admins** (`?forcer=1` pour ignorer le cache) ; affichage dans l'espace admin (moteur actif, état, latence, confidentialité). **Reste : l'alerte automatique (cron) si la VM tombe → nouvelle tâche A11.**
+- [x] **A8.** **Défaut de production TRANCHÉ et AFFICHÉ** — LIVRÉ (vague 6). Défaut = **LibreTranslate auto-hébergé en tête de chaîne** (privé, gratuit) ; Google non officiel n'est plus jamais choisi par défaut. L'admin voit, par moteur, « où va le texte » (auto-hébergé vs transmis à un tiers). **Côté utilisateur : AUCUN nom de fournisseur** (promesse produit) — seule la mention de confidentialité est affichée.
 - [ ] **A9.** Réduire les langues proposées au lancement (en→fr d'abord) et n'élargir qu'ensuite.
 - [ ] **A10.** Option Premium : moteur supérieur quel que soit le défaut.
+- [ ] **A11.** **Alerte** si le moteur privé (ou toute la chaîne) devient indisponible : cron qui appelle `/api/translate/sante` et notifie (suite d'A7).
+- [ ] **A12.** **Mode privé strict** (`TRANSLATOR_PRIVE_STRICT=1`) : verrou CENTRAL appliqué dans la chaîne (ordre réduit à l'auto-hébergé), donc impossible à contourner par une route ou une tâche d'arrière-plan — DÉJÀ IMPLÉMENTÉ ET TESTÉ (vague 6) ; reste à décider s'il devient le défaut de production.
+
+> **Modèle Gemini (vague 6)** : `GEMINI_MODEL` par défaut = `gemini-flash-latest`. La famille 2.5 explicite est **refusée aux nouveaux comptes** (HTTP 404) et l'alias principal peut renvoyer **503 (forte demande)** : le fournisseur bascule alors automatiquement sur `gemini-flash-lite-latest` avant d'abandonner. Constaté en réel : `gemini-2.5-flash` → 404, `gemini-2.5-flash-lite` → 404, `gemini-flash-lite-latest` → 200.
+
+> **Coûts mesurés (hypothèse roman 100 000 mots ≈ 150 000 tokens entrée + autant en sortie)** : Gemini payant ≈ **0,68 $/livre en 2026** (~405 FCFA), **1,35 $/livre en 2027**. Google Cloud Translation ≈ 12 $/livre → écarté. Gratuit Gemini : 100 requêtes/livre, RPD 250–500 → **~75 à 150 livres/mois**. LibreTranslate auto-hébergé : **aucune limite**, c'est lui qui portera la charge.
 
 ---
 
@@ -112,13 +118,24 @@
 - [ ] **P0.1** **Hébergement commercial** : Vercel Hobby interdit tout usage commercial (dons inclus) → passer à Pro (~20 $/mois) ou changer d'hébergeur avant toute monétisation.
 - [x] **P0.2** Quota d'usage par compte (caractères traduits/mois), mesuré et affiché.
 - [x] **P0.3** Rate-limiting serveur sur `/api/translate` (aujourd'hui : appels illimités).
-- [ ] **P0.4** Moteur de production fiabilisé (chantier A) — la prod ne doit plus dépendre d'un endpoint Google non officiel.
+- [x] **P0.4** Moteur de production fiabilisé (chantier A) — **CODE LIVRÉ (vague 6)** : chaîne de repli ordonnée + santé réelle. ⚠️ **La bascule prod n'est effective qu'après A5** (renseigner `LIBRETRANSLATE_URL` + `GEMINI_API_KEY` dans les variables Vercel) : sans elles, la chaîne traverse LibreTranslate (injoignable) et Gemini (clé absente) avant d'atteindre Google non officiel — elle ne CASSE plus, mais elle n'est pas encore privée.
 - [ ] **P0.5** Pages légales : CGU/CGV, confidentialité, mentions légales, contact, information sur le transit du texte.
 - [x] **P0.6** Suppression de compte et de toutes les données.
 - [x] **P0.7** Bug de reprise `en_cours` corrigé (tâche C10).
 - [x] **P0.8** Landing page publique (tâche C4).
-- [ ] **P0.9** Paiement + abonnement + pages de confirmation succès/échec.
+- [ ] **P0.9** Paiement + abonnement + pages de confirmation succès/échec. **MODÈLE TRANCHÉ (vague 6) → PAY-AS-YOU-GO par crédits prépayés, PAS d'abonnement mensuel obligatoire** (voir encadré ci-dessous).
 - [ ] **P0.10** Décision stockage tranchée (chantier B) : plus aucun fichier original conservé par défaut.
+
+> ### Décision P0.9 — « pay as you go » (crédits prépayés)
+> **Pourquoi ce modèle plutôt qu'un abonnement mensuel** : la clientèle visée paie en Mobile Money, avec des revenus irréguliers. Un prélèvement mensuel est une barrière à l'entrée et un risque d'impayés ; le prépayé convertit mieux, encaisse d'avance et supprime tout recouvrement.
+> **Règles retenues :**
+> 1. **Le quota gratuit mensuel est conservé** (400 000 caractères ≈ deux tiers d'un livre) : on peut essayer sans payer.
+> 2. **Quand le quota gratuit est épuisé, on puise dans les crédits** achetés — jamais de blocage brutal, jamais de perte du travail en cours.
+> 3. **Packs indicatifs** (à arrêter avec un comptable) : 500 FCFA = 250 000 car. · **1 000 FCFA = 600 000 car. (~1 livre)** · 2 500 FCFA = 1,8 M car. (~3 livres, −17 %) · 5 000 FCFA = 4 M car. (~7 livres, −33 %).
+> 4. **Pas d'expiration** des crédits (ou 12 mois — à trancher au lancement).
+> 5. **Encaissement FedaPay** (Mobile Money) ; le solde est crédité **au webhook de succès**, jamais à l'initiation.
+> 6. **La traduction déjà payée n'est jamais perdue** : le quota est rendu si la traduction échoue.
+> **À implémenter** : tables `packs_credits` + `credits_traduction` + `credits_mouvements`, `reserver_quota` étendu (gratuit → crédits), page `/abonnement` (solde + packs), branchement webhook. **Hors vague 6 (non lancé).**
 
 ### P1 — IMPORTANT (avant lancement commercial large)
 - [x] **P1.1** Cohérence de traduction : glossaire de personnages/lieux + contexte glissant (principal déficit de qualité).
@@ -147,11 +164,27 @@
 
 ---
 
-## Ordre d'exécution recommandé
-1. **B1 → B4** : allègement immédiat (0 €, gros effet, aucune dépendance externe).
-2. **C10** (bug de reprise) + **A6** (chaîne de fallback) : fiabilité.
-3. **A1 → A5** quand le compte Oracle est créé ; sinon **P0.4** reste ouvert.
-4. **C1 → C2 → C3** : fluidité et refonte du lecteur.
-5. **C4 → P0.5** : page publique et cadre légal.
-6. **P0.1 → P0.2 → P0.3 → P0.9** : hébergement, quotas, rate-limiting, paiement.
+## Ordre d'exécution — vagues restantes
+
+**Vague 6 (celle-ci) — CLOSE.** Moteur de traduction fiabilisé (A6, A7, A8, A12) + décision pay-as-you-go (P0.9). Fusionnée dans `main` et poussée.
+
+| Vague | Contenu | But |
+|---|---|---|
+| **W7** | **B1 → B6, B10** (ne plus stocker les originaux) + **A9** (réduire les langues à en→fr) | Allègement immédiat, 0 €, gros effet |
+| **W8** | **C5, C7, C8** (bibliothèque, pages d'état, accessibilité) + **P1.3** (chapitres en erreur visibles) | Finir l'interface, aucune donnée muette |
+| **W9** | **P0.1** (hébergement commercial), **P0.9** (pay-as-you-go : crédits, FedaPay), **P0.5** (CGU/CGV + information sur le transit du texte), **P0.10** | **Vague qui permet d'encaisser** |
+| **W10** | **P1.4** (mot de passe oublié), **P1.6** (monitoring), **P1.7** (sauvegarde BDD), **A11** (alerte cron) | Exploitation fiable |
+| **W11** | **P2** (reprise serveur, batching, catégories, stats) puis **P3** | Après lancement |
+
+**Hors vague — bloquant la promesse « texte privé » en production** : **A1 → A5** (VM Oracle Always Free, LibreTranslate en HTTPS, variables Vercel). Tant que ce n'est pas fait, la chaîne ne casse plus mais traverse des moteurs tiers.
+
+**Total : 4 vagues (W7 → W10) avant de pouvoir encaisser**, puis W11 après lancement.
+
+Détail historique de l'ordre :
+1. **B1 → B4** : allègement immédiat (0 €, gros effet, aucune dépendance externe). → **W7**
+2. **C10** (bug de reprise) + **A6** (chaîne de fallback) : fiabilité. → **FAIT (vague 6)**
+3. **A1 → A5** quand le compte Oracle est créé ; sinon **P0.4** reste partiellement ouvert. → **hors vague, prioritaire**
+4. **C1 → C2 → C3** : fluidité et refonte du lecteur. → **FAIT (vagues 2-5)**
+5. **P0.5** : cadre légal. → **W9**
+6. **P0.1 → P0.9** : hébergement commercial, pay-as-you-go. → **W9**
 7. **B11** (spike TeraBox) en tâche de fond, sans jamais bloquer le reste.
