@@ -7,6 +7,12 @@ interface Props {
   titre?: string;
   intro?: React.ReactNode;
   id?: string;
+  /**
+   * Niveau du titre de section. `1` pour le titre principal de la page
+   * (un seul par page, pour l'accessibilité et le référencement),
+   * `2` par défaut pour les sections suivantes.
+   */
+  niveau?: 1 | 2;
   /** Largeur de lecture : `large` pour les grilles, `etroit` pour le texte. */
   gabarit?: 'large' | 'etroit';
   children: React.ReactNode;
@@ -17,9 +23,12 @@ export default function SectionPublique({
   titre,
   intro,
   id,
+  niveau = 2,
   gabarit = 'large',
   children,
 }: Props) {
+  const classesTitre =
+    'font-display text-3xl sm:text-4xl text-encre-100 mt-2 text-balance';
   return (
     <section
       id={id}
@@ -28,11 +37,12 @@ export default function SectionPublique({
       }`}
     >
       {surTitre && <p className="sur-titre text-grenat-400">{surTitre}</p>}
-      {titre && (
-        <h2 className="font-display text-3xl sm:text-4xl text-encre-100 mt-2 text-balance">
-          {titre}
-        </h2>
-      )}
+      {titre &&
+        (niveau === 1 ? (
+          <h1 className={classesTitre}>{titre}</h1>
+        ) : (
+          <h2 className={classesTitre}>{titre}</h2>
+        ))}
       <div className="liseret mt-4" />
       {intro && (
         <p className="text-encre-500 mt-4 leading-relaxed max-w-2xl">{intro}</p>
