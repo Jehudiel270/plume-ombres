@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import FormulairePaiement from '@/components/paiement/FormulairePaiement';
 import AbonnementStatut from '@/components/AbonnementStatut';
-import { statutEffectif } from '@/lib/abonnement';
+import { accesPremium, planParCode, statutEffectif } from '@/lib/abonnement';
 import { MagasinAbonnementSupabase, MagasinPaiementSupabase } from '@/lib/paiement/magasin';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 
@@ -64,7 +64,8 @@ export default async function PageSucces({
           statut={statut}
           plan={abonnement?.plan ?? 'gratuit'}
           periodeFin={abonnement?.periode_fin ?? null}
-          premium={statut === 'actif'}
+          premium={statut === 'actif' && accesPremium(planParCode(abonnement?.plan ?? null))}
+          essai={planParCode(abonnement?.plan ?? null)?.categorie === 'essai'}
         />
         {enAttente && reference && (
           <div className="pt-2">

@@ -1,6 +1,6 @@
-// Tunnel de paiement (P0.9) — page du plan choisi, avec le
-// formulaire Mobile Money. Renvoie vers /connexion si la session est
-// absente (le paiement exige un compte).
+// Tunnel de paiement — page du plan choisi, avec le formulaire Mobile
+// Money. Renvoie vers /connexion si la session est absente (le paiement
+// exige un compte). Aucun nom de moteur de traduction n'apparaît ici.
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -8,9 +8,11 @@ import { notFound, redirect } from 'next/navigation';
 import BarreNavigation from '@/components/BarreNavigation';
 import FormulairePaiement from '@/components/paiement/FormulairePaiement';
 import {
+  conditionsPlan,
   estPlanPremium,
   libellePeriodicite,
   libellePrix,
+  libellePrixDetaille,
   planParCode,
 } from '@/lib/abonnement';
 import { modePaiementAffiche } from '@/lib/paiement/mode';
@@ -20,7 +22,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Paiement',
-  description: 'Souscrire au Premium de Plume d’Ombres par Mobile Money.',
+  description: 'Souscrire à une offre de Plume d’Ombres par Mobile Money.',
 };
 
 export default async function PagePaiementPlan({
@@ -46,7 +48,8 @@ export default async function PagePaiementPlan({
     (utilisateur.email?.split('@')[0] ?? 'Lecteur');
 
   const etatPaiement = modePaiementAffiche();
-  const prixLibelle = `${libellePrix(plan)} ${libellePeriodicite(plan)}`.trim();
+  const prixLibelle = libellePrixDetaille(plan);
+  const conditions = conditionsPlan(plan);
 
   return (
     <>
@@ -59,9 +62,7 @@ export default async function PagePaiementPlan({
 
         <div className="mt-4">
           <p className="sur-titre text-grenat-400">Paiement</p>
-          <h1 className="font-display text-3xl text-encre-100 mt-2">
-            {plan.nom}
-          </h1>
+          <h1 className="font-display text-3xl text-encre-100 mt-2">{plan.nom}</h1>
           <div className="liseret mt-3" />
         </div>
 
@@ -76,21 +77,37 @@ export default async function PagePaiementPlan({
           </div>
           <p className="text-encre-500 text-xs mt-2">
             {etatPaiement.mode === 'simulation'
-              ? 'Prix indicatif — paiement simulé, aucun débit.'
-              : `Paiement sécurisé via ${
-                  etatPaiement.fournisseur === 'fedapay'
-                    ? 'FedaPay'
-                    : etatPaiement.fournisseur
-                } (Mobile Money).`}
+              ? 'Paiement simulé — aucun débit réel.'
+              : etatPaiement.mode === 'non_configure'
+                ? 'Paiement non configuré.'
+                : 'Paiement sécurisé par Mobile Money.'}
           </p>
 
+          {conditions.length > 0 && (
+            <ul className="mt-4 space-y-1.5 text-xs text-encre-500 leading-relaxed list-disc pl-4">
+              {conditions.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          )}
+
           <div className="mt-6">
-            <FormulairePaiement
-              plan={plan.code}
-              planNom={plan.nom}
-              prixLibelle={prixLibelle}
-              simulation={etatPaiement.mode === 'simulation'}
-            />
+            {etatPaiement.configure ? (
+              <FormulairePaiement
+                plan={plan.code}
+                planNom={plan.nom}
+                prixLibelle={prixLibelle}
+                simulation={etatPaiement.mode === 'simulation'}
+              />
+            ) : (
+              <div className="rounded-xl border border-grenat-700/50 bg-grenat-700/15 p-4 text-sm text-encre-300">
+                <strong className="text-encre-100">
+                  Paiement non configuré.
+                </strong>{' '}
+                Aucun agrégateur n’est disponible pour l’instant. Votre compte
+                reste utilisable ; réessayez plus tard ou contactez-nous.
+              </div>
+            )}
           </div>
         </div>
 

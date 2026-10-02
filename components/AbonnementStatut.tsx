@@ -15,6 +15,8 @@ interface Props {
   plan: string;
   periodeFin?: string | null;
   premium?: boolean;
+  /** Essai gratuit : précise « Essai » plutôt que « Premium ». */
+  essai?: boolean;
 }
 
 const COULEURS: Record<StatutAbonnement, string> = {
@@ -31,15 +33,18 @@ export default function AbonnementStatut({
   plan,
   periodeFin,
   premium = false,
+  essai = false,
 }: Props) {
   const planObj = planParCode(plan);
+  const estEssai = essai || planObj?.categorie === 'essai';
   const classe = COULEURS[statut] ?? COULEURS.inactif;
+  const famille = estEssai ? 'Essai' : premium ? 'Premium' : 'Gratuit';
   return (
     <div className="flex flex-wrap items-center gap-3">
       <span
         className={`rounded-full border text-[11px] uppercase tracking-wider px-3 py-1 ${classe}`}
       >
-        {premium ? 'Premium' : 'Gratuit'} — {libelleStatut(statut)}
+        {famille} — {libelleStatut(statut)}
       </span>
       {planObj && (
         <span className="text-encre-300 text-sm">
