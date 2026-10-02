@@ -1,23 +1,32 @@
 # ============================================================
-# netlify.toml — Plume d'Ombres (Next.js 16, App Router)
+# netlify.toml — Plume d'Ombres (Next.js 16 App Router)
 #
-# Bascule Vercel -> Netlify, PRÉPARÉE mais NON déployée.
-# Le runtime Next.js de Netlify (adaptateur OpenNext,
-# @netlify/plugin-nextjs) est détecté et installé
-# AUTOMATIQUEMENT au build : ne PAS l'épingler dans package.json
-# (voir DEPLOIEMENT-NETLIFY.md, section « Adapter »).
+# Bascule Vercel -> Netlify : décision P0.1 PRISE (Netlify Free,
+# usage commercial autorisé). Configuration PRÊTE, déploiement
+# NON effectué. Voir DEPLOIEMENT-NETLIFY.md pour le comparatif
+# sourcé et la procédure complète.
+#
+# L'adaptateur Next.js de Netlify (OpenNext, paquet
+# @netlify/plugin-nextjs, dernière version 5.16.1 du 30/09/2026)
+# est détecté et installé AUTOMATIQUEMENT au build. Netlify
+# recommande de NE PAS l'épingler : ne PAS l'ajouter dans
+# package.json (épingler = perdre les mises à jour automatiques).
+# Pour épingler malgré tout : `npm i -D @netlify/plugin-nextjs@5.16.1`
+# puis décommenter le bloc [[plugins]] en bas de ce fichier.
 # ============================================================
 
 [build]
-  # package.json expose déjà "build": "next build"
+  # package.json expose `"build": "next build --webpack"`.
+  # --webpack est OBLIGATOIRE dans ce projet : le build Turbopack
+  # par défaut échoue (voir DEPLOIEMENT-NETLIFY.md §6).
   command = "npm run build"
-  # Publish directory attendu par l'adaptateur Next.js de Netlify.
+  # Répertoire attendu par l'adaptateur Next.js de Netlify
+  # (identique au starter officiel netlify-templates/next-platform-starter).
   publish = ".next"
 
 [build.environment]
   # Next.js 16 exige Node >= 20.9. On épingle la LTS 22 pour la
-  # reproductibilité (Netlify sait installer n'importe quelle
-  # version gérée par nvm).
+  # reproductibilité (Netlify installe les versions gérées par nvm).
   NODE_VERSION = "22"
   NEXT_TELEMETRY_DISABLED = "1"
 
@@ -56,8 +65,17 @@
 #  - pas de [[plugins]] : l'adaptateur Next.js est installé
 #    automatiquement (l'épingler désactiverait les mises à jour).
 #  - pas de [functions] / timeout : la limite d'exécution synchrone
-#    (60 s) n'est PAS configurable (voir DEPLOIEMENT-NETLIFY.md).
+#    (60 s) n'est PAS configurable sur le plan Free et n'est pas
+#    augmentable. Conséquence DIRECTE : aucune tâche longue de
+#    traduction ne doit vivre dans une route Next.js — elle vit sur
+#    la VM Oracle Always Free (voir DEPLOIEMENT-NETLIFY.md §5).
 #  - pas de cron / scheduled function : le projet n'en utilise aucune.
+#    (Une fonction planifiée serait de toute façon plafonnée à 30 s.)
 #  - pas de redirects : le garde d'accès vit dans proxy.ts (ex-middleware
-#    Next 16), exécuté par l'adaptateur via Edge Functions.
+#    Next 16), exécuté par l'adaptateur via des Edge Functions.
 # ------------------------------------------------------------------
+
+# À DÉCOMMENTER UNIQUEMENT pour épingler l'adaptateur à une version
+# précise (non recommandé). Voir l'en-tête de ce fichier.
+# [[plugins]]
+#   package = "@netlify/plugin-nextjs"
