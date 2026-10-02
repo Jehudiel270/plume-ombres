@@ -406,7 +406,13 @@ export default function ReglagesLecture({
           ref={panneauRef}
           role="dialog"
           aria-label="Réglages de lecture"
-          className="fixed inset-x-3 bottom-3 z-50 velours p-4 text-left animate-fondu-monte max-h-[80vh] overflow-y-auto lg:absolute lg:inset-x-auto lg:bottom-auto lg:right-0 lg:top-full lg:mt-2 lg:w-[21rem]"
+          // Ancrée au bouton « Aa », à toutes les tailles : le lecteur
+          // porte `backdrop-filter`, qui fait de lui le bloc conteneur
+          // des descendants `position: fixed` — une feuille « fixe »
+          // glisserait donc avec le texte et sortirait de l'écran sur
+          // un chapitre long. Ancrage absolu + défilement interne =
+          // panneau toujours visible, du pouce comme à la souris.
+          className="absolute right-0 top-full z-40 mt-2 velours !bg-nuit-800/95 backdrop-blur-md p-4 text-left animate-fondu-monte w-[min(21rem,calc(100vw-2.5rem))] max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain"
         >
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs uppercase tracking-[0.2em] text-encre-500">
