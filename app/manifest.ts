@@ -16,9 +16,14 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    orientation: 'portrait',
-    background_color: '#0d0a12',
-    theme_color: '#16101f',
+    // Non bloquant : aucune orientation forcée — un lecteur peut tourner
+    // son appareil (le viewport n'est jamais verrouillé).
+    orientation: 'any',
+    // Mêmes couleurs que le viewport (app/layout.tsx) et que le fond réel
+    // de la palette par défaut (nuit-950 = #0a0608) : plus d'écart
+    // manifest ↔ viewport (relevé à l'audit, tâche C9).
+    background_color: '#0a0608',
+    theme_color: '#0a0608',
     lang: 'fr',
     categories: ['books', 'reading', 'productivity'],
     icons: [

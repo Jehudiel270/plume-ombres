@@ -39,7 +39,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0b0709',
+  // Identique à `theme_color` du manifest (app/manifest.ts) et au fond
+  // réel de la palette par défaut : nuit-950 = #0a0608.
+  themeColor: '#0a0608',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',

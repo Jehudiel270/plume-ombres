@@ -58,6 +58,9 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
   const [ouvert, setOuvert] = useState(false);
   const { palette, typo, choisirPalette, choisirTypo } = useTheme();
   const panneauRef = useRef<HTMLDivElement>(null);
+  const boutonRef = useRef<HTMLButtonElement>(null);
+  const dialogueRef = useRef<HTMLDivElement>(null);
+  const etaitOuvert = useRef(false);
 
   // Persistance + application aux variables CSS : l'effet ne fait que
   // synchroniser l'état React vers l'extérieur (localStorage + DOM) —
@@ -94,6 +97,18 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
     };
   }, [ouvert]);
 
+  // Accessibilité clavier : à l'ouverture le focus entre dans le
+  // panneau ; à la fermeture il revient sur le bouton déclencheur.
+  // (Aucun vol de focus au premier rendu : `etaitOuvert` part à false.)
+  useEffect(() => {
+    if (ouvert) {
+      dialogueRef.current?.focus();
+    } else if (etaitOuvert.current) {
+      boutonRef.current?.focus();
+    }
+    etaitOuvert.current = ouvert;
+  }, [ouvert]);
+
   function maj(patch: Partial<PreferencesLecture>) {
     setPrefs((p) => assainirPreferences({ ...p, ...patch }));
   }
@@ -102,21 +117,28 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
     <div className="relative" ref={panneauRef}>
       <button
         type="button"
+        ref={boutonRef}
         onClick={() => setOuvert((o) => !o)}
-        className={`bouton-fantome !px-3 !py-1.5 text-xs ${
+        className={`bouton-fantome !px-3 !py-1.5 text-xs min-h-11 min-w-11 ${
           ouvert ? '!border-grenat-600 text-grenat-300' : ''
         }`}
         title="Réglages de lecture (police, taille, thème…)"
+        aria-label="Réglages de lecture"
         aria-expanded={ouvert}
+        aria-haspopup="dialog"
+        aria-controls="reglages-lecture"
       >
         <span className="font-display text-sm">Aa</span>
       </button>
 
       {ouvert && (
         <div
+          id="reglages-lecture"
+          ref={dialogueRef}
           role="dialog"
           aria-label="Réglages de lecture"
-          className="absolute right-0 top-full mt-2 z-40 velours p-4 text-left animate-fondu-monte max-h-[80vh] overflow-y-auto w-[min(20rem,calc(100vw-2.5rem))]"
+          tabIndex={-1}
+          className="absolute right-0 top-full mt-2 z-40 velours p-4 text-left animate-fondu-monte max-h-[80vh] overflow-y-auto overscroll-contain w-[min(22rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)]"
         >
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs uppercase tracking-[0.2em] text-encre-500">
@@ -125,7 +147,7 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
             <button
               type="button"
               onClick={() => setOuvert(false)}
-              className="text-encre-500 hover:text-encre-100 text-xs cursor-pointer"
+              className="grid place-items-center min-h-11 min-w-11 -mr-1 rounded-lg text-encre-500 hover:text-encre-100 text-sm cursor-pointer"
               aria-label="Fermer les réglages"
             >
               ✕
@@ -215,7 +237,7 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
                   type="button"
                   onClick={() => maj({ police: p.id })}
                   aria-pressed={prefs.police === p.id}
-                  className={`flex-1 rounded-lg px-2 py-1.5 text-micro border transition-colors cursor-pointer ${
+                  className={`flex-1 min-h-11 rounded-lg px-2 py-1.5 text-micro border transition-colors cursor-pointer ${
                     prefs.police === p.id
                       ? 'border-grenat-600 bg-nuit-700/60 text-encre-100'
                       : 'border-nuit-700 text-encre-500 hover:text-encre-300'
@@ -239,7 +261,7 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
                   type="button"
                   onClick={() => maj({ theme: t.id })}
                   aria-pressed={prefs.theme === t.id}
-                  className={`flex-1 rounded-lg px-2 py-1.5 text-micro border transition-colors cursor-pointer ${
+                  className={`flex-1 min-h-11 rounded-lg px-2 py-1.5 text-micro border transition-colors cursor-pointer ${
                     prefs.theme === t.id
                       ? 'border-grenat-600 bg-nuit-700/60 text-encre-100'
                       : 'border-nuit-700 text-encre-500 hover:text-encre-300'
@@ -254,7 +276,7 @@ export default function RegleLecture({ idLecteur }: { idLecteur: string }) {
           <button
             type="button"
             onClick={() => setPrefs(PREFERENCES_PAR_DEFAUT)}
-            className="w-full mt-2 text-micro text-encre-500 hover:text-grenat-300 transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center w-full mt-2 min-h-11 text-micro text-encre-500 hover:text-grenat-300 transition-colors cursor-pointer"
           >
             Réinitialiser les réglages
           </button>
