@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import { liensNavigationSupplementaires, normaliserRole, type Role } from '@/lib/roles';
+import { ouvrirApparence } from '@/lib/theme';
 
 interface Props {
   email: string;
@@ -108,6 +109,15 @@ export default function BarreNavigation({ email, pseudo, role: roleInitial }: Pr
           >
             {pseudo.slice(0, 1).toUpperCase()}
           </div>
+          <button
+            type="button"
+            onClick={ouvrirApparence}
+            className="bouton-fantome !px-3 !py-1.5 text-xs min-h-11"
+            title="Apparence du site (palette et typographie)"
+          >
+            <span aria-hidden="true">◐</span>
+            <span className="hidden sm:inline">Apparence</span>
+          </button>
           <button
             type="button"
             onClick={seDeconnecter}

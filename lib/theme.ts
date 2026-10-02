@@ -265,6 +265,22 @@ export function ecrirePreference(clef: string, valeur: string): void {
   }
 }
 
+/**
+ * Événement global d'ouverture du panneau « Apparence ».
+ *
+ * N'importe quelle page ou n'importe quel menu peut l'émettre :
+ *   window.dispatchEvent(new Event(EVENEMENT_APPARENCE))
+ * Le panneau (components/PanneauApparence.tsx), monté une seule fois
+ * dans app/layout.tsx, écoute et s'ouvre — sans couplage direct.
+ */
+export const EVENEMENT_APPARENCE = 'plume:ouvrir-apparence';
+
+/** Ouvre le panneau « Apparence » depuis n'importe où (sans le coupler). */
+export function ouvrirApparence(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(EVENEMENT_APPARENCE));
+}
+
 /** Script inline anti-FOUC : pose la palette/typo avant le premier rendu. */
 export const SCRIPT_THEME = `(function(){try{
 var d=document.documentElement;

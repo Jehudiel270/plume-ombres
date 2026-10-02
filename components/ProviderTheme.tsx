@@ -30,6 +30,7 @@ import {
   ecrirePreference,
   lirePreference,
   paletteDefaut,
+  TYPO_DEFAUT,
   type PaletteId,
   type TypoId,
 } from '@/lib/theme';
@@ -39,6 +40,8 @@ interface ContexteTheme {
   typo: TypoId;
   choisirPalette: (p: PaletteId) => void;
   choisirTypo: (t: TypoId) => void;
+  /** Efface les choix stockés : la palette suit de nouveau le système. */
+  reinitialiser: () => void;
 }
 
 const Ctx = createContext<ContexteTheme | null>(null);
@@ -95,8 +98,24 @@ export default function ProviderTheme({ children }: { children: ReactNode }) {
     ecrirePreference(CLEF_TYPO, t);
   }, []);
 
+  // Retour aux préférences par défaut : on efface les choix explicites
+  // pour que la palette se remette à suivre le schéma du système.
+  const reinitialiser = useCallback(() => {
+    try {
+      window.localStorage.removeItem(CLEF_PALETTE);
+      window.localStorage.removeItem(CLEF_TYPO);
+    } catch {
+      /* stockage indisponible : non bloquant */
+    }
+    const clair = window.matchMedia('(prefers-color-scheme: light)').matches;
+    setPalette(paletteDefaut(!clair));
+    setTypo(TYPO_DEFAUT);
+  }, []);
+
   return (
-    <Ctx.Provider value={{ palette, typo, choisirPalette, choisirTypo }}>
+    <Ctx.Provider
+      value={{ palette, typo, choisirPalette, choisirTypo, reinitialiser }}
+    >
       {children}
     </Ctx.Provider>
   );
