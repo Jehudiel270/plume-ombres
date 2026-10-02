@@ -7,8 +7,8 @@
 // ============================================================
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import type { Plaque } from '@/lib/recherche';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { chercherTermes, type Plaque, type ResultatRechercheLivre } from '@/lib/recherche';
 
 interface Props {
   /** Termes de la requête en cours (maîtrisé par le lecteur). */
@@ -22,6 +22,34 @@ interface Props {
   /** Callbacks d'écriture (le lecteur réagit : défilement). */
   onTerm: (terme: string) => void;
   onIndexActif: (index: number) => void;
+  /**
+   * Résultats de la recherche PLEIN LIVRE (`chercherDansLivre`).
+   * Facultatif et rétrocompatible : si fourni et non vide, la liste
+   * déroulante affiche les résultats groupés PAR CHAPITRE (au lieu
+   * des seules occurrences du chapitre courant).
+   */
+  resultatsLivre?: ResultatRechercheLivre | null;
+  /** Saut vers un chapitre (position) — appelé au clic sur un extrait. */
+  onAllerChapitre?: (position: number) => void;
+}
+
+/** Surligne le terme recherché dans un extrait (réutilise le moteur). */
+function ExtraitSurligne({ contexte, terme }: { contexte: string; terme: string }) {
+  const plaques = terme.trim().length >= 2 ? chercherTermes(contexte, terme) : [];
+  if (plaques.length === 0) return <>{contexte}</>;
+  const morceaux: ReactNode[] = [];
+  let curseur = 0;
+  plaques.forEach((p, i) => {
+    if (p.debut > curseur) morceaux.push(contexte.slice(curseur, p.debut));
+    morceaux.push(
+      <mark key={i} className="bg-grenat-700/50 rounded-[3px] px-0.5 text-inherit">
+        {contexte.slice(p.debut, p.fin)}
+      </mark>
+    );
+    curseur = p.fin;
+  });
+  if (curseur < contexte.length) morceaux.push(contexte.slice(curseur));
+  return <>{morceaux}</>;
 }
 
 /** Contexte d'une plaque, la zone trouvée surlignée. */
@@ -58,10 +86,18 @@ export default function Recherche({
   indexActif,
   onTerm,
   onIndexActif,
+  resultatsLivre,
+  onAllerChapitre,
 }: Props) {
   const [ouvert, setOuvert] = useState(false);
   const champRef = useRef<HTMLInputElement>(null);
   const boiteRef = useRef<HTMLDivElement>(null);
+
+  // Mode « plein livre » : résultats groupés par chapitre.
+  const modeLivre =
+    !!resultatsLivre &&
+    resultatsLivre.terme.trim().length >= 2 &&
+    resultatsLivre.totalOccurrences > 0;
 
   // Ferme la liste au clic extérieur.
   useEffect(() => {
@@ -102,11 +138,13 @@ export default function Recherche({
           className="shrink-0 text-[11px] text-encre-500 tabular-nums text-center"
           aria-live="polite"
         >
-          {plaques.length > 0
-            ? `${indexActif + 1}/${plaques.length}`
-            : term.trim().length >= 2
-              ? '0'
-              : '\u00a0'}
+          {modeLivre
+            ? resultatsLivre?.totalOccurrences
+            : plaques.length > 0
+              ? `${indexActif + 1}/${plaques.length}`
+              : term.trim().length >= 2
+                ? '0'
+                : '\u00a0'}
         </span>
         <button
           type="button"
@@ -143,7 +181,53 @@ export default function Recherche({
         </button>
       </div>
 
-      {ouvert && plaques.length > 0 && (
+      {ouvert && modeLivre && resultatsLivre && (
+        <div className="absolute left-0 right-0 top-full mt-2 z-30 max-h-64 overflow-y-auto border border-nuit-700 rounded-xl bg-nuit-900/95 backdrop-blur-md shadow-2xl shadow-black/60">
+          {resultatsLivre.chapitres.map((ch) => (
+            <div
+              key={ch.chapitreId}
+              className="border-b border-nuit-700/60 last:border-0"
+            >
+              <div className="flex items-baseline justify-between gap-2 px-4 pt-2.5 pb-1">
+                <a
+                  href={`#${ch.ancre}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onAllerChapitre?.(ch.position);
+                    setOuvert(false);
+                  }}
+                  className="truncate text-[11px] font-semibold uppercase tracking-wide text-grenat-300 hover:text-grenat-200"
+                  title={`Aller au chapitre : ${ch.titre}`}
+                >
+                  {ch.titre}
+                </a>
+                <span className="shrink-0 text-[10px] text-encre-500 tabular-nums">
+                  {ch.nbOccurrences}
+                </span>
+              </div>
+              {ch.extraits.map((ex, i) => (
+                <button
+                  key={`${ex.plaque.debut}-${i}`}
+                  type="button"
+                  onClick={() => {
+                    onAllerChapitre?.(ch.position);
+                    setOuvert(false);
+                  }}
+                  className="block w-full cursor-pointer px-4 py-2 text-left text-xs leading-relaxed text-encre-400 transition-colors hover:bg-nuit-800/70"
+                  title={`Chapitre ${ch.position + 1}`}
+                >
+                  <ExtraitSurligne
+                    contexte={ex.contexte}
+                    terme={resultatsLivre.terme}
+                  />
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {ouvert && !modeLivre && plaques.length > 0 && (
         <div className="absolute left-0 right-0 top-full mt-2 z-30 max-h-64 overflow-y-auto border border-nuit-700 rounded-xl bg-nuit-900/95 backdrop-blur-md shadow-2xl shadow-black/60">
           {plaques.map((p, i) => (
             <button
