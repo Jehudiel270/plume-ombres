@@ -1,15 +1,19 @@
-// Mentions légales (C6). Gabarit : identité de l'éditeur et coordonnées
-// de l'hébergeur restent à compléter et à valider par un juriste.
+// Mentions légales (C6) — remise à niveau vague 5.
+// Objectif : page complète, cohérente avec les conditions et la politique de
+// confidentialité, lisible SANS compte. Les seules cases réellement vides
+// sont celles que l'éditeur seul peut remplir (identité, adresse,
+// immatriculation) : elles restent entre crochets, jamais inventées.
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
 import BandeauGabarit from '@/components/public/BandeauGabarit';
+import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
   title: 'Mentions légales',
   description:
-    'Éditeur, responsable de la publication, hébergeur et propriété intellectuelle du studio de traduction Plume d’Ombres.',
+    'Éditeur, responsable de la publication, hébergeurs (Vercel, Supabase), propriété intellectuelle, signalement et accessibilité du studio de traduction Plume d’Ombres.',
 };
 
 export default function PageMentionsLegales() {
@@ -19,36 +23,45 @@ export default function PageMentionsLegales() {
         gabarit="etroit"
         surTitre="Informations légales"
         titre="Mentions légales"
-        intro="Ce que la loi impose de rendre lisible : qui édite le site, qui l’héberge, et à qui appartiennent les textes."
+        intro="Ce que la loi impose de rendre lisible : qui édite le site, qui l’héberge, à qui appartiennent les textes, et comment signaler un contenu. Dernière mise à jour : 2 octobre 2026."
       >
-        <BandeauGabarit>
-          Les identités, adresses et numéros ci-dessous sont des{' '}
-          <strong>champs à compléter</strong>. Tant qu’ils restent entre crochets, la page
-          n’est pas conforme : elle doit être finalisée et relue avant la mise en ligne
-          publique.
-        </BandeauGabarit>
+        <SommaireLegal actif="mentions-legales" />
+
+        <div className="mt-4">
+          <BandeauGabarit>
+            Les identités, adresses et numéros ci-dessous sont les{' '}
+            <strong>seules données que l’éditeur doit encore renseigner</strong> :
+            elles figurent entre crochets et n’ont volontairement pas été
+            inventées. Tant qu’elles restent vides, la page n’est pas conforme et
+            doit être complétée puis relue avant la mise en ligne publique. Le
+            reste de la page (hébergeurs, propriété intellectuelle, signalement)
+            est complet.
+          </BandeauGabarit>
+        </div>
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="1" titre="Éditeur du site">
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <ul className="space-y-2">
             <li>
-              <strong className="text-encre-100">Dénomination</strong> : [nom ou raison
-              sociale]
+              <strong className="text-encre-100">Dénomination</strong> : [à
+              compléter — nom ou raison sociale]
             </li>
             <li>
-              <strong className="text-encre-100">Statut juridique</strong> : [micro-entreprise
-              / société / association]
+              <strong className="text-encre-100">Statut juridique</strong> : [à
+              compléter — micro-entreprise / société / association]
             </li>
             <li>
-              <strong className="text-encre-100">Adresse</strong> : [adresse complète]
+              <strong className="text-encre-100">Adresse</strong> : [à compléter —
+              adresse complète]
             </li>
             <li>
-              <strong className="text-encre-100">Immatriculation</strong> : [SIREN / SIRET ou
-              registre équivalent]
+              <strong className="text-encre-100">Immatriculation</strong> : [à
+              compléter — SIREN / SIRET ou registre équivalent]
             </li>
             <li>
-              <strong className="text-encre-100">Numéro de TVA</strong> : [le cas échéant]
+              <strong className="text-encre-100">Numéro de TVA</strong> : [à
+              compléter le cas échéant]
             </li>
             <li>
               <strong className="text-encre-100">Contact</strong> : voir la page{' '}
@@ -57,6 +70,10 @@ export default function PageMentionsLegales() {
               </Link>
             </li>
           </ul>
+          <p className="text-encre-500 italic">
+            Le nom commercial « Plume d’Ombres » désigne le studio en ligne ;
+            l’éditeur est la personne ou la structure qui l’exploite.
+          </p>
         </div>
       </SectionPublique>
 
@@ -67,8 +84,8 @@ export default function PageMentionsLegales() {
       >
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed">
           <p>
-            [nom et qualité du responsable de la publication]. Pour toute question
-            relative au contenu du site, passez par la page{' '}
+            [à compléter — nom et qualité du responsable de la publication]. Pour
+            toute question relative au contenu du site, passez par la page{' '}
             <Link href="/contact" className="lien-discret underline">
               Contact
             </Link>
@@ -77,21 +94,31 @@ export default function PageMentionsLegales() {
         </div>
       </SectionPublique>
 
-      <SectionPublique gabarit="etroit" surTitre="3" titre="Hébergeur">
-        <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
+      <SectionPublique gabarit="etroit" surTitre="3" titre="Hébergeurs">
+        <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-4">
           <p>
-            <strong className="text-encre-100">Vercel Inc.</strong> — hébergement de
-            l’application. Coordonnées : [adresse de l’hébergeur à recopier depuis ses
-            propres mentions légales, avec sa page « legal » comme source].
+            <strong className="text-encre-100">Vercel Inc.</strong> — hébergement
+            de l’application (rendu des pages et routes serveur). Coordonnées
+            officielles à recopier depuis la page « legal » de Vercel au moment de
+            la mise en ligne. Région d’exécution : [à confirmer selon la
+            configuration de production].
           </p>
           <p>
-            <strong className="text-encre-100">Supabase Inc.</strong> — base de données,
-            authentification et stockage. Coordonnées : [idem, à recopier depuis les
-            mentions légales de Supabase]. Région d’hébergement retenue : [à préciser].
+            <strong className="text-encre-100">Supabase Inc.</strong> — base de
+            données (livres, chapitres, traductions), authentification et, le cas
+            échéant, stockage. La base du studio est hébergée dans la région{' '}
+            <strong className="text-encre-100">eu-west-1 (Union européenne)</strong>.
+            Coordonnées officielles à recopier depuis les mentions légales de
+            Supabase.
+          </p>
+          <p className="text-encre-500">
+            Le projet prépare aussi un second hébergeur (Netlify) qui n’est pas
+            encore déployé ; cette page sera mise à jour le jour de la bascule.
           </p>
           <p className="text-encre-500 italic">
-            Conseil : recopier ces coordonnées depuis les pages légales officielles des
-            prestataires au moment de la mise en ligne, puis les relire.
+            Conseil : recopier les coordonnées depuis les pages légales
+            officielles des prestataires au moment de la mise en ligne, puis les
+            relire.
           </p>
         </div>
       </SectionPublique>
@@ -103,21 +130,26 @@ export default function PageMentionsLegales() {
       >
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <p>
-            <strong className="text-encre-100">Le studio</strong> — nom, identité visuelle,
-            interface, code — appartient à l’éditeur. Toute reproduction non autorisée est
-            interdite.
+            <strong className="text-encre-100">Le studio</strong> — nom, identité
+            visuelle, interface, code — appartient à l’éditeur. Toute reproduction
+            non autorisée est interdite.
           </p>
           <p>
-            <strong className="text-encre-100">Vos textes</strong> — vous restez titulaire
-            des droits sur les fichiers que vous importez et sur les traductions issues de
-            votre compte. Nous ne les exploitons pas, ne les publions pas et ne les
-            partageons pas. Vous garantissez disposer des droits nécessaires sur ce que
-            vous importez.
+            <strong className="text-encre-100">Vos textes</strong> — vous restez
+            titulaire des droits sur les fichiers que vous importez et sur les
+            traductions issues de votre compte. Nous ne les exploitons pas, ne les
+            publions pas et ne les partageons pas. Vous garantissez disposer des
+            droits nécessaires sur ce que vous importez (voir les{' '}
+            <Link href="/conditions" className="lien-discret underline">
+              conditions générales
+            </Link>
+            ).
           </p>
           <p>
-            <strong className="text-encre-100">Traductions automatiques</strong> — la
-            traduction produite est un outil de lecture ; sa qualité peut nécessiter une
-            relecture humaine, notamment pour une diffusion publique.
+            <strong className="text-encre-100">Traductions automatiques</strong> —
+            la traduction produite est un outil de lecture ; sa qualité peut
+            nécessiter une relecture humaine, notamment pour une diffusion
+            publique.
           </p>
         </div>
       </SectionPublique>
@@ -125,14 +157,60 @@ export default function PageMentionsLegales() {
       <SectionPublique gabarit="etroit" surTitre="5" titre="Données personnelles">
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed">
           <p>
-            Le traitement des données (compte, livres, moteurs de traduction) est décrit
-            en détail dans la{' '}
+            Le traitement des données (compte, livres, moteurs de traduction) est
+            décrit en détail dans la{' '}
             <Link href="/confidentialite" className="lien-discret underline">
               politique de confidentialité
+            </Link>
+            , y compris le moteur qui voit le texte lors d’une traduction.
+          </p>
+        </div>
+      </SectionPublique>
+
+      <SectionPublique
+        gabarit="etroit"
+        surTitre="6"
+        titre="Signalement d’un contenu illicite"
+      >
+        <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
+          <p>
+            Vous pouvez signaler tout contenu manifestement illicite (notamment
+            une atteinte au droit d’auteur) via la page{' '}
+            <Link href="/contact" className="lien-discret underline">
+              Contact
+            </Link>
+            . Précisez le contenu visé, la date, votre qualité et, s’il s’agit
+            d’une œuvre protégée, les éléments permettant d’identifier l’ayant
+            droit.
+          </p>
+          <p className="text-encre-500 italic">
+            Base : article 6 de la loi française pour la confiance dans
+            l’économie numérique (LCEN). La procédure de traitement des
+            signalements reste à valider par un juriste.
+          </p>
+        </div>
+      </SectionPublique>
+
+      <SectionPublique gabarit="etroit" surTitre="7" titre="Accessibilité">
+        <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
+          <p>
+            Le studio vise le niveau d’accessibilité <strong className="text-encre-100">WCAG 2.1 AA</strong> :
+            contraste des textes, navigation au clavier, cibles tactiles,
+            respect de la préférence « mouvement réduit ». Les pages publiques et
+            légales sont lisibles sans compte et sans JavaScript.
+          </p>
+          <p>
+            Un obstacle vous gêne ? Signalez-le via la page{' '}
+            <Link href="/contact" className="lien-discret underline">
+              Contact
             </Link>
             .
           </p>
         </div>
+      </SectionPublique>
+
+      <SectionPublique gabarit="etroit" surTitre="8" titre="Voir aussi">
+        <SommaireLegal actif="mentions-legales" />
       </SectionPublique>
     </>
   );
