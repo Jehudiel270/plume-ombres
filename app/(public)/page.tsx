@@ -17,7 +17,11 @@ import { utilisateurConnecte } from '@/lib/supabase/server';
 import SectionPublique from '@/components/public/SectionPublique';
 
 export const metadata: Metadata = {
-  title: 'Plume d’Ombres — traduire la dark romance, chapitre par chapitre',
+  // `absolute` : le titre contient déjà la marque, on évite le doublon
+  // avec le gabarit `%s · Plume d’Ombres` du layout racine.
+  title: {
+    absolute: 'Plume d’Ombres — traduire la dark romance, chapitre par chapitre',
+  },
   description:
     'Importez une romance sombre (.txt, .md, .pdf texte, .epub), laissez-la se découper en chapitres, traduisez-la de l’anglais vers le français et lisez-la dans un lecteur confortable. Gratuit pendant le lancement.',
 };
@@ -107,9 +111,10 @@ export default async function Accueil() {
         </h1>
         <div className="liseret mx-auto mt-6" />
         <p className="text-encre-300 text-base sm:text-lg mt-6 leading-relaxed max-w-2xl mx-auto">
-          Le studio de traduction des romances sombres. Importez un roman
-          anglais, laissez-le se découper, puis lire en français — sans
-          perdre la morsure du texte.
+          Importez un roman en anglais : Plume d’Ombres le découpe en
+          chapitres, le traduit en français et vous le rend dans un lecteur
+          au confort réglable — prêt à exporter, sans perdre la morsure du
+          texte.
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -249,11 +254,12 @@ export default async function Accueil() {
               </span>
             </div>
             <p className="sur-titre text-violet-rom-300">Premium — annoncé</p>
-            <p className="font-display text-4xl text-encre-100 mt-3">
-              3–5 €
-              <span className="text-base text-encre-500"> / mois</span>
+            <p className="font-display text-3xl text-encre-100 mt-3">
+              Prix non encore fixé
             </p>
-            <p className="text-encre-500 text-xs mt-1">prix indicatif, non ouvert</p>
+            <p className="text-encre-500 text-xs mt-1">
+              placeholder — tarif à arrêter avant l’ouverture du paiement
+            </p>
             <ul className="mt-5 space-y-2 text-sm text-encre-500 leading-relaxed list-disc pl-5 flex-1">
               <li>Quota de traduction élargi (plusieurs livres par mois)</li>
               <li>Plusieurs livres traduits en parallèle</li>

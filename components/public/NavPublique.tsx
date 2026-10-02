@@ -71,19 +71,24 @@ export default function NavPublique() {
           </Link>
 
           {/* Menu mobile : les 3 liens publics tiennent dans un
-              dépliant (cibles tactiles ≥ 40 px). */}
-          <button
-            type="button"
-            className="md:hidden bouton-fantome !px-3 !py-2 text-[13px]"
-            aria-expanded={menuOuvert}
-            aria-controls="menu-public"
-            onClick={() => setMenuOuvert((o) => !o)}
-          >
-            <span aria-hidden>{menuOuvert ? '✕' : '☰'}</span>
-            <span className="sr-only">
-              {menuOuvert ? 'Fermer le menu' : 'Ouvrir le menu'}
-            </span>
-          </button>
+              dépliant (cibles tactiles ≥ 40 px). Le bouton est enveloppé
+              dans un conteneur `md:hidden` : la classe utilitaire de
+              masquage ne peut pas s'appliquer directement au bouton,
+              car `.bouton-fantome` (hors couche) impose `display`. */}
+          <div className="md:hidden">
+            <button
+              type="button"
+              className="bouton-fantome !px-3 !py-2 text-[13px]"
+              aria-expanded={menuOuvert}
+              aria-controls="menu-public"
+              onClick={() => setMenuOuvert((o) => !o)}
+            >
+              <span aria-hidden>{menuOuvert ? '✕' : '☰'}</span>
+              <span className="sr-only">
+                {menuOuvert ? 'Fermer le menu' : 'Ouvrir le menu'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 

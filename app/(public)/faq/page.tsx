@@ -108,9 +108,9 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
     q: 'Combien ça coûte ?',
     r: (
       <>
-        <strong>Rien, pendant le lancement.</strong> L’offre Premium (3–5 €/mois,
-        indicative) est annoncée mais le paiement n’est pas encore en place : aucune
-        somme ne peut être prélevée. Détail sur la page{' '}
+        <strong>Rien, pendant le lancement.</strong> L’offre Premium est annoncée,
+        mais ni son prix ni le paiement ne sont fixés : aucune somme ne peut être
+        prélevée aujourd’hui. Détail sur la page{' '}
         <Link href="/tarifs" className="lien-discret underline">
           Tarifs
         </Link>
@@ -156,6 +156,7 @@ export default function PageFaq() {
   return (
     <SectionPublique
       gabarit="etroit"
+      niveau={1}
       surTitre="FAQ"
       titre="Les questions qu’on nous pose vraiment"
       intro="Réponses courtes, vérifiées dans le comportement réel du studio — y compris quand la réponse n’est pas flatteuse."

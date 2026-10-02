@@ -10,7 +10,7 @@ import BandeauGabarit from '@/components/public/BandeauGabarit';
 export const metadata: Metadata = {
   title: 'Tarifs',
   description:
-    'Plume d’Ombres est gratuit pendant le lancement : import, traduction, lecture et exports sans frais. L’offre Premium (3–5 €/mois) est annoncée mais pas encore ouverte.',
+    'Plume d’Ombres est gratuit pendant le lancement : import, traduction, lecture et exports sans frais. L’offre Premium est annoncée mais son prix n’est pas encore fixé et le paiement n’est pas ouvert.',
 };
 
 const GRATUIT = [
@@ -35,6 +35,7 @@ export default function PageTarifs() {
   return (
     <>
       <SectionPublique
+        niveau={1}
         surTitre="Tarifs"
         titre="Gratuit pour de vrai, premium plus tard"
         intro="Pendant le lancement, tout le studio est ouvert et gratuit. L’offre payante est dessinée mais pas branchée : aucun moyen de paiement n’est demandé, aucune somme ne peut être prélevée."
@@ -68,11 +69,11 @@ export default function PageTarifs() {
               </span>
             </div>
             <p className="sur-titre text-violet-rom-300">Premium — annoncé</p>
-            <p className="font-display text-5xl text-encre-100 mt-3">
-              3–5 €<span className="text-lg text-encre-500"> / mois</span>
+            <p className="font-display text-3xl text-encre-100 mt-3">
+              Prix non encore fixé
             </p>
             <p className="text-encre-500 text-xs mt-1">
-              fourchette indicative — le prix définitif n’est pas fixé
+              placeholder — tarif à arrêter et à valider avant toute mise en vente
             </p>
             <ul className="mt-6 space-y-2 text-sm text-encre-500 leading-relaxed list-disc pl-5 flex-1">
               {PREMIUM.map((ligne) => (

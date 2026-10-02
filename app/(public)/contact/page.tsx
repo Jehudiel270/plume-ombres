@@ -69,6 +69,7 @@ export default function PageContact() {
     <>
       <SectionPublique
         gabarit="etroit"
+        niveau={1}
         surTitre="Contact"
         titre="Écrire au studio"
         intro="Un projet indépendant, tenu par peu de mains : réponses dans un délai de quelques jours ouvrés, sans promesse de permanence téléphonique."
