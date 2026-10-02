@@ -567,22 +567,27 @@ export default function EspaceLivre({
         />
 
         {/* Lecteur — confort de lecture : mesures, thème et
-            espacements pilotés par les préférences (localStorage). */}
-        <Lecteur
-          chapitreComplet={chapitreComplet}
-          chargementChapitre={chargementChapitre}
-          texteNet={texteNet}
-          corpsRef={corpsLectureRef}
-          cadreRef={cadreLectureRef}
-          chapitrePrecedentId={chapitrePrecedentId}
-          chapitreSuivantId={chapitreSuivantId}
-          onNaviguer={naviguerVers}
-          onOuvrirTiroir={ouvrirTiroir}
-          position={indexSelection + 1}
-          total={chapitres.length}
-          preferences={preferences}
-          langue={langueAffichee}
-        />
+            espacements pilotés par les préférences (localStorage).
+            Le `lang` du texte AFFICHÉ (source ou traduction) est porté
+            par ce conteneur : la césure (`hyphens: auto`) travaille
+            dans la bonne langue, sans faire changer les props du
+            lecteur mémoïsé au moment de la bascule source/traduit. */}
+        <div lang={langueAffichee} className="contents">
+          <Lecteur
+            chapitreComplet={chapitreComplet}
+            chargementChapitre={chargementChapitre}
+            texteNet={texteNet}
+            corpsRef={corpsLectureRef}
+            cadreRef={cadreLectureRef}
+            chapitrePrecedentId={chapitrePrecedentId}
+            chapitreSuivantId={chapitreSuivantId}
+            onNaviguer={naviguerVers}
+            onOuvrirTiroir={ouvrirTiroir}
+            position={indexSelection + 1}
+            total={chapitres.length}
+            preferences={preferences}
+          />
+        </div>
       </section>
     </div>
   );
