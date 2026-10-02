@@ -28,7 +28,7 @@
  * la portée (scope) est la racine du site — aucune magic Next.
  * ============================================================ */
 
-const VERSION = 'plume-v2';
+const VERSION = 'plume-v3';
 const CACHE_APP = `${VERSION}-app`;
 const CACHE_MAX_ENTREES = 200; // borné pour rester léger
 
@@ -48,8 +48,20 @@ self.addEventListener('install', (event) => {
           await caches.delete(cle);
         }
       }
+      // MISE À JOUR AUTOMATIQUE : on n'attend PAS que tous les onglets
+      // soient fermés pour activer la nouvelle version. Le nouveau
+      // service worker prend la main immédiatement ; la page se
+      // recharge ensuite d'elle-même (voir components/PWA.tsx).
+      await self.skipWaiting();
     })()
   );
+});
+
+// La page peut demander explicitement l'activation immédiate.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
