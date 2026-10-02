@@ -9,8 +9,8 @@
 //   · polices auto-hébergées réellement chargées (document.fonts),
 //   · polices de titre ≠ police de corps (valeur calculée),
 //   · changement de palette via localStorage + rechargement
-//     (vrai chemin utilisateur : le canvas WebGL suit),
-//   · repli « image fixe » effectif sous prefers-reduced-motion,
+//     (vrai chemin utilisateur : le décor CSS suit la palette),
+//   · repli « décor figé » effectif sous prefers-reduced-motion,
 //   · panneau RegleLecture : ouverture, sélection au clavier (flèche),
 //     tenue sur un écran mobile étroit.
 // Outil de contrôle manuel (nécessite Chrome + next dev).
@@ -123,23 +123,28 @@ for (const chemin of ['/tarifs', '/faq', '/connexion']) {
   await page.screenshot({ path: `${OUT}/page${chemin.replace('/', '-')}.png` });
 }
 
-// ---- Repli image fixe sous prefers-reduced-motion ----
+// ---- Repli sous prefers-reduced-motion (décor figé) ----
 const pageFix = await navigateur.newPage();
 await pageFix.emulateMediaFeatures([
   { name: 'prefers-reduced-motion', value: 'reduce' },
 ]);
 await pageFix.goto(`${BASE}/`, { waitUntil: 'networkidle0', timeout: 90000 });
 await pause(700);
-const repli = await pageFix.evaluate(() => ({
-  fond: document.documentElement.dataset.fond ?? null,
-  canvas: getComputedStyle(document.querySelector('canvas.fond-ambiance')).display,
-  imageFixe: getComputedStyle(document.querySelector('.fond-fixe')).display,
-  imageFond: getComputedStyle(document.querySelector('.fond-fixe'))
-    .backgroundImage.slice(0, 40),
-}));
+const repli = await pageFix.evaluate(() => {
+  const decor = document.querySelector('[data-decor-fond]');
+  const brume = decor?.firstElementChild ?? null;
+  const cs = (el) => (el ? getComputedStyle(el) : null);
+  return {
+    fond: document.documentElement.dataset.fond ?? null,
+    decor: decor ? cs(decor).display : null,
+    decorZIndex: decor ? cs(decor).zIndex : null,
+    // La dérive de brume doit être à l'arrêt.
+    animationBrume: brume ? cs(brume).animationName : null,
+  };
+});
 console.log('--- REPLI prefers-reduced-motion ---');
 console.log(JSON.stringify(repli, null, 2));
-await pageFix.screenshot({ path: `${OUT}/repli-image-fixe.png` });
+await pageFix.screenshot({ path: `${OUT}/repli-reduced-motion.png` });
 
 // ---- Panneau RegleLecture (page d'aperçu, mobile 390px) ----
 try {
