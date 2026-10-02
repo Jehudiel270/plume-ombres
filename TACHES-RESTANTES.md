@@ -30,7 +30,7 @@
 - [x] **A8.** **Défaut de production TRANCHÉ et AFFICHÉ** — LIVRÉ (vague 6). Défaut = **LibreTranslate auto-hébergé en tête de chaîne** (privé, gratuit) ; Google non officiel n'est plus jamais choisi par défaut. L'admin voit, par moteur, « où va le texte » (auto-hébergé vs transmis à un tiers). **Côté utilisateur : AUCUN nom de fournisseur** (promesse produit) — seule la mention de confidentialité est affichée.
 - [x] **A9.** **Catalogue de langues ÉTENDU** — LIVRÉ (vague 7) : **71 langues** (contre 6), avec les langues africaines du marché (sw, ha, yo, ig, am, wo, bm, ff, ln, rw, zu, xh, ny, kg…). Les sélecteurs (import + lecteur) lisent le catalogue dynamiquement : aucune modification d'interface n'a été nécessaire. Gemini construit désormais son prompt depuis le catalogue (plus de table de 6 langues à maintenir). Preuve réelle : en→fr servi par **LibreTranslate (privé)**, en→es/de/ar/sw/zh/hi servis par **Gemini** par repli automatique (modèles Argos absents sur l'instance) — **0 échec sur 7 langues**.
 - [ ] **A10.** Option Premium : moteur supérieur quel que soit le défaut.
-- [ ] **A11.** **Alerte** si le moteur privé (ou toute la chaîne) devient indisponible : cron qui appelle `/api/translate/sante` et notifie (suite d'A7).
+- [x] **A11.** **Alerte** si le moteur privé (ou toute la chaîne) devient indisponible — **LIVRÉ (vague 10)** : route **publique minimale** `GET /api/statut` (rend `ok` / `degrade`, **aucun nom de fournisseur**, **aucun horodatage exploitable**) ; sonde déterministe `scripts/verifier-sante-prod.mts` ; **veille Hermes toutes les 15 min** (job `af50bf776a22`) pilotée par DÉTECTEUR DE CHANGEMENT : l'agent n'est réveillé que si l'état BASCULE, donc aucune alerte répétée. Le contrôle **s'arrête au premier moteur qui répond** → le quota des moteurs tiers n'est pas consommé par la surveillance. Vérifié en production : `{"statut":"ok"}` HTTP 200.
 - [ ] **A12.** **Mode privé strict** (`TRANSLATOR_PRIVE_STRICT=1`) : verrou CENTRAL appliqué dans la chaîne (ordre réduit à l'auto-hébergé), donc impossible à contourner par une route ou une tâche d'arrière-plan — DÉJÀ IMPLÉMENTÉ ET TESTÉ (vague 6) ; reste à décider s'il devient le défaut de production.
 
 > **Modèle Gemini (vague 6)** : `GEMINI_MODEL` par défaut = `gemini-flash-latest`. La famille 2.5 explicite est **refusée aux nouveaux comptes** (HTTP 404) et l'alias principal peut renvoyer **503 (forte demande)** : le fournisseur bascule alors automatiquement sur `gemini-flash-lite-latest` avant d'abandonner. Constaté en réel : `gemini-2.5-flash` → 404, `gemini-2.5-flash-lite` → 404, `gemini-flash-lite-latest` → 200.
@@ -166,22 +166,22 @@
 
 ## Ordre d'exécution — vagues restantes
 
-**Vague 6 (celle-ci) — CLOSE.** Moteur de traduction fiabilisé (A6, A7, A8, A12) + décision pay-as-you-go (P0.9). Fusionnée dans `main` et poussée.
+**Vagues 6, 7 et 10 — CLOSES.** W6 : moteur fiabilisé (A6, A7, A8, A12). W7 : catalogue de langues étendu à 71 (A9). W10 : exploitation (P1.4, P1.6, P1.7, A11). Le tout fusionné dans `main` et déployé.
 
 | Vague | Contenu | But |
 |---|---|---|
 | **W7** | **A9** (catalogue de langues étendu à 71) + ajouts | **FAIT** — 71 langues, preuve réelle sur 7 paires |
-| **W8** | **C5, C7, C8** (bibliothèque, pages d'état, accessibilité) + **P1.3** (chapitres en erreur visibles) | Finir l'interface, aucune donnée muette |
+| **W8** | **B1 → B6, B10** (ne plus stocker les originaux — reporté de W7) + **C5, C7, C8** (bibliothèque, pages d'état, accessibilité) + **P1.3** (chapitres en erreur visibles) | Allègement + finir l'interface |
 | **W9** | **P0.1** (hébergement commercial), **P0.9** (pay-as-you-go : crédits, FedaPay), **P0.5** (CGU/CGV + information sur le transit du texte), **P0.10** | **Vague qui permet d'encaisser** |
-| **W10** | **P1.4** (mot de passe oublié), **P1.6** (monitoring), **P1.7** (sauvegarde BDD), **A11** (alerte cron) | Exploitation fiable |
+| **W10** | **P1.4** (mot de passe oublié), **P1.6** (monitoring), **P1.7** (sauvegarde BDD), **A11** (alerte cron) | **FAIT** — statut public `ok`/`degrade`, veille 15 min, sauvegarde 13 307 lignes vérifiée |
 | **W11** | **P2** (reprise serveur, batching, catégories, stats) puis **P3** | Après lancement |
 
 **Hors vague — bloquant la promesse « texte privé » en production** : **A1 → A5** (VM Oracle Always Free, LibreTranslate en HTTPS, variables Vercel). Tant que ce n'est pas fait, la chaîne ne casse plus mais traverse des moteurs tiers.
 
-**Total : 4 vagues (W7 → W10) avant de pouvoir encaisser**, puis W11 après lancement.
+**Total restant : 2 vagues (W8 → W9) avant de pouvoir encaisser**, puis W11 après lancement.
 
 Détail historique de l'ordre :
-1. **B1 → B4** : allègement immédiat (0 €, gros effet, aucune dépendance externe). → **W7**
+1. **B1 → B4** : allègement immédiat (0 €, gros effet, aucune dépendance externe). → **REPORTÉ en W8** (W7 a été réorientée vers les AJOUTS par décision de Carrel : on n'enlève rien pour l'instant)
 2. **C10** (bug de reprise) + **A6** (chaîne de fallback) : fiabilité. → **FAIT (vague 6)**
 3. **A1 → A5** quand le compte Oracle est créé ; sinon **P0.4** reste partiellement ouvert. → **hors vague, prioritaire**
 4. **C1 → C2 → C3** : fluidité et refonte du lecteur. → **FAIT (vagues 2-5)**
