@@ -1,20 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Playfair_Display, Lora } from 'next/font/google';
 import './globals.css';
+import { CLASSES_POLICES } from '@/lib/polices';
+import { SCRIPT_THEME } from '@/lib/theme';
+import ProviderTheme from '@/components/ProviderTheme';
 import FondAmbiance from '@/components/FondAmbiance';
 import PWA from '@/components/PWA';
-
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-playfair',
-  display: 'swap',
-});
-
-const lora = Lora({
-  subsets: ['latin'],
-  variable: '--font-lora',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: {
@@ -59,10 +49,17 @@ export default function RacineLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fr" className={`${playfair.variable} ${lora.variable}`}>
+    // suppressHydrationWarning : le script anti-FOUC ci-dessous pose
+    // data-palette / data-typo / --typo-* sur <html> AVANT l'hydratation.
+    <html lang="fr" className={CLASSES_POLICES} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_THEME }} />
+      </head>
       <body>
-        {children}
-        <FondAmbiance />
+        <ProviderTheme>
+          {children}
+          <FondAmbiance />
+        </ProviderTheme>
         <PWA />
       </body>
     </html>
