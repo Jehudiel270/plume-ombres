@@ -110,16 +110,20 @@ moteur de traduction gratuit sur une **VM Always Free Oracle Cloud**
 > Pourquoi pas Render ? Le plan gratuit de Render offre 512 Mo de RAM et
 > efface le disque au spin-down : LibreTranslate (qui exige ~2 Go pour
 > charger ses modèles) y est inutilisable. La VM Oracle Always Free
-> (4 CPU ARM + 24 Go de RAM) est la solution *vraiment* gratuite et fiable.
+> (ARM, ressources gratuites à vie) est la solution *vraiment* gratuite
+> et fiable. ⚠️ Oracle a réduit les ressources ARM Always Free le
+> 15/06/2026 : compter **2 OCPU / 12 Go de RAM** (au lieu de 4/24), plus
+> 10 To de trafic sortant par mois. Vérifie la dotation en vigueur à la
+> création de l'instance.
 
 1. Crée un compte [Oracle Cloud](https://www.oracle.com/cloud/free/) — une
    carte bancaire est demandée **uniquement pour la vérification**, aucun
    débit n'est effectué.
 2. **Compute → Instances → Create instance** :
    - Image : **Ubuntu 22.04** (ou Oracle Linux)
-   - Shape : **VM.Standard.A1.Flex** (ARM) — 4 OCPU / 24 Go de RAM
-     (ressources Always Free ; si « out of capacity », change de région ou
-     réessaie plus tard)
+   - Shape : **VM.Standard.A1.Flex** (ARM) — 2 OCPU / 12 Go de RAM
+     (ressources Always Free, montant réduit le 15/06/2026 ; si
+     « out of capacity », change de région ou réessaie plus tard)
    - Télécharge une clé SSH publique.
 3. Connecte-toi et installe Docker :
    ```bash
