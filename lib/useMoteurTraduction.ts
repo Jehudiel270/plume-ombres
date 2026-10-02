@@ -124,7 +124,9 @@ export function useMoteurTraduction() {
         texteTraduit: string,
         statut: StatutChapitre
       ) => void,
-      annule: boolean
+      annule: boolean,
+      /** Moteur dominant du chapitre (identifiant technique) — mémorisé. */
+      moteur: string | null = null
     ) => {
       const liste = await paginer<Segment>((debut, fin) =>
         supabase
@@ -135,6 +137,11 @@ export function useMoteurTraduction() {
           .range(debut, fin)
       );
 
+      // On n'écrit `moteur_traduction` que si un moteur a réellement servi
+      // (sinon on préserve la valeur existante — reprise d'un chapitre
+      // déjà partiellement traduit).
+      const champMoteur = moteur ? { moteur_traduction: moteur } : {};
+
       if (annule) {
         // On ne touche pas au texte déjà assemblé ; on reflète juste
         // ce qui reste à faire. Garde-fou : le chapitre n'est
@@ -142,7 +149,7 @@ export function useMoteurTraduction() {
         const complet = chapitreEntierementTraduit(liste);
         await supabase
           .from('chapitres')
-          .update({ statut: complet ? 'traduit' : 'a_traduire' })
+          .update({ statut: complet ? 'traduit' : 'a_traduire', ...champMoteur })
           .eq('id', chapitre.id);
         if (complet) {
           majChapitre(chapitre, assemblerChapitre(liste), 'traduit');
@@ -160,7 +167,7 @@ export function useMoteurTraduction() {
         : 'erreur';
       await supabase
         .from('chapitres')
-        .update({ statut, texte_traduit: texteAssemble })
+        .update({ statut, texte_traduit: texteAssemble, ...champMoteur })
         .eq('id', chapitre.id);
       majChapitre(chapitre, texteAssemble, statut);
     },
@@ -209,6 +216,10 @@ export function useMoteurTraduction() {
       try {
         for (const chapitre of chapitres) {
           let chapitreAnnule = false;
+          // Compteur du moteur réellement utilisé par segment : permet de
+          // mémoriser le moteur DOMINANT du chapitre (« on enregistre quel
+          // fournisseur a servi chaque chapitre »).
+          const moteursChapitre = new Map<string, number>();
           if (controleur.signal.aborted) break;
 
           await supabase
@@ -243,7 +254,13 @@ export function useMoteurTraduction() {
           );
           if (file.length === 0) {
             if (!controleur.signal.aborted) {
-              await cloreChapitre(supabase, chapitre, majChapitre, false);
+              await cloreChapitre(
+                supabase,
+                chapitre,
+                majChapitre,
+                false,
+                moteurDominant(moteursChapitre)
+              );
             }
             continue;
           }
@@ -319,6 +336,12 @@ export function useMoteurTraduction() {
                   tentative: resultat.essais,
                 })
                 .eq('id', segment.id);
+              if (resultat.fournisseur) {
+                moteursChapitre.set(
+                  resultat.fournisseur,
+                  (moteursChapitre.get(resultat.fournisseur) ?? 0) + 1
+                );
+              }
               setProgression((p) => ({ ...p, faits: p.faits + 1 }));
               const delai =
                 resultat.fournisseur === 'mymemory'
@@ -368,12 +391,13 @@ export function useMoteurTraduction() {
           await Promise.all(travailleurs);
           if (erreurInterne) throw erreurInterne;
 
-          // Fin du chapitre : assemblage 1:1 et statut.
+          // Fin du chapitre : assemblage 1:1, statut, moteur dominant.
           await cloreChapitre(
             supabase,
             chapitre,
             majChapitre,
-            controleur.signal.aborted || chapitreAnnule
+            controleur.signal.aborted || chapitreAnnule,
+            moteurDominant(moteursChapitre)
           );
         }
       } finally {
@@ -467,4 +491,22 @@ async function traduireAvecEssais(
  */
 export function assemblerChapitre(segments: Segment[]): string {
   return segments.map((s) => (s.traduit ?? '') + s.suite).join('');
+}
+
+/**
+ * Moteur DOMINANT d'un chapitre : celui qui a traduit le plus de
+ * segments. `null` si aucun segment n'a encore été traduit. Sert à
+ * enregistrer, en base, quel fournisseur a réellement servi le
+ * chapitre (traçabilité / affichage admin).
+ */
+export function moteurDominant(compte: Map<string, number>): string | null {
+  let meilleur: string | null = null;
+  let max = 0;
+  for (const [id, n] of compte) {
+    if (n > max) {
+      max = n;
+      meilleur = id;
+    }
+  }
+  return meilleur;
 }

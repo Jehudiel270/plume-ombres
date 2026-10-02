@@ -18,6 +18,7 @@ import {
   type CodePlan,
 } from '@/lib/abonnement';
 import { quotaMensuel } from '@/lib/quota';
+import { modePriveStrict } from '@/lib/providers';
 import { MagasinAbonnementSupabase, MagasinPaiementSupabase } from '@/lib/paiement/magasin';
 import { modePaiementAffiche } from '@/lib/paiement/mode';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
@@ -55,6 +56,7 @@ export default async function PageAbonnement() {
   const base = quotaMensuel();
   const quota = quotaPourPlan(plan, base);
   const etatPaiement = modePaiementAffiche();
+  const priveStrict = modePriveStrict();
 
   return (
     <>
@@ -113,8 +115,12 @@ export default async function PageAbonnement() {
               </dd>
             </div>
             <div>
-              <dt className="text-encre-500">Moteur recommandé</dt>
-              <dd className="text-encre-100">{plan.moteur}</dd>
+              <dt className="text-encre-500">Confidentialité de la traduction</dt>
+              <dd className="text-encre-100">
+                {priveStrict
+                  ? 'Mode privé strict : votre texte n’est jamais transmis à un tiers.'
+                  : 'Votre texte est traité de façon sécurisée.'}
+              </dd>
             </div>
           </dl>
         </section>

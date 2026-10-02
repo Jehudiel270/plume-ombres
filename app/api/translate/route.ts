@@ -14,7 +14,7 @@
 
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { fournisseurActif, traduireAvec } from '@/lib/providers';
+import { traduireAvecSecours, modePriveStrict, ErreurChaineSecours } from '@/lib/providers';
 import type { OptionsTraduction } from '@/lib/providers';
 import { construireDirectives } from '@/lib/glossaire';
 import type { PaireGlossaire } from '@/lib/types';
@@ -199,8 +199,6 @@ export async function POST(request: NextRequest) {
   const MAX_PAIRES_GLOSSAIRE = 300;
   const MAX_CONTEXTE = 4000;
   try {
-    const fournisseur = fournisseurActif();
-
     // Injection additive : les options existantes (source, cible) ne
     // changent pas ; on n'ajoute que les champs P1.1 réellement fournis.
     const options: OptionsTraduction = { source, cible };
@@ -234,9 +232,15 @@ export async function POST(request: NextRequest) {
       .slice(0, MAX_DIRECTIVES);
     if (directives) options.directives = directives;
 
-    // traduireAvec applique le glossaire imposé après la traduction
-    // (les moteurs sans prompt ne lisent pas de directives).
-    const traduit = await traduireAvec(fournisseur, texte, options);
+    // La CHAÎNE DE SECOURS traduit : LibreTranslate auto-hébergé →
+    // Gemini → Google non officiel → MyMemory, avec bascule
+    // automatique sur échec (réseau, timeout, quota, 5xx, réponse
+    // invalide). En mode privé strict, seule la file auto-hébergée
+    // est sollicitée (verrou appliqué dans la chaîne elle-même).
+    // Le glossaire imposé est appliqué par la chaîne, quel que soit
+    // le moteur retenu.
+    const resultat = await traduireAvecSecours(texte, options);
+    const traduit = resultat.traduit;
     // Un moteur peut renvoyer une chaîne vide / blanche : c'est un échec,
     // pas une traduction. On libère le quota réservé et on signale (502)
     // pour que le client réessaie.
@@ -250,7 +254,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         traduit,
-        fournisseur: fournisseur.id,
+        // Identifiant technique du moteur réellement utilisé (sert au
+        // rythme côté client). AUCUN nom de fournisseur n'est renvoyé :
+        // l'utilisateur ne doit jamais voir quel moteur a servi.
+        fournisseur: resultat.fournisseur,
+        prive: resultat.prive,
+        priveStrict: resultat.priveStrict || modePriveStrict(),
         quota: {
           utilise: reservation.utilise,
           limite: reservation.limite,
@@ -264,6 +273,20 @@ export async function POST(request: NextRequest) {
   } catch (erreur) {
     // Échec de traduction : le quota réservé est rendu au compte.
     await libererQuota(magasinQuota, user.id, texte.length).catch(() => undefined);
+    if (erreur instanceof ErreurChaineSecours) {
+      // Tous les moteurs autorisés ont échoué. Message SANS nom de
+      // fournisseur (l'utilisateur ne doit pas savoir quel moteur
+      // traduit). En mode privé strict, on le signale explicitement.
+      return NextResponse.json(
+        {
+          erreur: modePriveStrict()
+            ? 'Le moteur privé est momentanément indisponible. Réessayez plus tard.'
+            : 'Aucun moteur de traduction disponible pour le moment. Réessayez plus tard.',
+          code: 'MOTEUR_INDISPONIBLE',
+        },
+        { status: 503, headers: entetesDebit }
+      );
+    }
     const message =
       erreur instanceof Error ? erreur.message : 'Erreur de traduction inconnue.';
     return NextResponse.json(

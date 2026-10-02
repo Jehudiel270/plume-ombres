@@ -2,19 +2,21 @@
 // providers/index.ts — Usine à fournisseurs.
 //
 // Le fournisseur actif est choisi par la variable d'environnement
-// TRANSLATOR_DEFAULT ('libretranslate' | 'mymemory').
-// Cette logique ne s'exécute que côté serveur (routes API) :
-// aucune clé ni URL interne n'est exposée au navigateur.
+// TRANSLATOR_DEFAULT ('libretranslate' | 'gemini' | 'google' |
+// 'mymemory'). Cette logique ne s'exécute que côté serveur (routes
+// API) : aucune clé ni URL interne n'est exposée au navigateur.
 //
-// Une CHAÎNE DE SECOURS automatique est également disponible :
-// voir traduireAvecSecours() / ordreSecours() (providers/fallback).
+// EN PRODUCTION, c'est la CHAÎNE DE SECOURS qui traduit (voir
+// traduireAvecSecours) : LibreTranslate auto-hébergé → Gemini →
+// Google non officiel → MyMemory. Le moteur Google non officiel
+// n'est JAMAIS choisi par défaut, et le mode « privé strict »
+// (TRANSLATOR_PRIVE_STRICT) réduit la chaîne à la file auto-hébergée.
 // ============================================================
 
 import type {
   FournisseurTraduction,
   OptionsTraduction,
 } from './types';
-import { cleGemini } from './gemini';
 import { appliquerGlossaire } from '@/lib/glossaire';
 import type { IdFournisseur } from '@/lib/types';
 
@@ -26,41 +28,52 @@ export {
   tousLesFournisseurs,
   fournisseurParId,
   nomFournisseurParId,
+  fournisseurEstPrive,
+  descriptionMoteur,
   ordreSecours,
+  moteursAutorises,
+  modePriveStrict,
   delaiSecoursMs,
+  essaisSecours,
   classerEchec,
   moteurUtilise,
   idMoteurUtilise,
+  dernierMoteurPrive,
   traduireAvecSecours,
   ErreurChaineSecours,
   ORDRE_SECOURS_DEFAUT,
+  IDS_PRIVES,
+  MAX_ESSAIS_PAR_MOTEUR,
   VAR_ORDRE,
   VAR_DELAI,
   VAR_JOURNAL,
+  VAR_PRIVE_STRICT,
+  VAR_ESSAIS,
   type CategorieEchec,
   type ResultatTraductionSecours,
 } from './fallback';
 
-import { fournisseurParId } from './fallback';
+import { fournisseurParId, modePriveStrict, ordreSecours } from './fallback';
 
 /**
  * Fournisseur actif (choix par ordre de préférence) :
- * 1. TRANSLATOR_DEFAULT si définie (ex. 'libretranslate', 'gemini',
- *    'mymemory', 'google') ;
- * 2. sinon ou 'auto' : Gemini si une clé GEMINI_API_KEY est présente,
- *    puis Google libre (rapide, sans clé).
- * LibreTranslate reste joignable explicitement pour le mode 100 % local.
+ * 1. MODE PRIVÉ STRICT : la file auto-hébergée, et rien d'autre ;
+ * 2. TRANSLATOR_DEFAULT si définie et non 'auto' ;
+ * 3. sinon : le PREMIER moteur de la chaîne ordonnée (auto-hébergé
+ *    par défaut). Le moteur Google non officiel n'est jamais un
+ *    défaut : il ne peut être choisi qu'explicitement.
  *
- * Note : pour une bascule automatique entre moteurs, utiliser
- * traduireAvecSecours() (voir providers/fallback).
+ * Note : pour une bascule automatique entre moteurs, la route API
+ * utilise traduireAvecSecours() (voir providers/fallback).
  */
 export function fournisseurActif(): FournisseurTraduction {
-  const explicite = process.env.TRANSLATOR_DEFAULT;
+  if (modePriveStrict()) return fournisseurParId('libretranslate');
+
+  const explicite = process.env.TRANSLATOR_DEFAULT?.trim().toLowerCase();
   if (explicite && explicite !== 'auto') {
     return fournisseurParId(explicite as IdFournisseur);
   }
-  if (cleGemini()) return fournisseurParId('gemini');
-  return fournisseurParId('google');
+  return fournisseurParId(ordreSecours()[0]);
 }
 
 /**

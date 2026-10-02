@@ -15,6 +15,8 @@ import { creerClientServeur } from '@/lib/supabase/server';
 import { exigerPermission } from '@/lib/roles-garde';
 import BarreNavigation from '@/components/BarreNavigation';
 import TableauComptes from '@/components/admin/TableauComptes';
+import SanteMoteurs from '@/components/admin/SanteMoteurs';
+import { verifierChaine, type SanteChaine } from '@/lib/providers/sante';
 import {
   collecterStatsAdmin,
   formaterNombre,
@@ -58,10 +60,13 @@ export default async function PageAdmin() {
 
   const clientRpc: ClientRpc = { rpc: (nom, args) => supabase.rpc(nom, args) };
 
-  const [{ data: profil }, resultatStats, resultatComptes] = await Promise.all([
+  const [{ data: profil }, resultatStats, resultatComptes, sante] = await Promise.all([
     supabase.from('profiles').select('pseudo, role').eq('id', user?.id ?? '').maybeSingle(),
     collecterStatsAdmin(clientRpc),
     listerComptesAdmin(clientRpc),
+    // Contrôle de santé RÉEL des moteurs (sondes courtes mises en cache).
+    // En cas d'erreur inattendue, l'admin reste affiché sans ce bloc.
+    verifierChaine().catch(() => null as SanteChaine | null),
   ]);
 
   const pseudo =
@@ -163,6 +168,8 @@ export default async function PageAdmin() {
             )}
           </>
         )}
+
+        {sante && <SanteMoteurs sante={sante} />}
 
         <section className="velours p-6" aria-label="Gestion des abonnements">
           <p className="sur-titre text-encre-300">Comptes et abonnements</p>

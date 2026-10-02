@@ -59,7 +59,7 @@ Créées côté Netlify (UI/CLI). `VERCEL_OIDC_TOKEN` **ne se reporte PAS**
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | build + runtime, **publique** | clé anon (RLS protège) | **oui** |
 | `TRANSLATOR_DEFAULT` | runtime | fournisseur actif (`libretranslate`/`gemini`/`mymemory`/`google`) | non |
 | `GEMINI_API_KEY` | runtime, **secrète** | traduction Gemini Flash | non |
-| `GEMINI_MODEL` | runtime | ex. `gemini-2.5-flash` | non |
+| `GEMINI_MODEL` | runtime | ex. `gemini-flash-latest` | non |
 | `LIBRETRANSLATE_URL` | runtime | instance LibreTranslate | non |
 | `LIBRETRANSLATE_API_KEY` | runtime, **secrète** | si l'instance l'exige | non |
 | `MYMEMORY_EMAIL` | runtime | quota MyMemory supérieur | non |
