@@ -4,9 +4,14 @@
 // BarreActions.tsx — Bandeau du haut : retour, titre du livre,
 // langues (sélecteurs source → cible), temps de lecture et
 // boutons d'export (`Exports`). Mémoïsé.
+//
+// Mobile (C3) : bandeau CONDENSÉ — seuls le titre et l'état de
+// lecture restent visibles ; langues et exports sont repliés
+// derrière « Options ». Le repli vit dans l'état LOCAL du composant :
+// l'ouvrir/le fermer ne re-rend pas l'espace de travail (mémoïsation).
 // ============================================================
 
-import { memo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import Link from 'next/link';
 import { LANGUES } from '@/lib/types';
 import type { CodeLangue, Livre } from '@/lib/types';
@@ -48,6 +53,13 @@ function BarreActions({
   genPdf,
   exportFidele,
 }: Props) {
+  // Repli du bandeau sur mobile — état LOCAL (aucun impact sur le parent).
+  const [optionsOuvertes, setOptionsOuvertes] = useState(false);
+  const basculerOptions = useCallback(
+    () => setOptionsOuvertes((ouvertes) => !ouvertes),
+    []
+  );
+
   return (
     <div className="velours p-4 flex flex-wrap items-center gap-3">
       <div className="min-w-0 mr-auto">
@@ -78,45 +90,69 @@ function BarreActions({
         </p>
       </div>
 
-      <select
-        className="select-sombre text-xs"
-        value={livre.langue_source}
-        onChange={(e) => onChangerLangues(e.target.value, livre.langue_cible)}
-        title="Langue source"
-      >
-        {CODES.map((c) => (
-          <option key={c} value={c}>
-            {LANGUES[c]}
-          </option>
-        ))}
-      </select>
-      <span className="text-encre-500 text-xs">→</span>
-      <select
-        className="select-sombre text-xs"
-        value={livre.langue_cible}
-        onChange={(e) => onChangerLangues(livre.langue_source, e.target.value)}
-        title="Langue cible"
-      >
-        {CODES.map((c) => (
-          <option key={c} value={c}>
-            {LANGUES[c]}
-          </option>
-        ))}
-      </select>
+      {/* Bandeau condensé : le repli n'existe que sur petit écran.
+          (Le bouton ne porte pas `sm:hidden` lui-même : `.bouton-fantome`
+          est du CSS hors couche, son `display` l'emporterait.) */}
+      <div className="w-full sm:hidden">
+        <button
+          type="button"
+          onClick={basculerOptions}
+          aria-expanded={optionsOuvertes}
+          aria-controls="options-livre"
+          className="bouton-fantome w-full text-xs"
+        >
+          {optionsOuvertes
+            ? '− Masquer les options'
+            : '⚙︎ Options (langues, exports)'}
+        </button>
+      </div>
 
-      <Exports
-        livre={livre}
-        exportEnCours={exportEnCours}
-        genPdf={genPdf}
-        exportFidele={exportFidele}
-        chapitreDisponible={chapitreDisponible}
-        onExporterChapitre={onExporterChapitre}
-        onExporterLivre={onExporterLivre}
-        onExporterLivreDocx={onExporterLivreDocx}
-        onImprimerLivrePdf={onImprimerLivrePdf}
-        onTelechargerPdfTraduit={onTelechargerPdfTraduit}
-        onTelechargerFidele={onTelechargerFidele}
-      />
+      <div
+        id="options-livre"
+        className={`${
+          optionsOuvertes ? 'flex' : 'hidden'
+        } sm:flex w-full sm:w-auto flex-wrap items-center gap-3`}
+      >
+        <select
+          className="select-sombre text-xs"
+          value={livre.langue_source}
+          onChange={(e) => onChangerLangues(e.target.value, livre.langue_cible)}
+          title="Langue source"
+        >
+          {CODES.map((c) => (
+            <option key={c} value={c}>
+              {LANGUES[c]}
+            </option>
+          ))}
+        </select>
+        <span className="text-encre-500 text-xs">→</span>
+        <select
+          className="select-sombre text-xs"
+          value={livre.langue_cible}
+          onChange={(e) => onChangerLangues(livre.langue_source, e.target.value)}
+          title="Langue cible"
+        >
+          {CODES.map((c) => (
+            <option key={c} value={c}>
+              {LANGUES[c]}
+            </option>
+          ))}
+        </select>
+
+        <Exports
+          livre={livre}
+          exportEnCours={exportEnCours}
+          genPdf={genPdf}
+          exportFidele={exportFidele}
+          chapitreDisponible={chapitreDisponible}
+          onExporterChapitre={onExporterChapitre}
+          onExporterLivre={onExporterLivre}
+          onExporterLivreDocx={onExporterLivreDocx}
+          onImprimerLivrePdf={onImprimerLivrePdf}
+          onTelechargerPdfTraduit={onTelechargerPdfTraduit}
+          onTelechargerFidele={onTelechargerFidele}
+        />
+      </div>
     </div>
   );
 }

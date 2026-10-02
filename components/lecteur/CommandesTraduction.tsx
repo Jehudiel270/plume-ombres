@@ -5,9 +5,15 @@
 // progression (lot en cours + annulation), boutons « Traduire ce
 // chapitre » / « Tout traduire » et bascule source ↔ traduction.
 // Mémoïsé.
+//
+// Mobile (C3) : commandes condensées — les deux boutons se
+// partagent la largeur, la bascule source/traduit passe en pleine
+// largeur avec des cibles de 44 px (atteignables au pouce) ;
+// la pastille de statut passe à la ligne. Le pourcentage de
+// progression est mémoïsé (pas recalculé à chaque rendu).
 // ============================================================
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { LANGUES } from '@/lib/types';
 import type { CodeLangue } from '@/lib/types';
 import type { Progression } from '@/lib/useMoteurTraduction';
@@ -50,6 +56,17 @@ function CommandesTraduction({
   langueSource,
   langueCible,
 }: Props) {
+  // Pourcentage du lot courant — mémoïsé sur la seule progression.
+  const pourcentage = useMemo(
+    () =>
+      progression.total > 0
+        ? Math.round(
+            ((progression.faits + progression.erreurs) / progression.total) * 100
+          )
+        : 4,
+    [progression.total, progression.faits, progression.erreurs]
+  );
+
   return (
     <>
       {/* Progression de la traduction en cours */}
@@ -65,17 +82,7 @@ function CommandesTraduction({
               <div className="h-2 rounded-full bg-nuit-700 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-grenat-400 via-grenat-500 to-violet-rom-500 transition-all duration-300"
-                  style={{
-                    width: `${
-                      progression.total > 0
-                        ? Math.round(
-                            ((progression.faits + progression.erreurs) /
-                              progression.total) *
-                              100
-                          )
-                        : 4
-                    }%`,
-                  }}
+                  style={{ width: `${pourcentage}%` }}
                 />
               </div>
               <p className="text-[11px] text-encre-500 mt-1.5">
@@ -88,7 +95,7 @@ function CommandesTraduction({
             <button
               type="button"
               onClick={onAnnuler}
-              className="bouton-fantome !border-amber-500/50 text-amber-300 text-xs"
+              className="bouton-fantome !border-amber-500/50 text-amber-300 text-xs min-h-11"
             >
               ■ Annuler
             </button>
@@ -96,14 +103,14 @@ function CommandesTraduction({
         </div>
       )}
 
-      {/* Commandes de traduction */}
+      {/* Commandes de traduction — condensées sur mobile */}
       {!actif && (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={onTraduireSelection}
             disabled={!chapitreActuel || chapitreActuel.statut === 'traduit'}
-            className="bouton-principal text-sm"
+            className="bouton-principal text-sm flex-1 sm:flex-none min-h-11"
             title={
               chapitreActuel?.statut === 'traduit'
                 ? 'Chapitre déjà traduit'
@@ -120,13 +127,13 @@ function CommandesTraduction({
             type="button"
             onClick={onToutTraduire}
             disabled={compteurs !== null && compteurs.total === compteurs.faits}
-            className="bouton-fantome text-sm"
+            className="bouton-fantome text-sm flex-1 sm:flex-none min-h-11"
           >
             Tout traduire
           </button>
           {chapitreActuel && (
             <span
-              className={`text-[11px] uppercase tracking-wider rounded-full px-2.5 py-1 ${
+              className={`w-full sm:w-auto text-center sm:text-left text-[11px] uppercase tracking-wider rounded-full px-2.5 py-1 ${
                 chapitreActuel.statut === 'traduit'
                   ? 'bg-emerald-500/15 text-emerald-300'
                   : chapitreActuel.statut === 'en_traduction'
@@ -142,13 +149,13 @@ function CommandesTraduction({
         </div>
       )}
 
-      {/* Bascule source / traduction */}
+      {/* Bascule source / traduction — pleine largeur au pouce */}
       {texteTraduitDisponible && (
-        <div className="flex rounded-full bg-nuit-800 p-1 w-fit border border-nuit-700">
+        <div className="flex rounded-full bg-nuit-800 p-1 w-full sm:w-fit border border-nuit-700">
           <button
             type="button"
             onClick={() => onLecture('source')}
-            className={`px-4 py-1.5 text-xs rounded-full transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-none min-h-11 px-4 py-1.5 text-xs rounded-full transition-all cursor-pointer ${
               lecture === 'source'
                 ? 'bg-nuit-700 text-encre-100'
                 : 'text-encre-500 hover:text-encre-300'
@@ -159,7 +166,7 @@ function CommandesTraduction({
           <button
             type="button"
             onClick={() => onLecture('traduit')}
-            className={`px-4 py-1.5 text-xs rounded-full transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-none min-h-11 px-4 py-1.5 text-xs rounded-full transition-all cursor-pointer ${
               lecture === 'traduit'
                 ? 'bg-nuit-700 text-encre-100'
                 : 'text-encre-500 hover:text-encre-300'
