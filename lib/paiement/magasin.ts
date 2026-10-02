@@ -200,6 +200,9 @@ function ligneVersAbonnement(ligne: Record<string, unknown>): Abonnement {
     paiement_reference: (ligne.paiement_reference as string | null) ?? null,
     created_at: String(ligne.created_at),
     updated_at: String(ligne.updated_at),
+    essai_fin: (ligne.essai_fin as string | null) ?? null,
+    essai_livres_utilises: Number(ligne.essai_livres_utilises ?? 0),
+    verification_etudiant: Boolean(ligne.verification_etudiant ?? false),
   };
 }
 
