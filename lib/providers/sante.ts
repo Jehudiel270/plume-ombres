@@ -339,6 +339,27 @@ export async function verifierChaine(forcer = false): Promise<SanteChaine> {
 }
 
 /**
+ * Réponse MINIMALE de disponibilité, pensée pour le monitoring :
+ * parcourt l'ordre effectif et s'ARRÊTE au premier moteur qui répond.
+ * Cas normal : seul le moteur privé est sondé (coût quasi nul) — les
+ * moteurs tiers ne sont sollicités que si le privé est indisponible,
+ * ce qui évite de consommer inutilement le quota gratuit de Gemini.
+ */
+export async function verifierDisponibilite(): Promise<{
+  disponible: boolean;
+  horodatage: string;
+}> {
+  const ordre = ordreSecours();
+  for (const id of ordre) {
+    const m = await verifierMoteur(id);
+    if (m.etat === 'ok') {
+      return { disponible: true, horodatage: new Date().toISOString() };
+    }
+  }
+  return { disponible: false, horodatage: new Date().toISOString() };
+}
+
+/**
  * Bandeau de confidentialité SANS nom de fournisseur — destiné aux
  * pages utilisateur (l'utilisateur ne doit jamais voir quel moteur
  * traduit son texte).

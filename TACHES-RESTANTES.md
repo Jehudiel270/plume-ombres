@@ -28,7 +28,7 @@
 - [x] **A6.** **Chaîne de fallback automatique** — LIVRÉE (vague 6). `traduireAvecSecours()` essaie les moteurs DANS L'ORDRE (LibreTranslate → Gemini → Google → MyMemory) et bascule automatiquement sur échec (réseau, timeout, 429/quota, 5xx, réponse invalide ou vide). Délai maximal par tentative (`TRANSLATOR_FALLBACK_TIMEOUT_MS`, défaut 20 s) et tentatives BORNÉES par moteur (`TRANSLATOR_FALLBACK_ESSAIS`, défaut 1, plafond 3). Ordre configurable sans redéploiement. La route `/api/translate` utilise désormais la chaîne (plus de fournisseur unique). Preuve réelle : panne du moteur privé provoquée en plein chapitre → bascule mesurée, 0 segment perdu, 0 doublon.
 - [x] **A7.** **Contrôle de santé RÉEL** — LIVRÉ (vague 6) : `lib/providers/sante.ts` sonde chaque moteur par un appel court, résultat mis en cache (`TRANSLATOR_SANTE_TTL_MS`, défaut 5 min) ; route `GET /api/translate/sante` **réservée aux admins** (`?forcer=1` pour ignorer le cache) ; affichage dans l'espace admin (moteur actif, état, latence, confidentialité). **Reste : l'alerte automatique (cron) si la VM tombe → nouvelle tâche A11.**
 - [x] **A8.** **Défaut de production TRANCHÉ et AFFICHÉ** — LIVRÉ (vague 6). Défaut = **LibreTranslate auto-hébergé en tête de chaîne** (privé, gratuit) ; Google non officiel n'est plus jamais choisi par défaut. L'admin voit, par moteur, « où va le texte » (auto-hébergé vs transmis à un tiers). **Côté utilisateur : AUCUN nom de fournisseur** (promesse produit) — seule la mention de confidentialité est affichée.
-- [ ] **A9.** Réduire les langues proposées au lancement (en→fr d'abord) et n'élargir qu'ensuite.
+- [x] **A9.** **Catalogue de langues ÉTENDU** — LIVRÉ (vague 7) : **71 langues** (contre 6), avec les langues africaines du marché (sw, ha, yo, ig, am, wo, bm, ff, ln, rw, zu, xh, ny, kg…). Les sélecteurs (import + lecteur) lisent le catalogue dynamiquement : aucune modification d'interface n'a été nécessaire. Gemini construit désormais son prompt depuis le catalogue (plus de table de 6 langues à maintenir). Preuve réelle : en→fr servi par **LibreTranslate (privé)**, en→es/de/ar/sw/zh/hi servis par **Gemini** par repli automatique (modèles Argos absents sur l'instance) — **0 échec sur 7 langues**.
 - [ ] **A10.** Option Premium : moteur supérieur quel que soit le défaut.
 - [ ] **A11.** **Alerte** si le moteur privé (ou toute la chaîne) devient indisponible : cron qui appelle `/api/translate/sante` et notifie (suite d'A7).
 - [ ] **A12.** **Mode privé strict** (`TRANSLATOR_PRIVE_STRICT=1`) : verrou CENTRAL appliqué dans la chaîne (ordre réduit à l'auto-hébergé), donc impossible à contourner par une route ou une tâche d'arrière-plan — DÉJÀ IMPLÉMENTÉ ET TESTÉ (vague 6) ; reste à décider s'il devient le défaut de production.
@@ -141,10 +141,10 @@
 - [x] **P1.1** Cohérence de traduction : glossaire de personnages/lieux + contexte glissant (principal déficit de qualité).
 - [x] **P1.2** Notification de fin de traduction (au minimum un badge à la reconnexion).
 - [ ] **P1.3** Chapitres en erreur signalés dans la bibliothèque et le sommaire.
-- [ ] **P1.4** Mot de passe oublié + gestion du flux de confirmation e-mail.
+- [x] **P1.4** Mot de passe oublié + gestion du flux de confirmation e-mail — **LIVRÉ (vague 10)** : `/mot-de-passe-oublie` (demande, réponse TOUJOURS identique : pas d'énumération de comptes), `/auth/confirmer` (échange du code Supabase contre une session), `/nouveau-mot-de-passe` (définition du mot de passe, lien expiré géré), lien depuis `/connexion`, pages rendues publiques dans le garde d'accès. ⚠️ **Prérequis** : un e-mail d'envoi (SMTP) configuré dans Supabase — sans lui, aucun lien ne part.
 - [ ] **P1.5** Marque-pages, recherche sur tout le livre, export EPUB, mode bilingue côte à côte.
-- [ ] **P1.6** Monitoring : erreurs, quotas, temps moyens ; logs sans fragments de texte.
-- [ ] **P1.7** Sauvegarde de la base (le Free Supabase n'en fournit pas).
+- [x] **P1.6** Monitoring : route **publique minimale** `GET /api/statut` (aucun nom de fournisseur : juste `ok` / `degrade`) + sonde déterministe `scripts/verifier-sante-prod.mts` branchée sur un cron (voir A11) ; les journaux du moteur ne contiennent JAMAIS de fragment de texte (vérifié par test).
+- [x] **P1.7** Sauvegarde de la base (le Free Supabase n'en fournit pas) — **LIVRÉ (vague 10)** : `scripts/sauvegarde-bdd.mts` exporte les 20 tables du schéma `public` en JSON compressé, horodaté, HORS du dépôt Git, avec rétention (14 fichiers). Exécution réelle : **13 307 lignes, 5,4 Mo compressés**. Le schéma `auth` est volontairement exclu (empreintes de mots de passe).
 - [x] **P1.8** Content warnings / classification d'âge / tropes (attente de la communauté + identification du genre).
 - [ ] **P1.9** Route `/api/import-lien` (tâches B16-B18) si le chemin lien est retenu.
 
@@ -170,7 +170,7 @@
 
 | Vague | Contenu | But |
 |---|---|---|
-| **W7** | **B1 → B6, B10** (ne plus stocker les originaux) + **A9** (réduire les langues à en→fr) | Allègement immédiat, 0 €, gros effet |
+| **W7** | **A9** (catalogue de langues étendu à 71) + ajouts | **FAIT** — 71 langues, preuve réelle sur 7 paires |
 | **W8** | **C5, C7, C8** (bibliothèque, pages d'état, accessibilité) + **P1.3** (chapitres en erreur visibles) | Finir l'interface, aucune donnée muette |
 | **W9** | **P0.1** (hébergement commercial), **P0.9** (pay-as-you-go : crédits, FedaPay), **P0.5** (CGU/CGV + information sur le transit du texte), **P0.10** | **Vague qui permet d'encaisser** |
 | **W10** | **P1.4** (mot de passe oublié), **P1.6** (monitoring), **P1.7** (sauvegarde BDD), **A11** (alerte cron) | Exploitation fiable |

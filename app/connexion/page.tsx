@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 
@@ -27,7 +28,17 @@ function PageConnexion() {
   const [pseudo, setPseudo] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  // Message d'erreur éventuel transmis par /auth/confirmer (lien expiré).
+  const [erreur, setErreur] = useState<string | null>(() => {
+    const code = paramsRecherche.get('erreur');
+    if (code === 'lien-expire') {
+      return 'Ce lien a expiré. Demande un nouveau lien de réinitialisation.';
+    }
+    if (code === 'lien-invalide') {
+      return 'Lien invalide. Demande un nouveau lien de réinitialisation.';
+    }
+    return null;
+  });
 
   async function soumettre(evenement: React.FormEvent) {
     evenement.preventDefault();
@@ -173,6 +184,17 @@ function PageConnexion() {
                 onChange={(e) => setMotDePasse(e.target.value)}
               />
             </div>
+
+            {mode === 'connexion' && (
+              <p className="text-right">
+                <Link
+                  href="/mot-de-passe-oublie"
+                  className="text-xs text-encre-500 hover:text-encre-300 transition-colors"
+                >
+                  Mot de passe oublié ?
+                </Link>
+              </p>
+            )}
 
             {erreur && (
               <p className="text-sm text-grenat-300 bg-grenat-700/20 border border-grenat-700/50 rounded-xl px-4 py-2.5 animate-fondu-monte">

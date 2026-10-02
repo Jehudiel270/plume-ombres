@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {
   verifierChaine,
   verifierMoteur,
+  verifierDisponibilite,
   viderCacheSante,
 } from './sante';
 
@@ -164,4 +165,64 @@ test('santé : Gemini sans clé ⇒ non configuré (jamais sondé)', async () =>
   const m = await verifierMoteur('gemini', true);
   assert.equal(m.etat, 'non_configure');
   assert.equal(m.prive, false);
+});
+
+test('disponibilité : s’arrête au premier moteur qui répond (quota préservé)', async () => {
+  process.env.TRANSLATOR_FALLBACK_ORDER = 'libretranslate,gemini,google,mymemory';
+  process.env.GEMINI_API_KEY = 'cle-test';
+  process.env.TRANSLATOR_SANTE_TTL_MS = '60000';
+  viderCacheSante();
+
+  const compteur = new Map<string, number>([
+    ['127.0.0.1:5000', 0],
+    ['generativelanguage.googleapis.com', 0],
+    ['translate.googleapis.com', 0],
+    ['api.mymemory.translated.net', 0],
+  ]);
+  definirFetch((url) => {
+    if (url.includes('127.0.0.1:5000')) return okJson({ translatedText: 'Bonjour.' });
+    throw new Error(`moteur tiers sollicité alors que le privé répond : ${url}`);
+  }, compteur);
+
+  const d = await verifierDisponibilite();
+  assert.equal(d.disponible, true);
+  assert.equal(compteur.get('127.0.0.1:5000'), 1);
+  assert.equal(compteur.get('generativelanguage.googleapis.com'), 0);
+  assert.equal(compteur.get('translate.googleapis.com'), 0);
+  assert.equal(compteur.get('api.mymemory.translated.net'), 0);
+});
+
+test('disponibilité : privé en panne ⇒ dégradé seulement si TOUT échoue', async () => {
+  process.env.TRANSLATOR_FALLBACK_ORDER = 'libretranslate,mymemory';
+  process.env.TRANSLATOR_SANTE_TTL_MS = '60000';
+  viderCacheSante();
+
+  definirFetch(
+    (url) => {
+      if (url.includes('127.0.0.1:5000')) return () => new Response('boom', { status: 500 });
+      if (url.includes('api.mymemory.translated.net')) {
+        return okJson({
+          responseData: { translatedText: 'Bonjour.' },
+          responseStatus: 200,
+        });
+      }
+      return null;
+    },
+    new Map()
+  );
+
+  const d = await verifierDisponibilite();
+  assert.equal(d.disponible, true, 'le repli doit maintenir le service disponible');
+
+  viderCacheSante();
+  definirFetch(
+    (url) => {
+      if (url.includes('127.0.0.1:5000')) return () => new Response('boom', { status: 500 });
+      if (url.includes('api.mymemory.translated.net')) return () => new Response('boom', { status: 500 });
+      return null;
+    },
+    new Map()
+  );
+  const d2 = await verifierDisponibilite();
+  assert.equal(d2.disponible, false, 'tout en panne ⇒ dégradé');
 });

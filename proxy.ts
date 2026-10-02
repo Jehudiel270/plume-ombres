@@ -48,6 +48,9 @@ export async function proxy(request: NextRequest) {
     '/mentions-legales',
     '/conditions',
     '/confidentialite',
+    // Récupération de compte : accessibles SANS session, par nature.
+    '/mot-de-passe-oublie',
+    '/nouveau-mot-de-passe',
   ];
   const surPagePublique = PAGES_PUBLIQUES.includes(chemin);
 
@@ -68,12 +71,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // On exclut les fichiers statiques et les routes API
-  // (celles-ci vérifient elles-mêmes la session).
+  // On exclut les fichiers statiques, les routes API et le flux
+  // d'authentification (ceux-ci vérifient eux-mêmes la session).
   // ⚠ Le service worker ET le manifest ne doivent PAS être protégés :
   // un service worker qui redirige en 307 est invalidé par le navigateur,
   // ce qui fait échouer l'installation PWA.
   matcher: [
-    '/((?!api/|_next/static|_next/image|favicon.ico|service-worker\\.js|sw\\.js|manifest\\.webmanifest|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    '/((?!api/|auth/|_next/static|_next/image|favicon.ico|service-worker\\.js|sw\\.js|manifest\\.webmanifest|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
