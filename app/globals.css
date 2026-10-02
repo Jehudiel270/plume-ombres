@@ -1,24 +1,27 @@
 @import 'tailwindcss';
 
 /* ============================================================
-   Plume d'Ombres — thème « dark romance » premium
-   Charte issue de recherches UX/UI (voir rapports sous-agents) :
-   noir chaud (jamais #000 pur), bordeaux/vin, UN accent par écran,
-   lecteur façon livre, motion 200-600ms, une seule source de lumière.
+   Plume d'Ombres — identité visuelle
+   · Typographies AUTO-HÉBERGÉES (next/font/local, app/fonts) :
+     Bodoni Moda (titres) / Literata (corps) / Cormorant Garamond.
+   · 5 PALETTES commutables via html[data-palette="…"] (plus bas).
+     La palette par défaut reproduit « Brume & braises ».
+   · Échelle typographique nommée (--text-*) + styles de titre.
+   Les ratios de contraste sont MESURÉS par
+   scripts/verifier-contraste.mjs (lit réellement ces valeurs).
    ============================================================ */
 
 @theme {
-  /* Palette — noir nocturne chaud + bordeaux + plum */
+  /* --- Palette par défaut (Brume & braises) — repli sans JS --- */
   --color-nuit-950: #0a0608; /* fond principal */
   --color-nuit-900: #10090c; /* fond secondaire / lecteur */
-  --color-nuit-850: #191013; /* lecteur, panneaux */
-  --color-nuit-800: #191013; /* surfaces */
+  --color-nuit-850: #1b1216; /* lecteur, panneaux */
+  --color-nuit-800: #150d10; /* surfaces */
   --color-nuit-700: #2e1f27; /* bordures, séparateurs */
 
-  /* Accent lisible sur fond sombre : rose grenat clair pour le TEXTE,
-     grenat profond pour les lueurs et gros éléments. */
+  /* Accent : teinte lisible pour le TEXTE, teinte profonde pour les lueurs */
   --color-grenat-300: #f0a5b4;
-  --color-grenat-400: #e0607f; /* accent texte (contraste ≥ 4.5:1) */
+  --color-grenat-400: #e0607f; /* accent texte (AA ≥ 4.5:1) */
   --color-grenat-500: #c13d5c; /* accent profond / lueurs */
   --color-grenat-600: #a32b4b;
   --color-grenat-700: #6b1e2d; /* bordeaux vieilli */
@@ -35,9 +38,39 @@
   --color-encre-300: #c8b6c0;
   --color-encre-500: #a89aa3;
 
-  /* Typographies (chargées via next/font dans le layout) */
-  --font-display: var(--font-playfair), Georgia, serif;
-  --font-lecture: var(--font-lora), Georgia, serif;
+  /* Dégradés d'action : stops garantis ≥ 4.5:1 avec le texte clair */
+  --color-bouton-1: #6b1e2d;
+  --color-bouton-2: #a32b4b;
+  --color-bouton-3: #663a93;
+  --color-sur-accent: #ffffff;
+
+  /* --- Typographies (auto-hébergées via lib/polices.ts) --- */
+  /* --typo-titre / --typo-corps sont posées sur <html> par ProviderTheme */
+  --font-display: var(
+    --typo-titre,
+    var(--font-bodoni, Georgia, 'Times New Roman', serif)
+  );
+  --font-lecture: var(
+    --typo-corps,
+    var(--font-literata, Georgia, 'Times New Roman', serif)
+  );
+  /* Rétro-compatibilité : lib/lecture.ts référence var(--font-lora) */
+  --font-lora: var(
+    --typo-corps,
+    var(--font-literata, Georgia, 'Times New Roman', serif)
+  );
+
+  /* --- Échelle typographique cohérente --- */
+  --text-nano: 0.625rem; /* 10px — aides sous les contrôles */
+  --text-micro: 0.6875rem; /* 11px — sur-titres, légendes */
+  --text-note: 0.8125rem; /* 13px — métadonnées, aides */
+  --text-legende: 0.9375rem; /* 15px */
+  --text-corps: 1.0625rem; /* 17px — corps par défaut */
+  --text-chapeau: clamp(1.15rem, 1.02rem + 0.55vw, 1.45rem);
+  --text-titre: clamp(1.55rem, 1.15rem + 1.7vw, 2.4rem);
+  --text-affiche: clamp(2.4rem, 1.5rem + 3.8vw, 4rem);
+  --leading-titre: 1.12;
+  --tracking-titre: -0.015em;
 
   /* Rayons */
   --radius-carte: 12px;
@@ -46,7 +79,8 @@
   /* Ombres & lueurs unifiées : une seule source de lumière */
   --ombre-carte: 0 12px 32px rgb(0 0 0 / 0.45);
   --liseret-haut: 0 1px 0 rgb(255 255 255 / 0.05);
-  --lueur-grenat: 0 0 24px rgb(193 61 92 / 0.25);
+  --lueur-grenat: 0 0 24px
+    color-mix(in srgb, var(--color-grenat-500) 25%, transparent);
 
   /* Motion : une seule courbe, durées courtes */
   --courbe: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -85,7 +119,160 @@
   }
 }
 
+/* ============================================================
+   PALETTES — chaque bloc redéfinit TOUS les jetons sémantiques.
+   Les utilitaires Tailwind (bg-nuit-800, text-grenat-400…)
+   référencent ces variables : changer data-palette suffit.
+   ============================================================ */
+
+html[data-palette='brume'] {
+  color-scheme: dark;
+  --color-nuit-950: #0a0608;
+  --color-nuit-900: #10090c;
+  --color-nuit-850: #1b1216;
+  --color-nuit-800: #150d10;
+  --color-nuit-700: #2e1f27;
+  --color-encre-100: #f2e6eb;
+  --color-encre-300: #c8b6c0;
+  --color-encre-500: #a89aa3;
+  --color-grenat-300: #f0a5b4;
+  --color-grenat-400: #e0607f;
+  --color-grenat-500: #c13d5c;
+  --color-grenat-600: #a32b4b;
+  --color-grenat-700: #6b1e2d;
+  --color-violet-rom-300: #c3a6e8;
+  --color-violet-rom-400: #a678d6;
+  --color-violet-rom-500: #8a5bc4;
+  --color-violet-rom-600: #663a93;
+  --color-or-ros-300: #e8c4a0;
+  --color-bouton-1: #6b1e2d;
+  --color-bouton-2: #a32b4b;
+  --color-bouton-3: #663a93;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='orage'] {
+  color-scheme: dark;
+  --color-nuit-950: #06080e;
+  --color-nuit-900: #0a0d15;
+  --color-nuit-850: #10141d;
+  --color-nuit-800: #0d1119;
+  --color-nuit-700: #202836;
+  --color-encre-100: #e9eefb;
+  --color-encre-300: #b9c4dc;
+  --color-encre-500: #8695b4;
+  --color-grenat-300: #a9c6ff;
+  --color-grenat-400: #7ea6ff;
+  --color-grenat-500: #4f79d6;
+  --color-grenat-600: #3557a8;
+  --color-grenat-700: #1e3468;
+  --color-violet-rom-300: #c3b4ff;
+  --color-violet-rom-400: #a48bff;
+  --color-violet-rom-500: #7e5ff0;
+  --color-violet-rom-600: #4a2fa0;
+  --color-or-ros-300: #cfe0ff;
+  --color-bouton-1: #1e3468;
+  --color-bouton-2: #3557a8;
+  --color-bouton-3: #4a2fa0;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='encre'] {
+  color-scheme: dark;
+  --color-nuit-950: #0a0b0d;
+  --color-nuit-900: #0f1114;
+  --color-nuit-850: #15181d;
+  --color-nuit-800: #121418;
+  --color-nuit-700: #272c33;
+  --color-encre-100: #eceff3;
+  --color-encre-300: #b8bfc7;
+  --color-encre-500: #8d959e;
+  --color-grenat-300: #b9c6d6;
+  --color-grenat-400: #93a6bd;
+  --color-grenat-500: #5578a3;
+  --color-grenat-600: #3d5a7d;
+  --color-grenat-700: #24384f;
+  --color-violet-rom-300: #bdb4d6;
+  --color-violet-rom-400: #9b8fc4;
+  --color-violet-rom-500: #7666ab;
+  --color-violet-rom-600: #4a3d78;
+  --color-or-ros-300: #d6cfbe;
+  --color-bouton-1: #24384f;
+  --color-bouton-2: #3d5a7d;
+  --color-bouton-3: #4a3d78;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='sangOr'] {
+  color-scheme: dark;
+  --color-nuit-950: #0c0406;
+  --color-nuit-900: #13070a;
+  --color-nuit-850: #1c0d11;
+  --color-nuit-800: #180a0e;
+  --color-nuit-700: #3a1a20;
+  --color-encre-100: #f7e8df;
+  --color-encre-300: #dcb6a2;
+  --color-encre-500: #b3897a;
+  --color-grenat-300: #f3cf8a;
+  --color-grenat-400: #e0a94a;
+  --color-grenat-500: #a4152a;
+  --color-grenat-600: #7d0f1f;
+  --color-grenat-700: #4a0812;
+  --color-violet-rom-300: #e8c4a0;
+  --color-violet-rom-400: #c9a15e;
+  --color-violet-rom-500: #9a7530;
+  --color-violet-rom-600: #6b4c14;
+  --color-or-ros-300: #f2d79b;
+  --color-bouton-1: #4a0812;
+  --color-bouton-2: #7d0f1f;
+  --color-bouton-3: #6b4c14;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='claire'] {
+  color-scheme: light;
+  --color-nuit-950: #f4efe9;
+  --color-nuit-900: #ece5dd;
+  --color-nuit-850: #fbf7f1;
+  --color-nuit-800: #fdfaf6;
+  --color-nuit-700: #d9cec3;
+  --color-encre-100: #241a20;
+  --color-encre-300: #4a3b45;
+  --color-encre-500: #6b5a66;
+  --color-grenat-300: #7a1f38;
+  --color-grenat-400: #8f2440;
+  --color-grenat-500: #a62b4b;
+  --color-grenat-600: #7d1f38;
+  --color-grenat-700: #5a1428;
+  --color-violet-rom-300: #5a3a8a;
+  --color-violet-rom-400: #4c2f7a;
+  --color-violet-rom-500: #3d2364;
+  --color-violet-rom-600: #2a1547;
+  --color-or-ros-300: #8a6a2f;
+  --color-bouton-1: #5a1428;
+  --color-bouton-2: #7d1f38;
+  --color-bouton-3: #2a1547;
+  --color-sur-accent: #ffffff;
+}
+
 /* ---------- Base ---------- */
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    line-height: var(--leading-titre);
+    letter-spacing: var(--tracking-titre);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-grenat-400);
+    outline-offset: 2px;
+  }
+}
 
 html {
   color-scheme: dark;
@@ -93,6 +280,7 @@ html {
 
 body {
   @apply bg-nuit-950 text-encre-100 font-lecture antialiased;
+  font-size: var(--text-corps);
   font-synthesis: none;
   font-feature-settings: 'kern' 1, 'liga' 1;
   background-image:
@@ -111,7 +299,7 @@ body {
 
 ::selection {
   background: color-mix(in srgb, var(--color-grenat-500) 55%, transparent);
-  color: #fff;
+  color: var(--color-sur-accent);
 }
 
 * {
@@ -167,18 +355,18 @@ body {
 
 /* Sur-titre éditorial : capitales espacées */
 .sur-titre {
-  @apply font-display text-[11px] font-semibold uppercase tracking-[0.22em];
+  @apply font-display text-micro font-semibold uppercase tracking-[0.22em];
 }
 
-/* Bouton principal — lueur grenat douce */
+/* Bouton principal — lueur aux couleurs de la palette */
 .bouton-principal {
   @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
-  color: #fff;
+  color: var(--color-sur-accent);
   background: linear-gradient(
     120deg,
-    var(--color-grenat-600),
-    var(--color-grenat-500) 55%,
-    var(--color-violet-rom-600)
+    var(--color-bouton-1),
+    var(--color-bouton-2) 55%,
+    var(--color-bouton-3)
   );
   box-shadow:
     0 10px 26px -12px color-mix(in srgb, var(--color-grenat-500) 80%, transparent),
@@ -196,7 +384,7 @@ body {
   @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed;
   color: var(--color-encre-300);
   border: 1px solid var(--color-nuit-700);
-  background: color-mix(in srgb, white 2%, transparent);
+  background: color-mix(in srgb, var(--color-encre-100) 4%, transparent);
 }
 .bouton-fantome:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--color-grenat-500) 70%, transparent);
@@ -208,15 +396,15 @@ body {
    pleine largeur sous la rangée d'actions. */
 .bouton-fidele {
   @apply relative font-semibold tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed;
-  color: #fff;
+  color: var(--color-sur-accent);
   border-radius: 14px;
   border: 1px solid
     color-mix(in srgb, var(--color-or-ros-300) 55%, transparent);
   background: linear-gradient(
     120deg,
-    var(--color-grenat-600),
-    var(--color-grenat-500) 45%,
-    var(--color-violet-rom-600)
+    var(--color-bouton-1),
+    var(--color-bouton-2) 45%,
+    var(--color-bouton-3)
   );
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--color-or-ros-300) 18%, transparent),
@@ -238,7 +426,7 @@ body {
 /* Champ de saisie */
 .champ-sombre {
   @apply w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-colors;
-  background: color-mix(in srgb, black 25%, transparent);
+  background: color-mix(in srgb, var(--color-encre-100) 6%, transparent);
   border: 1px solid var(--color-nuit-700);
   color: var(--color-encre-100);
 }
@@ -256,7 +444,7 @@ body {
   background: var(--color-nuit-800);
   border: 1px solid var(--color-nuit-700);
   color: var(--color-encre-100);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23c8b6c0' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.8rem center;
   padding-right: 2.2rem;
@@ -307,10 +495,10 @@ body {
     var(--ombre-carte);
 }
 
-/* ---------- Fond d'ambiance (WebGL) ---------- */
-/* Canvas fixe derrière tout le contenu : la nuit vivante
-   (brume bordeaux/plum en dérive lente, braises, vignette, grain).
-   Le <body> garde son dégradé CSS en repli si WebGL échoue. */
+/* ---------- Fond d'ambiance (WebGL + image fixe de repli) ---------- */
+/* Canvas fixe derrière tout le contenu : la nuit vivante.
+   .fond-ambiance ne s'affiche qu'une fois la 1ʳᵉ image WebGL prête
+   (html[data-fond="anime"]) — pas de flash noir. */
 .fond-ambiance {
   position: fixed;
   inset: 0;
@@ -318,6 +506,47 @@ body {
   height: 100%;
   z-index: -10;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+html[data-fond='anime'] .fond-ambiance {
+  opacity: 1;
+}
+
+/* Image fixe de repli : paisible, sans WebGL ni animation.
+   (prefers-reduced-motion, saveData / réseau lent, batterie faible,
+   ou WebGL indisponible). Teintée par la palette courante. */
+.fond-fixe {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+}
+html[data-fond='fixe'] .fond-ambiance {
+  display: none;
+}
+html[data-fond='fixe'] .fond-fixe {
+  display: block;
+  background-color: var(--color-nuit-950);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.05'/%3E%3C/svg%3E"),
+    radial-gradient(
+      ellipse 90% 60% at 18% -10%,
+      color-mix(in srgb, var(--color-grenat-700) 40%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 92% 6%,
+      color-mix(in srgb, var(--color-violet-rom-600) 28%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 130% 90% at 50% 130%,
+      color-mix(in srgb, var(--color-grenat-500) 14%, transparent),
+      transparent
+    );
+  background-attachment: fixed;
 }
 
 /* ---------- Lecteur façon livre ---------- */
