@@ -4,7 +4,7 @@
 // ici, seulement la barre de navigation et le pied de page publics.
 
 import NavPublique from '@/components/public/NavPublique';
-import PiedPublique from '@/components/public/PiedPublique';
+import PiedDePage from '@/components/PiedDePage';
 
 export default function LayoutPublic({
   children,
@@ -13,7 +13,7 @@ export default function LayoutPublic({
     <div className="min-h-screen flex flex-col">
       <NavPublique />
       <div className="flex-1">{children}</div>
-      <PiedPublique />
+      <PiedDePage />
     </div>
   );
 }
