@@ -7,6 +7,7 @@
 
 import { preparerLivre, MAX_CHARS_SEGMENT } from '../lib/import-livre';
 import { verifierIntegrite, decouperTexte, assembler } from '../lib/segmenter';
+import { reconstituerSourceDepuisSegments } from '../lib/lecture';
 import { FournisseurMyMemory } from '../lib/providers/mymemory';
 import { FournisseurLibreTranslate } from '../lib/providers/libretranslate';
 
@@ -73,10 +74,14 @@ async function principal() {
     livre.chapitres.every((c) => c.segments.every((s) => s.source.length <= MAX_CHARS_SEGMENT))
   );
   verifier(
-    'intégrité texte_source par chapitre',
-    livre.chapitres.every(
-      (c) => verifierIntegrite(c.texte_source, decouperTexte(c.texte_source, MAX_CHARS_SEGMENT))
-    )
+    'intégrité source par chapitre (reconstruite depuis les segments)',
+    livre.chapitres.every((c) => {
+      const source = reconstituerSourceDepuisSegments(c.segments);
+      return (
+        source.length > 0 &&
+        verifierIntegrite(source, decouperTexte(source, MAX_CHARS_SEGMENT))
+      );
+    })
   );
 
   // Paragraphe volontairement éclaté en plusieurs segments (test du découpage).
@@ -127,7 +132,9 @@ async function principal() {
   verifier(
     'structure conservée : nb de paragraphes identique',
     chap1.texte.trim().split('\n\n').length ===
-      livre.chapitres[0].texte_source.trim().split('\n\n').length
+      reconstituerSourceDepuisSegments(livre.chapitres[0].segments)
+        .trim()
+        .split('\n\n').length
   );
 
   // Extraction d'un échantillon français pour contrôle visuel.

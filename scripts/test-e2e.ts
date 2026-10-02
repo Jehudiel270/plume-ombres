@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Client as ClientPg } from 'pg';
 import { preparerLivre } from '../lib/import-livre';
 import { assembler } from '../lib/segmenter';
+import { reconstituerSourceDepuisSegments } from '../lib/lecture';
 
 const URL = 'https://imbziizequckeaxuotdz.supabase.co';
 const ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImltYnppaXplcXVja2VheHVvdGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NDMzNzUsImV4cCI6MjEwNDAxOTM3NX0.eOzPwylvKiA7N2vpyZlCYcsMkICrIdhbC4EUzKKBGuU';
@@ -105,7 +106,7 @@ async function principal() {
       livre_id: livreInsere.id,
       position: chapitre.position,
       titre: chapitre.titre,
-      texte_source: chapitre.texte_source,
+      // B1 : plus de texte_source — les segments sont la source de vérité.
       statut: 'a_traduire',
     });
     if (errChap) throw errChap;
@@ -177,7 +178,9 @@ async function principal() {
   verifier(
     'structure 1:1 (nb paragraphes identique)',
     ch1.texte.trim().split('\n\n').length ===
-      livre.chapitres[0].texte_source.trim().split('\n\n').length
+      reconstituerSourceDepuisSegments(livre.chapitres[0].segments)
+        .trim()
+        .split('\n\n').length
   );
   const extrait = ch1.texte.split('\n\n').slice(0, 2).join('\n\n');
   console.log('\n— Aperçu traduit —\n' + extrait.slice(0, 300) + '\n');
