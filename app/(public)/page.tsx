@@ -15,6 +15,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { utilisateurConnecte } from '@/lib/supabase/server';
 import SectionPublique from '@/components/public/SectionPublique';
+import {
+  libellePeriodicite,
+  libellePrix,
+  tousLesPlans,
+  type PlanAbonnement,
+} from '@/lib/abonnement';
 
 export const metadata: Metadata = {
   // `absolute` : le titre contient déjà la marque, on évite le doublon
@@ -79,13 +85,34 @@ const PROMESSES = [
   {
     titre: 'Des exports utiles',
     texte:
-      'Markdown, Word (.docx) et PDF adapté au réassemblage — plus un PDF qui épouse la mise en page d’origine.',
+      'Markdown, Word (.docx), PDF adapté au réassemblage, PDF qui épouse la mise en page d’origine — et un vrai EPUB (titre, sommaire par chapitre, texte traduit).',
   },
 ];
+
+/** Essai des offres payantes (miroir du catalogue) : 7 jours, sans carte. */
+const ESSAI_JOURS = 7;
+
+/** Caractéristiques de repli si le catalogue n'est pas encore lisible. */
+const GRATUIT_INCLUS = [
+  'Import illimité de vos fichiers (.txt, .md, .pdf texte, .epub)',
+  'Traduction, lecture complète et reprise de position',
+  'Favoris, tri, filtres et tous les exports — dont l’EPUB',
+  'Un compte, et vous seul voyez vos livres',
+];
+
+/** Catalogue réel (lib/abonnement.ts), avec repli si le module évolue. */
+function plansDuCatalogue(): readonly PlanAbonnement[] {
+  try {
+    return tousLesPlans();
+  } catch {
+    return [];
+  }
+}
 
 export default async function Accueil() {
   const utilisateur = await utilisateurConnecte();
   const connecte = Boolean(utilisateur);
+  const plans = plansDuCatalogue();
 
   const ctaPrincipal = connecte
     ? { href: '/bibliotheque', libelle: 'Entrer dans ma bibliothèque' }
@@ -206,16 +233,20 @@ export default async function Accueil() {
           </p>
           <ul className="mt-3 space-y-2 text-sm text-encre-500 leading-relaxed list-disc pl-5">
             <li>
-              <strong className="text-encre-300">Pas de paiement en ligne</strong> : l’offre
-              payante est annoncée mais pas ouverte.
+              <strong className="text-encre-300">Pas de paiement en ligne</strong> : le
+              Premium est chiffré (francs CFA) mais le tunnel d’achat n’est pas
+              encore ouvert — aucun prélèvement possible.
             </li>
             <li>
               <strong className="text-encre-300">Pas d’OCR</strong> ni de PDF scanné, pas
               encore de DOCX en entrée.
             </li>
             <li>
-              <strong className="text-encre-300">Pas d’export EPUB</strong> pour l’instant
-              (prévu), ni de glossaire de personnages.
+              <strong className="text-encre-300">
+                Pas de mode bilingue côte à côte
+              </strong>{' '}
+              ni de marque-pages synchronisés. L’export EPUB, lui, est bien là, et
+              le glossaire de personnages aussi.
             </li>
           </ul>
         </div>
@@ -225,53 +256,97 @@ export default async function Accueil() {
       <SectionPublique
         id="prix"
         surTitre="Prix"
-        titre="Gratuit aujourd’hui, premium bientôt"
-        intro="Pendant le lancement, tout est ouvert : importer, traduire, lire, exporter. Aucune carte bancaire."
+        titre="Gratuit aujourd’hui, un Premium chiffré"
+        intro="Pendant le lancement, tout est ouvert : importer, traduire, lire, exporter. Aucune carte bancaire. Les offres payantes sont chiffrées en francs CFA (Mobile Money) et s’essaieront 7 jours sans carte."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="velours p-6 flex flex-col">
-            <p className="sur-titre text-grenat-300">Offre de lancement</p>
-            <p className="font-display text-4xl text-encre-100 mt-3">0 €</p>
-            <p className="text-encre-500 text-xs mt-1">sans engagement</p>
-            <ul className="mt-5 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
-              <li>Import illimité de vos fichiers (.txt, .md, .pdf texte, .epub)</li>
-              <li>Traduction, lecture complète et reprise de position</li>
-              <li>Favoris, tri, filtres et tous les exports</li>
-              <li>Un compte, et vous seul voyez vos livres</li>
-            </ul>
-            <Link
-              href={ctaPrincipal.href}
-              className="bouton-principal mt-6 justify-center"
-            >
-              {connecte ? 'Entrer dans ma bibliothèque' : 'Créer mon compte'}
-            </Link>
-          </div>
-
-          <div className="velours p-6 flex flex-col relative overflow-hidden">
-            <div className="absolute top-4 right-4">
-              <span className="rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
-                bientôt disponible
-              </span>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {plans.length === 0 ? (
+            <div className="velours p-6 flex flex-col sm:col-span-3">
+              <p className="sur-titre text-grenat-300">Offre de lancement</p>
+              <p className="font-display text-4xl text-encre-100 mt-3">0 F CFA</p>
+              <p className="text-encre-500 text-xs mt-1">
+                sans engagement, sans carte bancaire
+              </p>
+              <ul className="mt-5 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
+                {GRATUIT_INCLUS.map((ligne) => (
+                  <li key={ligne}>{ligne}</li>
+                ))}
+              </ul>
+              <Link
+                href={ctaPrincipal.href}
+                className="bouton-principal mt-6 justify-center"
+              >
+                {ctaPrincipal.libelle}
+              </Link>
             </div>
-            <p className="sur-titre text-violet-rom-300">Premium — annoncé</p>
-            <p className="font-display text-3xl text-encre-100 mt-3">
-              Prix non encore fixé
-            </p>
-            <p className="text-encre-500 text-xs mt-1">
-              placeholder — tarif à arrêter avant l’ouverture du paiement
-            </p>
-            <ul className="mt-5 space-y-2 text-sm text-encre-500 leading-relaxed list-disc pl-5 flex-1">
-              <li>Quota de traduction élargi (plusieurs livres par mois)</li>
-              <li>Plusieurs livres traduits en parallèle</li>
-              <li>Qualité littéraire supérieure et file prioritaire</li>
-              <li>Export EPUB et glossaire de personnages</li>
-            </ul>
-            <p className="text-encre-500 text-xs mt-6 italic">
-              Le paiement n’est pas encore en place. Aucune somme ne peut être prélevée
-              aujourd’hui.
-            </p>
-          </div>
+          ) : (
+            plans.slice(0, 3).map((plan) => {
+              const payant = plan.prixXof > 0;
+              return (
+                <div
+                  key={plan.code}
+                  data-plan={plan.code}
+                  className="velours p-6 flex flex-col"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p
+                      className={`sur-titre min-w-0 ${
+                        payant ? 'text-violet-rom-300' : 'text-grenat-300'
+                      }`}
+                    >
+                      {plan.nom}
+                    </p>
+                    {payant && (
+                      <span className="shrink-0 rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
+                        bientôt disponible
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-display text-3xl text-encre-100 mt-3">
+                    {libellePrix(plan)}
+                    {payant && (
+                      <span className="text-sm text-encre-500">
+                        {' '}
+                        {libellePeriodicite(plan)}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-encre-500 text-xs mt-1">
+                    {payant
+                      ? `prix indicatif · ${ESSAI_JOURS} jours offerts sans carte`
+                      : 'sans engagement, sans carte bancaire'}
+                  </p>
+                  <ul className="mt-5 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
+                    {plan.avantages.map((ligne) => (
+                      <li key={ligne}>{ligne}</li>
+                    ))}
+                  </ul>
+                  {payant ? (
+                    <p className="text-encre-500 text-xs mt-6 italic">
+                      Le paiement n’est pas encore ouvert : rien ne peut être
+                      prélevé.
+                    </p>
+                  ) : (
+                    <Link
+                      href={ctaPrincipal.href}
+                      className="bouton-principal mt-6 justify-center"
+                    >
+                      {ctaPrincipal.libelle}
+                    </Link>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
+
+        <p className="text-encre-500 text-xs mt-4 italic">
+          Le paiement n’est pas encore branché : aucune somme ne peut être
+          prélevée aujourd’hui.{' '}
+          <Link href="/tarifs" className="lien-discret underline">
+            Détail des tarifs, de l’essai et de l’usage raisonnable.
+          </Link>
+        </p>
       </SectionPublique>
 
       {/* ---------------- Rappel final ---------------- */}

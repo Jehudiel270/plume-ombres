@@ -86,9 +86,10 @@ export default function PiedDePage() {
             d’affiliation avec les ayants droit des œuvres importées.
           </p>
           <p>
-            Offre payante{' '}
-            <span className="text-grenat-300">bientôt disponible</span> — le
-            studio est entièrement gratuit pendant le lancement.
+            Offre Premium{' '}
+            <span className="text-grenat-300">bientôt disponible</span> — chiffrée
+            en francs CFA, essai de 7 jours sans carte ; le studio est
+            entièrement gratuit pendant le lancement.
           </p>
         </div>
 

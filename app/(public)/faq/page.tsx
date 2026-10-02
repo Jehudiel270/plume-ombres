@@ -52,12 +52,12 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
     q: 'Qui voit mon texte pendant la traduction ?',
     r: (
       <>
-        C’est la question la plus importante, et la réponse dépend du moteur qui
-        répond. Par défaut, le studio essaie dans l’ordre : <strong>LibreTranslate</strong>{' '}
-        (auto-hébergé, privé), puis <strong>Gemini</strong> (Google), puis{' '}
-        <strong>Google Traduction</strong> (endpoint non officiel), puis{' '}
-        <strong>MyMemory</strong>. Seul LibreTranslate auto-hébergé garde le texte chez
-        nous. Les autres sont des services tiers : le détail figure dans la{' '}
+        C’est la question la plus importante. Pour traduire, le texte est transmis
+        à des <strong>prestataires de traduction automatique</strong>, dont
+        certains peuvent être situés <strong>hors du Bénin</strong> ; certains de
+        ces services peuvent utiliser les contenus pour améliorer leurs propres
+        produits. Aucun prestataire n’est cité nominativement ici : le détail des
+        catégories de destinataires figure dans la{' '}
         <Link href="/confidentialite" className="lien-discret underline">
           politique de confidentialité
         </Link>
@@ -90,7 +90,9 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
       <>
         Markdown, Word (<strong>.docx</strong>) et PDF — dont un export « fidèle » qui
         reprend la mise en page du PDF d’origine (marges, largeur de colonne) quand le
-        livre a été importé depuis un PDF.
+        livre a été importé depuis un PDF. S’y ajoute un vrai <strong>EPUB</strong>{' '}
+        (titre, sommaire par chapitre, texte traduit, métadonnée de langue française),
+        téléchargeable depuis la bibliothèque.
       </>
     ),
   },
@@ -108,9 +110,10 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
     q: 'Combien ça coûte ?',
     r: (
       <>
-        <strong>Rien, pendant le lancement.</strong> L’offre Premium est annoncée,
-        mais ni son prix ni le paiement ne sont fixés : aucune somme ne peut être
-        prélevée aujourd’hui. Détail sur la page{' '}
+        <strong>Rien, pendant le lancement.</strong> L’offre Premium est désormais
+        chiffrée en francs CFA (Mobile Money) et s’essaie <strong>7 jours sans carte
+        bancaire</strong>, mais le paiement n’est pas encore branché : aucune somme ne
+        peut être prélevée aujourd’hui. Détail sur la page{' '}
         <Link href="/tarifs" className="lien-discret underline">
           Tarifs
         </Link>

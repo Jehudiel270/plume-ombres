@@ -198,8 +198,10 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
         <Link href="/confidentialite" className="lien-discret underline">
           politique de confidentialité
         </Link>
-        . En résumé : vos livres sont privés, mais le texte est transmis au moteur
-        de traduction actif (voir la section « Quel moteur voit votre texte »).
+        . En résumé : vos livres sont privés, mais le texte est transmis à des
+        prestataires de traduction automatique (voir la section « À quels
+        destinataires votre texte est-il transmis » de la politique de
+        confidentialité).
       </>
     ),
   },

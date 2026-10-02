@@ -1,8 +1,8 @@
-// Politique de confidentialité (C6, chantier B20) — remise à niveau vague 5.
-// Contenu de travail, honnête sur le point le plus sensible : QUEL moteur
-// voit le texte. Les faits viennent du code (lib/providers/fallback.ts :
-// LibreTranslate → Gemini → Google → MyMemory) et de l'audit interne.
-// Lisible SANS compte, cohérente avec les conditions et les mentions légales.
+// Politique de confidentialité (C6, chantier B20) — remise à niveau vague 5,
+// puis vague 6 : plus AUCUN nom de prestataire de traduction dans la page
+// publique. On garde l'information légale (le texte est transmis à des
+// prestataires de traduction automatique, certains hors du Bénin, dont
+// certains peuvent réutiliser les contenus), on retire les noms.
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -13,33 +13,8 @@ import SommaireLegal from '@/components/public/SommaireLegal';
 export const metadata: Metadata = {
   title: 'Politique de confidentialité',
   description:
-    'Quelles données Plume d’Ombres conserve, quel moteur de traduction voit votre texte, ce qui est journalisé, quels sous-traitants interviennent et comment exercer vos droits (accès, effacement).',
+    'Quelles données Plume d’Ombres conserve, à quels destinataires votre texte est transmis pendant la traduction (catégories, sans nom de prestataire), ce qui est journalisé, quels sous-traitants interviennent et comment exercer vos droits (accès, effacement).',
 };
-
-const MOTEURS: { nom: string; prive: string; role: string }[] = [
-  {
-    nom: 'LibreTranslate (auto-hébergé)',
-    prive: 'Privé — le texte reste chez l’éditeur',
-    role: 'Moteur essayé en premier. Aucun tiers ne voit le contenu.',
-  },
-  {
-    nom: 'Gemini (Google)',
-    prive: 'Tiers — hors UE',
-    role:
-      'Moteur de secours rapide. L’offre gratuite de Google prévoit que les contenus peuvent servir à améliorer ses produits (voir la page de confidentialité de Google pour la version en vigueur).',
-  },
-  {
-    nom: 'Google Traduction (point d’accès public)',
-    prive: 'Tiers — hors UE',
-    role:
-      'Point d’accès grand public, sans contrat de sous-traitance ni garantie de non-exploitation. Utilisé seulement si les moteurs précédents échouent.',
-  },
-  {
-    nom: 'MyMemory',
-    prive: 'Tiers',
-    role: 'Dernier recours. Service communautaire de mémoires de traduction.',
-  },
-];
 
 const SOUS_TRAITANTS: { nom: string; role: string; lieu: string }[] = [
   {
@@ -53,14 +28,10 @@ const SOUS_TRAITANTS: { nom: string; role: string; lieu: string }[] = [
     lieu: 'Base hébergée en eu-west-1 — Union européenne.',
   },
   {
-    nom: 'Google (Gemini, Google Traduction)',
-    role: 'Moteurs de traduction de secours (voir section 3).',
-    lieu: 'Hors Union européenne.',
-  },
-  {
-    nom: 'MyMemory',
-    role: 'Moteur de traduction de dernier recours.',
-    lieu: 'Hors Union européenne.',
+    nom: 'Prestataires de traduction automatique',
+    role:
+      'Traitement des segments à traduire (catégories de destinataires décrites en section 3).',
+    lieu: 'Certains hors du Bénin et hors Union européenne.',
   },
 ];
 
@@ -72,7 +43,7 @@ export default function PageConfidentialite() {
         gabarit="etroit"
         surTitre="Confidentialité"
         titre="Politique de confidentialité"
-        intro="Version de travail — 2 octobre 2026. Lisible sans compte. Résumé en une phrase : vos livres sont privés dans la base, mais pour les traduire, le texte passe par un moteur externe, et nous vous disons lequel."
+        intro="Version de travail — 2 octobre 2026. Lisible sans compte. Résumé en une phrase : vos livres sont privés dans la base, mais pour les traduire, le texte passe par des prestataires externes, et nous vous disons ce qu’il en est."
       >
         <SommaireLegal actif="confidentialite" />
 
@@ -165,41 +136,51 @@ export default function PageConfidentialite() {
       <SectionPublique
         gabarit="etroit"
         surTitre="3"
-        titre="Quel moteur voit votre texte"
-        intro="C’est la question à laquelle nous répondons le plus précisément. Le studio essaie les moteurs dans cet ordre et bascule sur le suivant dès que l’un échoue (réseau, quota, réponse vide)."
+        titre="À quels destinataires votre texte est-il transmis"
+        intro="La question la plus importante — à laquelle nous répondons sans masquer que le texte sort du studio, ni nommer nos prestataires."
       >
-        <div className="space-y-3">
-          {MOTEURS.map((m, i) => (
-            <div key={m.nom} className="velours p-5">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-[11px] uppercase tracking-[0.2em] text-encre-500">
-                  Moteur {i + 1}
-                </span>
-                <p className="font-display text-lg text-encre-100">{m.nom}</p>
-                <span
-                  className={`ml-auto rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider ${
-                    m.prive.startsWith('Privé')
-                      ? 'bg-emerald-500/15 text-emerald-300'
-                      : 'bg-amber-500/15 text-amber-300'
-                  }`}
-                >
-                  {m.prive}
-                </span>
-              </div>
-              <p className="text-encre-500 text-sm mt-3 leading-relaxed">
-                {m.role}
-              </p>
-            </div>
-          ))}
+        <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-4">
+          <ul className="list-disc pl-5 space-y-3">
+            <li>
+              <strong className="text-encre-100">
+                Prestataires de traduction automatique
+              </strong>{' '}
+              : pour traduire, le texte des segments est transmis à un ou
+              plusieurs prestataires de traduction automatique. Certains peuvent
+              être situés <strong className="text-encre-100">hors du Bénin</strong>{' '}
+              et hors Union européenne, et{' '}
+              <strong className="text-encre-100">
+                certains de ces services peuvent utiliser les contenus transmis
+                pour améliorer leurs propres produits
+              </strong>
+              . Le détail nominatif des sous-traitants n’est pas publié ici ; il
+              est communiqué sur demande via la page{' '}
+              <Link href="/contact" className="lien-discret underline">
+                Contact
+              </Link>
+              .
+            </li>
+            <li>
+              <strong className="text-encre-100">
+                Aucun usage communautaire de notre côté
+              </strong>{' '}
+              : le studio ne publie pas vos textes, ne les revend pas et ne les
+              partage avec aucun autre compte.
+            </li>
+            <li>
+              <strong className="text-encre-100">Journalisation</strong> : seuls
+              des indicateurs techniques (erreurs, durées, fournisseurs internes)
+              sont conservés — jamais un fragment du texte, ni en entrée ni en
+              sortie.
+            </li>
+          </ul>
+          <p className="text-encre-500 text-xs leading-relaxed italic">
+            Conséquence à assumer : en l’état, la confidentialité totale n’est
+            pas garantie, puisqu’un prestataire externe peut recevoir le texte
+            pendant la traduction. Si votre texte ne doit pas sortir, ne
+            l’importez pas.
+          </p>
         </div>
-        <p className="text-encre-500 text-xs mt-4 leading-relaxed italic">
-          Conséquence à assumer : en l’état, la confidentialité totale n’est
-          garantie que par le moteur auto-hébergé. Tant que les autres moteurs
-          peuvent répondre, le texte d’un livre peut être transmis à un service
-          tiers. Si votre texte ne doit pas sortir, ne l’importez pas avant que le
-          moteur privé soit le seul actif — cette bascule est en cours de
-          chantier.
-        </p>
       </SectionPublique>
 
       <SectionPublique
@@ -224,9 +205,11 @@ export default function PageConfidentialite() {
               peut lire que ses propres lignes.
             </li>
             <li>
-              <strong className="text-encre-100">Moteurs de traduction</strong> :
-              voir la section 3. Certains sont des prestataires tiers, hors Union
-              européenne.
+              <strong className="text-encre-100">
+                Prestataires de traduction
+              </strong>{' '}
+              : voir la section 3. Certains sont situés hors du Bénin et hors
+              Union européenne.
             </li>
             <li>
               <strong className="text-encre-100">Conservation</strong> : tant que
