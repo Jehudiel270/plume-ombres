@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
+import { ouvrirApparence } from '@/lib/theme';
 
 interface Props {
   email: string;
@@ -47,6 +48,15 @@ export default function BarreNavigation({ email, pseudo }: Props) {
           <div className="w-9 h-9 rounded-full grid place-items-center text-sm font-display italic bg-gradient-to-br from-grenat-600 to-violet-rom-600 text-white shadow">
             {pseudo.slice(0, 1).toUpperCase()}
           </div>
+          <button
+            type="button"
+            onClick={ouvrirApparence}
+            className="bouton-fantome !px-3 !py-1.5 text-xs"
+            title="Apparence du site (palette et typographie)"
+          >
+            <span aria-hidden="true">◐</span>
+            <span className="hidden sm:inline">Apparence</span>
+          </button>
           <button
             onClick={seDeconnecter}
             className="bouton-fantome !px-3 !py-1.5 text-xs"

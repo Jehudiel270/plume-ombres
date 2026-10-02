@@ -4,6 +4,7 @@ import { CLASSES_POLICES } from '@/lib/polices';
 import { SCRIPT_THEME } from '@/lib/theme';
 import ProviderTheme from '@/components/ProviderTheme';
 import FondAmbiance from '@/components/FondAmbiance';
+import PanneauApparence from '@/components/PanneauApparence';
 import PWA from '@/components/PWA';
 
 export const metadata: Metadata = {
@@ -59,6 +60,11 @@ export default function RacineLayout({
         <ProviderTheme>
           {children}
           <FondAmbiance />
+          {/* Apparence du site (palette + typographie) : le bouton
+              flottant vit ici, donc il est présent sur TOUTES les pages —
+              et le panneau s'ouvre aussi depuis un menu via l'événement
+              plume:ouvrir-apparence. */}
+          <PanneauApparence />
         </ProviderTheme>
         <PWA />
       </body>

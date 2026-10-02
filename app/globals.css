@@ -455,6 +455,31 @@ body {
   @apply text-encre-300 hover:text-grenat-400 transition-colors;
 }
 
+/* ---------- Panneau « Apparence » (présent sur toutes les pages) ---------- */
+/* Bouton flottant monté une seule fois dans app/layout.tsx : au-dessus
+   des en-têtes collants (z-30) et du panneau du lecteur (z-40), mais
+   SOUS le tiroir du sommaire mobile (z-50) pour ne jamais le gêner.
+   Ancré en BAS À GAUCHE : la place en bas à droite est déjà occupée par
+   le bandeau « Installer l'application » (components/PWA.tsx, z-50), qui
+   masquerait le bouton. Respecte les zones sûres des écrans à encoche. */
+.zone-apparence {
+  position: fixed;
+  left: max(0.9rem, env(safe-area-inset-left));
+  bottom: max(0.9rem, env(safe-area-inset-bottom));
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Sur les fonds d'ambiance animés, le bouton reste lisible :
+   surface opaque + flou léger, sans jamais cacher la lumière. */
+.bouton-apparence {
+  background: color-mix(in srgb, var(--color-nuit-800) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 /* Zone de dépôt */
 .zone-depot {
   @apply border-2 border-dashed rounded-[12px] transition-colors cursor-pointer;

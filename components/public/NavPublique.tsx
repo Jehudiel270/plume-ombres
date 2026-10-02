@@ -10,6 +10,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { ouvrirApparence } from '@/lib/theme';
 
 const LIENS: { href: string; libelle: string }[] = [
   { href: '/tarifs', libelle: 'Tarifs' },
@@ -66,6 +67,16 @@ export default function NavPublique() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={ouvrirApparence}
+            className="bouton-fantome !px-3 !py-2 text-[13px]"
+            title="Apparence du site (palette et typographie)"
+          >
+            <span aria-hidden="true">◐</span>
+            <span className="hidden sm:inline">Apparence</span>
+          </button>
+
           <Link href="/bibliotheque" className="bouton-principal !px-4 !py-2 text-[13px]">
             Entrer
           </Link>
@@ -94,6 +105,16 @@ export default function NavPublique() {
           className="md:hidden border-t border-nuit-700/60 bg-nuit-950/95 px-4 py-3 flex flex-col gap-1 animate-fondu-monte"
         >
           {LIENS.map(lien)}
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOuvert(false);
+              ouvrirApparence();
+            }}
+            className="rounded-full px-3 py-1.5 text-sm text-left text-encre-300 hover:text-encre-100 hover:bg-white/[0.05] transition-colors"
+          >
+            Apparence<sup className="ml-1 text-grenat-300">◐</sup>
+          </button>
         </nav>
       )}
     </header>
