@@ -14,9 +14,10 @@
 
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { fournisseurActif, traduireAvec } from '@/lib/providers';
+import { fournisseurActif, traduireAvec, classerEchec } from '@/lib/providers';
 import type { OptionsTraduction } from '@/lib/providers';
 import { construireDirectives } from '@/lib/glossaire';
+import { journaliserTraduction } from '@/lib/sante';
 import type { PaireGlossaire } from '@/lib/types';
 import {
   MagasinRateLimitSupabase,
@@ -198,8 +199,11 @@ export async function POST(request: NextRequest) {
   const MAX_DIRECTIVES = 4000;
   const MAX_PAIRES_GLOSSAIRE = 300;
   const MAX_CONTEXTE = 4000;
+  const debutTraduction = Date.now();
+  let idFournisseur = process.env.TRANSLATOR_DEFAULT || 'auto';
   try {
     const fournisseur = fournisseurActif();
+    idFournisseur = fournisseur.id;
 
     // Injection additive : les options existantes (source, cible) ne
     // changent pas ; on n'ajoute que les champs P1.1 réellement fournis.
@@ -242,11 +246,26 @@ export async function POST(request: NextRequest) {
     // pour que le client réessaie.
     if (typeof traduit !== 'string' || traduit.trim() === '') {
       await libererQuota(magasinQuota, user.id, texte.length).catch(() => undefined);
+      // P1.6 : événement d'exploitation (aucun contenu, best-effort).
+      await journaliserTraduction(clientRpc, {
+        fournisseur: fournisseur.id,
+        statut: 'vide',
+        categorie: 'reponse_invalide',
+        dureeMs: Date.now() - debutTraduction,
+        caracteres: texte.length,
+      });
       return NextResponse.json(
         { erreur: 'Le moteur a renvoyé une traduction vide.' },
         { status: 502, headers: entetesDebit }
       );
     }
+    // P1.6 : succès journalisé (moteur, durée, volume — jamais le texte).
+    await journaliserTraduction(clientRpc, {
+      fournisseur: fournisseur.id,
+      statut: 'succes',
+      dureeMs: Date.now() - debutTraduction,
+      caracteres: texte.length,
+    });
     return NextResponse.json(
       {
         traduit,
@@ -264,6 +283,15 @@ export async function POST(request: NextRequest) {
   } catch (erreur) {
     // Échec de traduction : le quota réservé est rendu au compte.
     await libererQuota(magasinQuota, user.id, texte.length).catch(() => undefined);
+    // P1.6 : seule la CATÉGORIE technique est journalisée (jamais le
+    // message d'erreur brut, qui pourrait recopier du texte).
+    await journaliserTraduction(clientRpc, {
+      fournisseur: idFournisseur,
+      statut: 'echec',
+      categorie: classerEchec(erreur).categorie,
+      dureeMs: Date.now() - debutTraduction,
+      caracteres: texte.length,
+    });
     const message =
       erreur instanceof Error ? erreur.message : 'Erreur de traduction inconnue.';
     return NextResponse.json(

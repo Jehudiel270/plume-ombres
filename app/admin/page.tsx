@@ -11,6 +11,7 @@
 // ============================================================
 
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { creerClientServeur } from '@/lib/supabase/server';
 import { exigerPermission } from '@/lib/roles-garde';
 import BarreNavigation from '@/components/BarreNavigation';
@@ -86,6 +87,11 @@ export default async function PageAdmin() {
           <p className="text-encre-500 text-sm mt-3 italic">
             Comptes, usage et abonnements. Aucun contenu de livre d’autrui n’est lisible
             ici.
+          </p>
+          <p className="text-encre-500 text-xs mt-2">
+            <Link href="/admin/sante" className="underline hover:text-encre-300">
+              Santé du studio (traductions, moteurs, erreurs) →
+            </Link>
           </p>
         </div>
 
