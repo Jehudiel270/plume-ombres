@@ -1,0 +1,114 @@
+{
+  "genere_le": "2026-10-02T08:52:20.877Z",
+  "fichier": "sauvegardes\\plume-2026-10-02T08-52-10.sql",
+  "taille_octets": 16317823,
+  "tables": {
+    "profiles": 13,
+    "livres": 15,
+    "chapitres": 213,
+    "segments": 12506,
+    "glossaires": 0,
+    "glossaire_entrees": 0,
+    "favorites": 1,
+    "lecture_progression": 0,
+    "lecture_journal": 0,
+    "usage_mensuel": 0,
+    "plans_abonnement": 13,
+    "abonnements": 3,
+    "abonnements_historique": 4,
+    "paiements": 0,
+    "admin_actions": 0,
+    "journal_traduction": 0
+  },
+  "total_lignes": 12768,
+  "note": "Rapport sans contenu : seuls des noms de tables et des comptages.",
+  "derniere_restauration": {
+    "tables": {
+      "profiles": {
+        "lignes_source": 13,
+        "lignes_restaurees": 13,
+        "empreinte_identique": true
+      },
+      "livres": {
+        "lignes_source": 15,
+        "lignes_restaurees": 15,
+        "empreinte_identique": true
+      },
+      "chapitres": {
+        "lignes_source": 213,
+        "lignes_restaurees": 213,
+        "empreinte_identique": true
+      },
+      "segments": {
+        "lignes_source": 12506,
+        "lignes_restaurees": 12506,
+        "empreinte_identique": true
+      },
+      "glossaires": {
+        "lignes_source": 0,
+        "lignes_restaurees": 0,
+        "empreinte_identique": true
+      },
+      "glossaire_entrees": {
+        "lignes_source": 0,
+        "lignes_restaurees": 0,
+        "empreinte_identique": true
+      },
+      "favorites": {
+        "lignes_source": 1,
+        "lignes_restaurees": 1,
+        "empreinte_identique": true
+      },
+      "lecture_progression": {
+        "lignes_source": 0,
+        "lignes_restaurees": 0,
+        "empreinte_identique": true
+      },
+      "lecture_journal": {
+        "lignes_source": 0,
+        "lignes_restaurees": 0,
+        "empreinte_identique": true
+      },
+      "usage_mensuel": {
+        "lignes_source": 0,
+        "lignes_restaurees": 0,
+        "empreinte_identique": true
+      },
+      "plans_abonnement": {
+        "lignes_source": 13,
+        "lignes_restaurees": 13,
+        "empreinte_identique": true
+      },
+      "abonnements": {
+        "lignes_source": 3,
+        "lignes_restaurees": 3,
+        "empreinte_identique": true
+      },
+      "abonnements_historique": {
+        "lignes_source": 4,
+        "lignes_restaurees": 4,
+        "empreinte_identique": true
+      },
+      "paiements": {
+        "lignes_source": 0,
+        "lignes_restaurees": 0,
+        "empreinte_identique": true
+      },
+      "admin_actions": {
+        "lignes_source": 0,
+        "lignes_restaurees": 0,
+        "empreinte_identique": true
+      },
+      "journal_traduction": {
+        "lignes_source": 0,
+        "lignes_restaurees": 0,
+        "empreinte_identique": true
+      }
+    },
+    "identique": true,
+    "echec": null,
+    "duree_ms": 23486,
+    "fichier": "sauvegardes/plume-2026-10-02T08-52-10.sql",
+    "horodatage": "2026-10-02T08:52:48.329Z"
+  }
+}

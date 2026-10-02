@@ -1,0 +1,128 @@
+{
+  "quand": "2026-10-02T09:35:17.943Z",
+  "echecs": 0,
+  "resultats": {
+    "phrase_reelle_longueur": 60,
+    "1. /admin/sante servi à l’admin": {
+      "ok": true,
+      "detail": "http://localhost:3994/admin/sante"
+    },
+    "1. Titre « Santé du studio » présent": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Traductions en cours » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Traductions terminées » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Traductions en erreur » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Temps moyen / chapitre » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Temps moyen / livre » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Taille moyenne / chapitre » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Taux d’échec par fournisseur » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Caractères consommés ce mois » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « Derniers événements d’erreur » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "1. Section « État machine » présente": {
+      "ok": true,
+      "detail": ""
+    },
+    "texte_admin_apercu": "Plume d’Ombres\nAccueil\nBibliothèque\nFavoris\nTarifs\nFAQ\nContact\nS\nSupervision\nsante-admin@plume-ombres.local\nOuvrir le menu de Supervision\n\nADMINISTRATION\n\nSanté du studio\n\nTraductions, durées, moteurs et usage. Toutes les valeurs sont des agrégats calculés en base : aucun contenu de livre n’est lisible ni journalisé.\n\n← Retour au tableau de bord\n\nTRADUCTIONS EN COURS\n\n0\n\n0 segments en vol\n\nTRADUCT",
+    "5. La phrase réelle est ABSENTE du HTML admin": {
+      "ok": true,
+      "detail": "60 caractères testés (contenu non consigné)"
+    },
+    "traduction": {
+      "statut_http": 200,
+      "fournisseur": "google"
+    },
+    "6. Appel /api/translate exécuté (journal alimenté)": {
+      "ok": true,
+      "detail": "HTTP 200, moteur=google"
+    },
+    "6. Un moteur apparaît dans « Taux d’échec par fournisseur »": {
+      "ok": true,
+      "detail": ""
+    },
+    "2. Non-admin redirigé vers /bibliotheque?refus=admin.stats.voir": {
+      "ok": true,
+      "detail": "http://localhost:3994/bibliotheque?refus=admin.stats.voir"
+    },
+    "2. Le contenu de supervision est INVISIBLE au non-admin": {
+      "ok": true,
+      "detail": ""
+    },
+    "3. Anonyme redirigé vers /connexion": {
+      "ok": true,
+      "detail": "http://localhost:3994/connexion?suivant=%2Fadmin%2Fsante"
+    },
+    "4. /api/sante répond 200": {
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    "4. Corps machine complet": {
+      "ok": true,
+      "detail": "{\"version\":1,\"statut\":\"ok\",\"quand\":\"2026-10-02T09:35:11.651Z\",\"base\":{\"joignable\":true,\"latence_ms\":2180},\"file\":{\"en_retard\":false,\"en_cours\":0,\"bloques\":0},\"erreurs\":{\"recentes_24h\":0,\"chapitres\":2,\"segments\":11},\"alerte\":false}"
+    },
+    "4. La phrase réelle est ABSENTE de /api/sante": {
+      "ok": true,
+      "detail": ""
+    },
+    "4. Aucun secret dans /api/sante": {
+      "ok": true,
+      "detail": ""
+    },
+    "api_sante": {
+      "version": 1,
+      "statut": "ok",
+      "quand": "2026-10-02T09:35:11.651Z",
+      "base": {
+        "joignable": true,
+        "latence_ms": 2180
+      },
+      "file": {
+        "en_retard": false,
+        "en_cours": 0,
+        "bloques": 0
+      },
+      "erreurs": {
+        "recentes_24h": 0,
+        "chapitres": 2,
+        "segments": 11
+      },
+      "alerte": false
+    },
+    "7. Rapport de sauvegarde présent": {
+      "ok": true,
+      "detail": "12768 lignes, 15.56 Mo"
+    },
+    "7. Restauration vérifiée (empreintes identiques)": {
+      "ok": true,
+      "detail": "16 tables"
+    }
+  }
+}

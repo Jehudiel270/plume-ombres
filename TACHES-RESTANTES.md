@@ -126,8 +126,8 @@
 - [ ] **P1.3** Chapitres en erreur signalés dans la bibliothèque et le sommaire.
 - [ ] **P1.4** Mot de passe oublié + gestion du flux de confirmation e-mail.
 - [ ] **P1.5** Marque-pages, recherche sur tout le livre, export EPUB, mode bilingue côte à côte.
-- [ ] **P1.6** Monitoring : erreurs, quotas, temps moyens ; logs sans fragments de texte.
-- [ ] **P1.7** Sauvegarde de la base (le Free Supabase n'en fournit pas).
+- [x] **P1.6** Monitoring : erreurs, quotas, temps moyens ; logs sans fragments de texte. → Page admin `/admin/sante` + RPC agrégées `public.sante_studio`, journal `public.journal_traduction` (aucune colonne de contenu), point machine `GET /api/sante`. Preuves : `scripts/test-sante.ts`, `scripts/probe-sante.mjs`.
+- [x] **P1.7** Sauvegarde de la base (le Free Supabase n'en fournit pas). → `scripts/sauvegarde-db.mjs` (sauvegarde + restauration dans un schéma jetable, empreintes MD5 comparées) ; procédure et preuve dans `SAUVEGARDE.md`.
 - [x] **P1.8** Content warnings / classification d'âge / tropes (attente de la communauté + identification du genre).
 - [ ] **P1.9** Route `/api/import-lien` (tâches B16-B18) si le chemin lien est retenu.
 
