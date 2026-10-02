@@ -415,6 +415,38 @@ export default function EspaceLivre({
     rafraichirCompteurs();
   }, [livre, lancer, majChapitre, rafraichirCompteurs]);
 
+  // ---------- Chapitres en erreur + relance (P1.3) ----------
+  // Le sommaire signale déjà chaque chapitre « à reprendre » (pastille
+  // ambre) ; ce bandeau donne le NOMBRE et propose une relance réelle,
+  // pour ne plus laisser une page incompréhensible sans issue.
+  const chapitresEnErreur = useMemo(
+    () => chapitres.filter((c) => c.statut === 'erreur'),
+    [chapitres]
+  );
+
+  const relancerErreurs = useCallback(async () => {
+    if (chapitresEnErreur.length === 0 || actif) return;
+    const { data } = await supabaseRef.current
+      .from('chapitres')
+      .select('*')
+      .in(
+        'id',
+        chapitresEnErreur.map((c) => c.id)
+      )
+      .order('position', { ascending: true });
+    if (!data || data.length === 0) return;
+    setLecture('traduit'); // on voit la traduction se reconstruire
+    await lancer(supabaseRef.current, data as Chapitre[], livre, majChapitre);
+    rafraichirCompteurs();
+  }, [
+    chapitresEnErreur,
+    actif,
+    lancer,
+    livre,
+    majChapitre,
+    rafraichirCompteurs,
+  ]);
+
   // ---------- Exports (état + logique dans le hook) ----------
   const {
     exportEnCours,
@@ -549,6 +581,44 @@ export default function EspaceLivre({
           <p className="text-xs text-grenat-300 bg-grenat-700/15 border border-grenat-700/40 rounded-xl px-4 py-2">
             {messageLangue}
           </p>
+        )}
+
+        {/* Chapitres en erreur (P1.3) : le sommaire montre les pastilles
+            ambre, ce bandeau donne le compte et la relance. */}
+        {chapitresEnErreur.length > 0 && (
+          <div
+            data-alerte-chapitres-livre
+            className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+          >
+            <p className="flex items-start gap-2">
+              <span aria-hidden>⚠</span>
+              <span className="leading-relaxed">
+                <strong className="text-amber-100">
+                  {chapitresEnErreur.length === 1
+                    ? '1 chapitre n’a pas pu être traduit'
+                    : `${chapitresEnErreur.length} chapitres n’ont pas pu être traduits`}
+                </strong>{' '}
+                —{' '}
+                {chapitresEnErreur
+                  .slice(0, 6)
+                  .map((c) => c.titre)
+                  .join(' · ')}
+                {chapitresEnErreur.length > 6
+                  ? ` · +${chapitresEnErreur.length - 6} autre(s)`
+                  : ''}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={relancerErreurs}
+              disabled={actif}
+              title="Reprendre la traduction des chapitres en échec"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 hover:bg-amber-500/20 transition-colors cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-amber-300"
+            >
+              <span aria-hidden>↻</span>
+              Relancer la traduction
+            </button>
+          </div>
         )}
 
         <CommandesTraduction

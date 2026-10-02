@@ -12,16 +12,21 @@
 //   au clic, avec un focus visible (cf. .carte-livre:focus-visible
 //   dans globals.css).
 // - Persistance / Supabase : inchangée (l'agent « Autres » gère la
-//   reprise côté serveur — on ne touche qu'à la présentation).
+//   reprise côté serveur). Depuis P1.3/w6, la carte expose en plus les
+//   chapitres en erreur AVEC une relance réelle, et un export EPUB
+//   (lib/export-livre-epub.ts).
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { Livre } from '@/lib/types';
 import type { StatutLivre } from '@/lib/types';
 import { assainirProgression } from '@/lib/progression';
 import type { ProgressionLecture } from '@/lib/progression';
 import { CLEF_PROGRESSION } from '@/lib/progression';
 import { creerClientNavigateur } from '@/lib/supabase/client';
+import { useMoteurTraduction } from '@/lib/useMoteurTraduction';
+import { chargerChapitresEnErreur } from '@/lib/relance-traduction';
+import { exporterEpubLivre, telechargerEpub } from '@/lib/export-livre-epub';
 import ZoneImport from './ZoneImport';
 import BoutonFavori from './BoutonFavori';
 import { useFavorites } from '@/lib/useFavorites';
@@ -104,6 +109,22 @@ export default function BibliothequeClient({
   // hook est passé à chaque BoutonFavori (sinon N cartes = N requêtes).
   const favoris = useFavorites();
 
+  // ---------------- Chapitres en erreur + relance (P1.3) ----------------
+  // Le compte initial vient du serveur ; il est ensuite tenu à jour
+  // localement (mise à jour optimiste après une relance réussie).
+  const [erreurs, setErreurs] =
+    useState<Record<string, number>>(chapitresEnErreur);
+  const [relanceEnCours, setRelanceEnCours] = useState<string | null>(null);
+  const { actif: traductionActive, lancer } = useMoteurTraduction();
+
+  // ---------------- Export EPUB (w6) ----------------
+  const [epubEnCours, setEpubEnCours] = useState<string | null>(null);
+  const [epubMessage, setEpubMessage] = useState<{
+    id: string;
+    texte: string;
+    ok: boolean;
+  } | null>(null);
+
   // ---------------- Tri + filtre (état local, purement visuel) ----------------
   const [critereTri, setCritereTri] = useState<CritereTriLivres>('recents');
   const [filtreStatut, setFiltreStatut] = useState<FiltreStatut>(null);
@@ -138,6 +159,96 @@ export default function BibliothequeClient({
     setLivres((l) => l.filter((x) => x.id !== livre.id));
     routeur.refresh();
   }
+
+  /** Recharge depuis la base le nombre de chapitres en erreur d'un livre. */
+  const rafraichirErreurs = useCallback(async (livreId: string) => {
+    const supabase = creerClientNavigateur();
+    const { count } = await supabase
+      .from('chapitres')
+      .select('id', { count: 'exact', head: true })
+      .eq('livre_id', livreId)
+      .eq('statut', 'erreur');
+    setErreurs((e) => ({ ...e, [livreId]: count ?? 0 }));
+  }, []);
+
+  /**
+   * Relance la traduction des chapitres en erreur d'un livre (P1.3).
+   * Reprend le MÊME moteur que l'espace de lecture : les segments
+   * abandonnés sont remis dans la file, les chapitres repassent
+   * « traduit » dès qu'ils sont complets. Le compte affiché est ensuite
+   * relu en base (jamais supposé).
+   */
+  const relancerErreurs = useCallback(
+    async (livre: Livre) => {
+      if (traductionActive || relanceEnCours) return;
+      setRelanceEnCours(livre.id);
+      try {
+        const supabase = creerClientNavigateur();
+        const chapitres = await chargerChapitresEnErreur(supabase, livre.id);
+        if (chapitres.length === 0) {
+          setErreurs((e) => ({ ...e, [livre.id]: 0 }));
+          return;
+        }
+        await lancer(supabase, chapitres, livre, () => {
+          /* l'état local est rechargé depuis la base juste après */
+        });
+        await rafraichirErreurs(livre.id);
+        routeur.refresh();
+      } catch (e) {
+        window.alert(
+          `Relance impossible : ${e instanceof Error ? e.message : 'erreur inconnue'}`
+        );
+      } finally {
+        setRelanceEnCours(null);
+      }
+    },
+    [traductionActive, relanceEnCours, lancer, rafraichirErreurs, routeur]
+  );
+
+  /**
+   * Export EPUB du livre (w6) : titre, auteur, table des matières par
+   * chapitre, texte traduit, métadonnée de langue FR. L'archive est
+   * auto-vérifiée (OCF) avant d'être remise à l'utilisateur.
+   */
+  const exporterEpub = useCallback(
+    async (livre: Livre) => {
+      if (epubEnCours) return;
+      setEpubEnCours(livre.id);
+      setEpubMessage(null);
+      try {
+        const supabase = creerClientNavigateur();
+        const resultat = await exporterEpubLivre(supabase, livre);
+        if (!resultat.ocf.ok) {
+          throw new Error(
+            `EPUB non conforme (${resultat.ocf.problemes.join(' ; ')})`
+          );
+        }
+        telechargerEpub(resultat.octets, resultat.nomFichier);
+        setEpubMessage({
+          id: livre.id,
+          ok: true,
+          texte:
+            `EPUB prêt — ${resultat.nbChapitres} chapitre` +
+            `${resultat.nbChapitres > 1 ? 's' : ''} ` +
+            `(${(resultat.octets.length / 1024).toFixed(0)} Kio)` +
+            (resultat.chapitresSources > 0
+              ? ` ; ${resultat.chapitresSources} encore en langue source.`
+              : ' ; texte entièrement traduit.'),
+        });
+      } catch (e) {
+        setEpubMessage({
+          id: livre.id,
+          ok: false,
+          texte: `Export EPUB impossible : ${
+            e instanceof Error ? e.message : 'erreur inconnue'
+          }`,
+        });
+      } finally {
+        setEpubEnCours(null);
+      }
+    },
+    [epubEnCours]
+  );
 
   // Pastille de filtre : base commune (pilule discrète) + état actif.
   function pastilleFiltre(
@@ -394,17 +505,59 @@ export default function BibliothequeClient({
                     </div>
                   )}
 
-                  {/* Chapitres en erreur (C5) : un livre peut être
+                  {/* Chapitres en erreur (P1.3) : un livre peut être
                       marqué « traduit » avec des chapitres à reprendre —
-                      on le montre sur la carte au lieu de le cacher. */}
-                  {(chapitresEnErreur[livre.id] ?? 0) > 0 && (
-                    <p className="text-[11px] text-amber-300 flex items-center gap-1.5 min-w-0">
-                      <span aria-hidden>⚠</span>
-                      <span className="truncate">
-                        {chapitresEnErreur[livre.id] === 1
-                          ? '1 chapitre à reprendre'
-                          : `${chapitresEnErreur[livre.id]} chapitres à reprendre`}
-                      </span>
+                      on le montre sur la carte ET on propose une relance,
+                      au lieu de laisser une page vide incompréhensible. */}
+                  {(erreurs[livre.id] ?? 0) > 0 && (
+                    <div
+                      data-alerte-chapitres={livre.id}
+                      className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-2"
+                    >
+                      <p className="text-[11px] text-amber-200 flex items-center gap-1.5 min-w-0">
+                        <span aria-hidden>⚠</span>
+                        <span className="truncate">
+                          {erreurs[livre.id] === 1
+                            ? 'Traduction en échec : 1 chapitre à reprendre'
+                            : `Traduction en échec : ${erreurs[livre.id]} chapitres à reprendre`}
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        title="Relancer la traduction des chapitres en erreur"
+                        disabled={
+                          relanceEnCours === livre.id || traductionActive
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          relancerErreurs(livre);
+                        }}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            relancerErreurs(livre);
+                          }
+                        }}
+                        className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-amber-500/50 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200 hover:bg-amber-500/20 transition-colors cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-amber-300"
+                      >
+                        <span aria-hidden>↻</span>
+                        {relanceEnCours === livre.id
+                          ? 'Relance en cours…'
+                          : 'Relancer la traduction'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Message d'export EPUB (succès chiffré ou erreur). */}
+                  {epubMessage?.id === livre.id && (
+                    <p
+                      role="status"
+                      className={`text-[11px] leading-snug ${
+                        epubMessage.ok ? 'text-emerald-300' : 'text-grenat-300'
+                      }`}
+                    >
+                      {epubMessage.texte}
                     </p>
                   )}
 
@@ -418,6 +571,26 @@ export default function BibliothequeClient({
                         titre={livre.titre}
                         hook={favoris}
                       />
+                      <button
+                        type="button"
+                        title="Télécharger l’EPUB (titre, sommaire par chapitre, texte traduit, langue FR)"
+                        disabled={epubEnCours === livre.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          exporterEpub(livre);
+                        }}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            exporterEpub(livre);
+                          }
+                        }}
+                        className="text-encre-500 hover:text-grenat-400 transition-colors cursor-pointer disabled:opacity-40 shrink-0 px-2 py-1 rounded-md hover:bg-grenat-500/10 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-grenat-400"
+                        aria-label={`Télécharger le livre « ${livre.titre} » en EPUB`}
+                      >
+                        {epubEnCours === livre.id ? '…' : 'EPUB'}
+                      </button>
                       <button
                       type="button"
                       onClick={(e) => {
