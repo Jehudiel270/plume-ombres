@@ -68,6 +68,7 @@ export default function PageConfidentialite() {
   return (
     <>
       <SectionPublique
+        niveau={1}
         gabarit="etroit"
         surTitre="Confidentialité"
         titre="Politique de confidentialité"

@@ -148,6 +148,7 @@ export default function BibliothequeClient({
   ) {
     return (
       <button
+        key={libelle}
         type="button"
         onClick={action}
         aria-pressed={actif}

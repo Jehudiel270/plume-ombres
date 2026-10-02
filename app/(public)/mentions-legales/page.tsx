@@ -20,6 +20,7 @@ export default function PageMentionsLegales() {
   return (
     <>
       <SectionPublique
+        niveau={1}
         gabarit="etroit"
         surTitre="Informations légales"
         titre="Mentions légales"

@@ -242,6 +242,7 @@ export default function PageConditions() {
   return (
     <>
       <SectionPublique
+        niveau={1}
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Conditions générales d’utilisation et de vente"
