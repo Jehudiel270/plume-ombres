@@ -129,17 +129,202 @@ export type IdFournisseur =
   | 'gemini'
   | 'google';
 
-/** Langues proposées (codes ISO 639-1). */
-export type CodeLangue = 'fr' | 'en' | 'es' | 'it' | 'pt' | 'de';
+/**
+ * Langues proposées (codes ISO 639-1 — quelques variantes régionales
+ * notées zh/tl). Catalogue ÉTENDU (vague 7) : 71 langues, avec une
+ * place particulière pour les langues africaines (marché visé).
+ *
+ * L'ordre de déclaration est l'ordre d'affichage : français et anglais
+ * d'abord (défauts du produit), puis alphabétique par libellé.
+ */
+export type CodeLangue =
+  | 'fr'
+  | 'en'
+  | 'af'
+  | 'de'
+  | 'am'
+  | 'ar'
+  | 'bm'
+  | 'bn'
+  | 'bg'
+  | 'ca'
+  | 'ny'
+  | 'zh'
+  | 'ko'
+  | 'hr'
+  | 'da'
+  | 'es'
+  | 'et'
+  | 'fi'
+  | 'cy'
+  | 'el'
+  | 'ha'
+  | 'he'
+  | 'hi'
+  | 'hu'
+  | 'ig'
+  | 'id'
+  | 'ga'
+  | 'is'
+  | 'it'
+  | 'ja'
+  | 'kk'
+  | 'km'
+  | 'kg'
+  | 'rw'
+  | 'lo'
+  | 'lv'
+  | 'ln'
+  | 'lt'
+  | 'ms'
+  | 'mg'
+  | 'mt'
+  | 'mn'
+  | 'nl'
+  | 'ne'
+  | 'no'
+  | 'uz'
+  | 'ur'
+  | 'ff'
+  | 'fa'
+  | 'pl'
+  | 'pt'
+  | 'ro'
+  | 'ru'
+  | 'sr'
+  | 'sn'
+  | 'sk'
+  | 'sl'
+  | 'so'
+  | 'sv'
+  | 'sw'
+  | 'tl'
+  | 'ta'
+  | 'cs'
+  | 'th'
+  | 'tn'
+  | 'tr'
+  | 'uk'
+  | 'vi'
+  | 'wo'
+  | 'yo'
+  | 'zu'
+  | 'xh';
 
 export const LANGUES: Record<CodeLangue, string> = {
   fr: 'Français',
   en: 'Anglais',
-  es: 'Espagnol',
-  it: 'Italien',
-  pt: 'Portugais',
+  af: 'Afrikaans',
   de: 'Allemand',
+  am: 'Amharique',
+  ar: 'Arabe',
+  bm: 'Bambara',
+  bn: 'Bengali',
+  bg: 'Bulgare',
+  ca: 'Catalan',
+  ny: 'Chichewa',
+  zh: 'Chinois (simplifié)',
+  ko: 'Coréen',
+  hr: 'Croate',
+  da: 'Danois',
+  es: 'Espagnol',
+  et: 'Estonien',
+  fi: 'Finnois',
+  cy: 'Gallois',
+  el: 'Grec',
+  ha: 'Haoussa',
+  he: 'Hébreu',
+  hi: 'Hindi',
+  hu: 'Hongrois',
+  ig: 'Igbo',
+  id: 'Indonésien',
+  ga: 'Irlandais',
+  is: 'Islandais',
+  it: 'Italien',
+  ja: 'Japonais',
+  kk: 'Kazakh',
+  km: 'Khmer',
+  kg: 'Kikongo',
+  rw: 'Kinyarwanda',
+  lo: 'Lao',
+  lv: 'Letton',
+  ln: 'Lingala',
+  lt: 'Lituanien',
+  ms: 'Malais',
+  mg: 'Malgache',
+  mt: 'Maltais',
+  mn: 'Mongol',
+  nl: 'Néerlandais',
+  ne: 'Népalais',
+  no: 'Norvégien',
+  uz: 'Ouzbek',
+  ur: 'Ourdou',
+  ff: 'Peul',
+  fa: 'Persan',
+  pl: 'Polonais',
+  pt: 'Portugais',
+  ro: 'Roumain',
+  ru: 'Russe',
+  sr: 'Serbe',
+  sn: 'Shona',
+  sk: 'Slovaque',
+  sl: 'Slovène',
+  so: 'Somali',
+  sv: 'Suédois',
+  sw: 'Swahili',
+  tl: 'Tagalog',
+  ta: 'Tamoul',
+  cs: 'Tchèque',
+  th: 'Thaï',
+  tn: 'Tswana',
+  tr: 'Turc',
+  uk: 'Ukrainien',
+  vi: 'Vietnamien',
+  wo: 'Wolof',
+  yo: 'Yoruba',
+  zu: 'Zoulou',
+  xh: 'Xhosa',
 };
+
+/** Toutes les langues dans l'ordre d'affichage (défauts d'abord). */
+export const CODES_LANGUES = Object.keys(LANGUES) as CodeLangue[];
+
+/** Vrai si le code est une langue connue du catalogue. */
+export function langueConnue(code: string | null | undefined): code is CodeLangue {
+  return typeof code === 'string' && code in LANGUES;
+}
+
+/**
+ * Libellé d'une langue, avec repli sûr sur le code en majuscules.
+ * À utiliser partout où un code vient de la base (jamais de `undefined`
+ * affiché si une langue est retirée du catalogue un jour).
+ */
+export function libelleLangue(code: string | null | undefined): string {
+  if (!code) return '';
+  return langueConnue(code) ? LANGUES[code] : code.toUpperCase();
+}
+
+/**
+ * Langues pour lesquelles un modèle Argos est COURAMMENT disponible
+ * (donc traduisibles par le moteur auto-hébergé, en privé). Hors de
+ * cette liste, la chaîne bascule automatiquement sur Gemini, Google
+ * ou MyMemory — l'utilisateur n'a rien à configurer.
+ *
+ * Liste INDICATIVE : ce qui compte est ce qui est réellement installé
+ * sur l'instance (`LT_LOAD_ONLY`) ; le repli étant automatique, une
+ * langue absente ici fonctionne quand même.
+ */
+export const LANGUES_MOTEUR_PRIVE: readonly CodeLangue[] = [
+  'ar', 'bg', 'ca', 'cs', 'da', 'de', 'el', 'en', 'es', 'et', 'fa', 'fi',
+  'fr', 'ga', 'he', 'hi', 'hr', 'hu', 'id', 'it', 'ja', 'ko', 'lt', 'lv',
+  'ms', 'mt', 'nl', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sv', 'th', 'tl',
+  'tr', 'uk', 'vi', 'zh',
+];
+
+/** Vrai si la langue est habituellement servie par le moteur privé. */
+export function servieParMoteurPrive(code: string | null | undefined): boolean {
+  return langueConnue(code) && LANGUES_MOTEUR_PRIVE.includes(code);
+}
 
 // ============================================================
 // Repères de contenu (chantier W2 / idée E5) — avertissements,

@@ -15,7 +15,7 @@ import type {
 } from './types';
 import { decouperEnFragments, attendre } from './fragments';
 import { composerInstructionSysteme } from '@/lib/glossaire';
-import type { IdFournisseur } from '@/lib/types';
+import { libelleLangue, type IdFournisseur } from '@/lib/types';
 
 const MAX_PAR_REQUETE = 6000;
 
@@ -92,16 +92,10 @@ export class FournisseurGemini implements FournisseurTraduction {
     options: OptionsTraduction,
     cle: string
   ): Promise<string> {
-    const nomLangues: Record<string, string> = {
-      fr: 'français',
-      en: 'anglais',
-      es: 'espagnol',
-      it: 'italien',
-      pt: 'portugais',
-      de: 'allemand',
-    };
-    const cible = nomLangues[options.cible] ?? options.cible;
-    const source = nomLangues[options.source] ?? options.source;
+    // Libellés issus du CATALOGUE ÉTENDU (71 langues) : le prompt suit
+    // automatiquement toute langue ajoutée, sans table à maintenir.
+    const cible = libelleLangue(options.cible).toLowerCase();
+    const source = libelleLangue(options.source).toLowerCase();
 
     const corpsRequete = JSON.stringify({
       systemInstruction: {
