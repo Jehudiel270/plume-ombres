@@ -583,6 +583,7 @@ export function detecterReperes(texte: string): PropositionRepere[] {
     }
   }
   return propositions.sort((a, b) => b.occurrences - a.occurrences);
+}
 
 // ============================================================
 // Glossaire par livre (cohérence de traduction — P1.1)
