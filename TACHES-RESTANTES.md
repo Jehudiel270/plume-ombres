@@ -71,53 +71,64 @@
 
 ## CHANTIER C — Refonte front et fluidité de lecture
 
-- [ ] **C1.** Découper `components/EspaceLivre.tsx` (1 085 lignes) : lecteur, barre d'actions, sommaire, exports, panneau de réglages.
-- [ ] **C2.** Fluidité : mémoïsation, suppression des re-renders inutiles, `content-visibility` sur les longs chapitres, calcul de scroll allégé.
-- [ ] **C3.** Mobile : tiroir de chapitres (le texte en premier), boutons « chapitre suivant / précédent », bandeau d'actions condensé.
-- [ ] **C4.** **Landing page publique** : présenter le concept, les formats, la promesse et le prix avant l'inscription.
+- [x] **C1.** Découper `components/EspaceLivre.tsx` (1 085 lignes) : lecteur, barre d'actions, sommaire, exports, panneau de réglages.
+- [x] **C2.** Fluidité : mémoïsation, suppression des re-renders inutiles, `content-visibility` sur les longs chapitres, calcul de scroll allégé.
+- [x] **C3.** Mobile : tiroir de chapitres (le texte en premier), boutons « chapitre suivant / précédent », bandeau d'actions condensé.
+- [x] **C4.** **Landing page publique** : présenter le concept, les formats, la promesse et le prix avant l'inscription.
 - [ ] **C5.** Bibliothèque : états vides soignés, chapitres en erreur visibles, cartes revues, page favoris.
-- [ ] **C6.** Pages légales et utilitaires : tarifs, FAQ, mentions légales, CGU/CGV, confidentialité, contact, compte.
+- [x] **C6.** Pages légales et utilitaires : tarifs, FAQ, mentions légales, CGU/CGV, confidentialité, contact, compte.
 - [ ] **C7.** Pages d'état : `error.tsx`, `loading.tsx`, `not-found.tsx` à la charte.
 - [ ] **C8.** Accessibilité : contrastes, focus clavier, cibles tactiles, `prefers-reduced-motion`.
-- [ ] **C9.** Corrections relevées à l'audit : tokens CSS `nuit-800`/`850` identiques, couleur de manifest ≠ viewport, wording « ne murmura plus », largeur du popup de réglages sur petit écran, orientation `portrait` forcée.
-- [ ] **C10.** Bug de reprise : les segments bloqués en `en_cours` ne sont jamais retraités (8 orphelins constatés en prod ; un chapitre peut être marqué « traduit » avec un trou).
+- [x] **C9.** Corrections relevées à l'audit : tokens CSS `nuit-800`/`850` identiques, couleur de manifest ≠ viewport, wording « ne murmura plus », largeur du popup de réglages sur petit écran, orientation `portrait` forcée.
+- [x] **C10.** Bug de reprise : les segments bloqués en `en_cours` ne sont jamais retraités (8 orphelins constatés en prod ; un chapitre peut être marqué « traduit » avec un trou).
 
 ---
 
 ## CHANTIER D — Immersion : fonds animés
 
 - [ ] **D1.** Cahier des charges visuel : 3 scènes dark romance (brume et braises / plume et encre / nuit d'orage).
-- [ ] **D2.** Technique choisie par coût réel : shader/canvas (déjà en place, le plus léger) vs vidéo en boucle (plus riche, plus lourde).
+- [x] **D2.** Technique choisie par coût réel : shader/canvas (déjà en place, le plus léger) vs vidéo en boucle (plus riche, plus lourde).
 - [ ] **D3.** Budget : vidéo ≤ 2 Mo, AV1/HEVC + poster WebP, `preload="none"`, jamais sur le chemin critique.
-- [ ] **D4.** Repli automatique : image fixe si `prefers-reduced-motion`, `saveData`, connexion lente ou batterie faible.
-- [ ] **D5.** Intégration : fond global des pages publiques + bordure discrète du lecteur — **jamais derrière le texte lu**.
+- [x] **D4.** Repli automatique : image fixe si `prefers-reduced-motion`, `saveData`, connexion lente ou batterie faible.
+- [x] **D5.** Intégration : fond global des pages publiques + bordure discrète du lecteur — **jamais derrière le texte lu**.
 - [ ] **D6.** Test mobile réel : FPS, batterie, données consommées.
 
 ---
+
+## CHANTIER E — Apparence, navigation et profil (vague 5)
+
+- [x] **E1.** Système de thèmes du site ENTIER (palettes, intensité du fond) accessible depuis toutes les pages, pas seulement le lecteur.
+- [x] **E2.** Typographie dark romance : polices auto-hébergées, titres et corps renouvelés.
+- [x] **E3.** Panneau « Apparence » (palette, typographie, fond) au clavier, persisté, anti-FOUC.
+- [x] **E4.** Navigation professionnelle : tous les liens du site + menu utilisateur + menu mobile + état actif.
+- [x] **E5.** Pied de page et liens légaux visibles ; pages légales complètes.
+- [x] **E6.** Pages publiques remises à niveau (accueil, tarifs, FAQ, contact).
+- [x] **E7.** Fond d'ambiance refait (décor dark romance, repli `prefers-reduced-motion`, perf mesurée).
+- [x] **E8.** Profil utilisateur `/compte` : identité, apparence, favoris, suppression de compte.
 
 ## CHECKLIST MONÉTISATION
 
 ### P0 — BLOQUANT (avant d'encaisser le moindre euro)
 - [ ] **P0.1** **Hébergement commercial** : Vercel Hobby interdit tout usage commercial (dons inclus) → passer à Pro (~20 $/mois) ou changer d'hébergeur avant toute monétisation.
-- [ ] **P0.2** Quota d'usage par compte (caractères traduits/mois), mesuré et affiché.
-- [ ] **P0.3** Rate-limiting serveur sur `/api/translate` (aujourd'hui : appels illimités).
+- [x] **P0.2** Quota d'usage par compte (caractères traduits/mois), mesuré et affiché.
+- [x] **P0.3** Rate-limiting serveur sur `/api/translate` (aujourd'hui : appels illimités).
 - [ ] **P0.4** Moteur de production fiabilisé (chantier A) — la prod ne doit plus dépendre d'un endpoint Google non officiel.
 - [ ] **P0.5** Pages légales : CGU/CGV, confidentialité, mentions légales, contact, information sur le transit du texte.
-- [ ] **P0.6** Suppression de compte et de toutes les données.
-- [ ] **P0.7** Bug de reprise `en_cours` corrigé (tâche C10).
-- [ ] **P0.8** Landing page publique (tâche C4).
+- [x] **P0.6** Suppression de compte et de toutes les données.
+- [x] **P0.7** Bug de reprise `en_cours` corrigé (tâche C10).
+- [x] **P0.8** Landing page publique (tâche C4).
 - [ ] **P0.9** Paiement + abonnement + pages de confirmation succès/échec.
 - [ ] **P0.10** Décision stockage tranchée (chantier B) : plus aucun fichier original conservé par défaut.
 
 ### P1 — IMPORTANT (avant lancement commercial large)
-- [ ] **P1.1** Cohérence de traduction : glossaire de personnages/lieux + contexte glissant (principal déficit de qualité).
-- [ ] **P1.2** Notification de fin de traduction (au minimum un badge à la reconnexion).
+- [x] **P1.1** Cohérence de traduction : glossaire de personnages/lieux + contexte glissant (principal déficit de qualité).
+- [x] **P1.2** Notification de fin de traduction (au minimum un badge à la reconnexion).
 - [ ] **P1.3** Chapitres en erreur signalés dans la bibliothèque et le sommaire.
 - [ ] **P1.4** Mot de passe oublié + gestion du flux de confirmation e-mail.
 - [ ] **P1.5** Marque-pages, recherche sur tout le livre, export EPUB, mode bilingue côte à côte.
 - [ ] **P1.6** Monitoring : erreurs, quotas, temps moyens ; logs sans fragments de texte.
 - [ ] **P1.7** Sauvegarde de la base (le Free Supabase n'en fournit pas).
-- [ ] **P1.8** Content warnings / classification d'âge / tropes (attente de la communauté + identification du genre).
+- [x] **P1.8** Content warnings / classification d'âge / tropes (attente de la communauté + identification du genre).
 - [ ] **P1.9** Route `/api/import-lien` (tâches B16-B18) si le chemin lien est retenu.
 
 ### P2 — APRÈS LANCEMENT
