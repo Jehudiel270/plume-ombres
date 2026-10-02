@@ -17,8 +17,13 @@ import {
   ordreSecours,
   moteurUtilise,
   idMoteurUtilise,
+  modePriveStrict,
+  fournisseurEstPrive,
+  descriptionMoteur,
+  essaisSecours,
   ErreurChaineSecours,
   ORDRE_SECOURS_DEFAUT,
+  IDS_PRIVES,
 } from './fallback';
 
 /** Marqueur unique : il ne doit JAMAIS apparaître dans le journal. */
@@ -33,7 +38,9 @@ const VARIABLES = [
   'GEMINI_API_KEY',
   'TRANSLATOR_FALLBACK_ORDER',
   'TRANSLATOR_FALLBACK_TIMEOUT_MS',
+  'TRANSLATOR_FALLBACK_ESSAIS',
   'TRANSLATOR_FALLBACK_LOG',
+  'TRANSLATOR_PRIVE_STRICT',
   'LIBRETRANSLATE_URL',
   'MYMEMORY_EMAIL',
 ] as const;
@@ -266,4 +273,140 @@ test('tous les moteurs échouent : ErreurChaineSecours, sans fuite de texte', as
   assert.match(texteJournal, /moteur=mymemory/);
   assert.ok(!texteJournal.includes(SECRET), 'aucun fragment de texte journalisé');
   assert.ok(!texteJournal.includes('Once upon'), 'aucun fragment de texte journalisé');
+});
+
+// ============================================================
+// MODE PRIVÉ STRICT (A6/A8)
+// ============================================================
+
+test('mode privé strict : ordre forcé, aucun moteur tiers sollicité', async () => {
+  process.env.TRANSLATOR_PRIVE_STRICT = '1';
+  process.env.TRANSLATOR_FALLBACK_ORDER = 'gemini,google,mymemory,libretranslate';
+  process.env.GEMINI_API_KEY = 'cle-test';
+  capturerJournal();
+
+  assert.equal(modePriveStrict(), true);
+  assert.deepEqual(ordreSecours(), [...IDS_PRIVES]);
+
+  const urls: string[] = [];
+  definirFetch((url) => {
+    urls.push(url);
+    if (url.includes('127.0.0.1:5000')) {
+      return okJson({ translatedText: 'Bonjour.' });
+    }
+    return null; // toute autre URL ferait échouer le test
+  });
+
+  // Ordre ÉLARGI fourni explicitement : le verrou doit le réduire.
+  const resultat = await traduireAvecSecours(TEXTE, { source: 'en', cible: 'fr' }, [
+    'libretranslate',
+    'gemini',
+    'google',
+    'mymemory',
+  ]);
+
+  assert.equal(resultat.fournisseur, 'libretranslate');
+  assert.equal(resultat.prive, true);
+  assert.equal(resultat.priveStrict, true);
+  assert.ok(
+    urls.every((u) => u.includes('127.0.0.1:5000')),
+    `aucun tiers ne doit être appelé, or URLs = ${urls.join(', ')}`
+  );
+});
+
+test('mode privé strict : moteur privé coupé ⇒ échec, jamais de repli tiers', async () => {
+  process.env.TRANSLATOR_PRIVE_STRICT = '1';
+  process.env.GEMINI_API_KEY = 'cle-test';
+  capturerJournal();
+
+  const urls: string[] = [];
+  definirFetch((url) => {
+    urls.push(url);
+    if (url.includes('127.0.0.1:5000')) return panneReseau();
+    // Un tiers répondrait : le test échouerait si on l'appelait.
+    return okJson([[['Traduction tierce', 'Once', null, null, 10]]]);
+  });
+
+  await assert.rejects(
+    () =>
+      traduireAvecSecours(TEXTE, { source: 'en', cible: 'fr' }, [
+        'libretranslate',
+        'google',
+        'mymemory',
+      ]),
+    (e: unknown) => e instanceof ErreurChaineSecours
+  );
+
+  assert.ok(
+    urls.every((u) => u.includes('127.0.0.1:5000')),
+    `mode privé strict violé, URLs = ${urls.join(', ')}`
+  );
+});
+
+test('description honnête du moteur (où va le texte)', () => {
+  assert.equal(fournisseurEstPrive('libretranslate'), true);
+  assert.equal(fournisseurEstPrive('gemini'), false);
+  assert.equal(fournisseurEstPrive('google'), false);
+  assert.match(descriptionMoteur('libretranslate'), /priv/i);
+  assert.match(descriptionMoteur('google'), /Google/);
+  assert.match(descriptionMoteur('mymemory'), /MyMemory/);
+});
+
+// ============================================================
+// TENTATIVES BORNÉES (sans boucle infinie) + GLOSSAIRE
+// ============================================================
+
+test('nombre de tentatives par moteur borné et respecté', async () => {
+  process.env.TRANSLATOR_FALLBACK_ESSAIS = '3';
+  process.env.TRANSLATOR_FALLBACK_ORDER = 'libretranslate,mymemory';
+  capturerJournal();
+
+  let essaisLibre = 0;
+  definirFetch((url) => {
+    if (url.includes('127.0.0.1:5000')) {
+      essaisLibre += 1;
+      return errHttp(500);
+    }
+    if (url.includes('api.mymemory.translated.net')) {
+      return okJson({
+        responseData: { translatedText: 'Bonjour.' },
+        responseStatus: 200,
+      });
+    }
+    return null;
+  });
+
+  const r = await traduireAvecSecours(TEXTE, { source: 'en', cible: 'fr' });
+  assert.equal(r.fournisseur, 'mymemory');
+  assert.equal(essaisLibre, 3, 'exactement 3 tentatives (pas de boucle)');
+  assert.equal(r.tentatives, 4, '3 échecs + 1 succès');
+});
+
+test('le nombre de tentatives est plafonné (anti-boucle)', () => {
+  process.env.TRANSLATOR_FALLBACK_ESSAIS = '99';
+  assert.equal(essaisSecours(), 3);
+  process.env.TRANSLATOR_FALLBACK_ESSAIS = '0';
+  assert.equal(essaisSecours(), 1);
+});
+
+test('le glossaire imposé est appliqué par la chaîne', async () => {
+  process.env.TRANSLATOR_FALLBACK_ORDER = 'mymemory';
+  capturerJournal();
+
+  definirFetch((url) =>
+    url.includes('api.mymemory.translated.net')
+      ? okJson({
+          responseData: { translatedText: 'Marcus marcha vers la porte.' },
+          responseStatus: 200,
+        })
+      : null
+  );
+
+  const r = await traduireAvecSecours('Marcus walked to the door.', {
+    source: 'en',
+    cible: 'fr',
+    glossaire: [{ source: 'Marcus', traduction: 'Marc' }],
+  });
+
+  assert.equal(r.traduit, 'Marc marcha vers la porte.');
 });
