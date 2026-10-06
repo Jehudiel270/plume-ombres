@@ -122,3 +122,17 @@ export interface MagasinCredits {
   /** Solde de crédits courant (0 si aucun). */
   lireSolde(proprietaireId: string): Promise<number>;
 }
+
+/**
+ * Mouvement de crédits (journal en lecture seule, P0.9+).
+ * `reference_paiement` est la clé d'idempotence du crédit.
+ */
+export interface MouvementCredit {
+  id: number;
+  pack_code: string | null;
+  caracteres: number;
+  montant: number | null;
+  devise: string | null;
+  reference_paiement: string | null;
+  created_at: string;
+}

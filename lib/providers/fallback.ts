@@ -39,6 +39,12 @@ import { FournisseurGoogleLibre } from './google';
 import { attendre } from './fragments';
 import { appliquerGlossaire } from '@/lib/glossaire';
 import type { IdFournisseur } from '@/lib/types';
+// Ordre de la chaîne PERSISTÉ en base (admin, sans redéploiement).
+// Import à sens unique (chaine-ordre n'importe pas fallback) : pas de cycle.
+import {
+  ordrePersistantSync,
+  rafraichirOrdrePersistant,
+} from '@/lib/chaine-ordre';
 
 /** Ordre de secours par défaut (raisonnable, du plus local au plus lointain). */
 export const ORDRE_SECOURS_DEFAUT: readonly IdFournisseur[] = [
@@ -150,13 +156,24 @@ export function moteursAutorises(): readonly IdFournisseur[] {
 
 /**
  * Ordre effectif de la chaîne de secours.
- * Lit TRANSLATOR_FALLBACK_ORDER (identifiants séparés par des
- * virgules) ; ignore les inconnues et les doublons ; retombe sur
- * l'ordre par défaut si la valeur est absente ou inexploitable.
+ *
+ * PRIORITÉ :
+ *   1. MODE PRIVÉ STRICT (verrou central) : file auto-hébergée seule ;
+ *   2. ORDRE PERSISTÉ EN BASE (lib/chaine-ordre) : réglable par
+ *      l'admin depuis l'interface, sans redéploiement ;
+ *   3. TRANSLATOR_FALLBACK_ORDER (identifiants séparés par des
+ *      virgules) ; ignore les inconnues et les doublons ;
+ *   4. ordre par défaut.
  *
  * GARDE-FOU CENTRAL : en mode privé strict, l'ordre est FORCÉ à la
- * seule file auto-hébergée — quel que soit TRANSLATOR_FALLBACK_ORDER.
- * Un appelant (route, script, worker) ne peut pas le contourner.
+ * seule file auto-hébergée — quel que soit l'ordre persisté ou
+ * TRANSLATOR_FALLBACK_ORDER. Un appelant (route, script, worker) ne
+ * peut pas le contourner : le mode privé prime sur TOUT.
+ *
+ * L'ordre persisté est lu depuis un cache process-local court. S'il
+ * est absent/périmé, un rafraîchissement d'arrière-plan est déclenché
+ * (non bloquant) et la résolution retombe, pour cet appel, sur l'env
+ * puis le défaut.
  */
 export function ordreSecours(): IdFournisseur[] {
   if (modePriveStrict()) {
@@ -165,6 +182,16 @@ export function ordreSecours(): IdFournisseur[] {
     });
     return [...IDS_PRIVES];
   }
+
+  // 2. Ordre persistant (base) EN PRIORITÉ sur la variable d'env.
+  const persistant = ordrePersistantSync();
+  if (persistant && persistant.length > 0) {
+    return persistant;
+  }
+  // Cache froid/périmé : rechargement en arrière-plan (jamais bloquant).
+  rafraichirOrdrePersistant();
+
+  // 3. Repli sur la variable d'environnement.
   const brut = process.env[VAR_ORDRE];
   if (!brut || !brut.trim()) return [...ORDRE_SECOURS_DEFAUT];
   const retenus: IdFournisseur[] = [];

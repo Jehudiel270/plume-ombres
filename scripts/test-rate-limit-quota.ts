@@ -306,9 +306,13 @@ async function partieC(): Promise<{ userId: string | null; periode: string }> {
     const magRlAuth = new MagasinRateLimitSupabase(rpcAuth);
     const magQuotaAuth = new MagasinQuotaSupabase(rpcAuth);
 
-    // C1. Fenêtre glissante réelle : limite 3 sur fenêtre de 2 s.
+    // C1. Fenêtre glissante réelle : limite 3.
+    //     Fenêtre volontairement LARGE (10 s) : les appels RPC sont
+    //     séquentiels et traversent le réseau ; avec 2 s, un aller-retour
+    //     lent faisait sortir les premiers coups de la fenêtre et le test
+    //     devenait instable (4e appel autorisé à tort).
     const cle = `test:rl:${userId}:${Date.now()}`;
-    const optsRl = { fenetreS: 2, limiteCompte: 3, limiteIp: 3 };
+    const optsRl = { fenetreS: 10, limiteCompte: 3, limiteIp: 3 };
     const c1a = await limiterRequete(magRlAuth, { userId: cle }, optsRl);
     const c1b = await limiterRequete(magRlAuth, { userId: cle }, optsRl);
     const c1c = await limiterRequete(magRlAuth, { userId: cle }, optsRl);
@@ -321,25 +325,34 @@ async function partieC(): Promise<{ userId: string | null; periode: string }> {
     const resteAttente = Math.max(c1d.reset - Math.floor(Date.now() / 1000), 0);
     // Tolérance : décalage d'horloge base/local + arrondi au bigint.
     verifier(
-      'C1 : reset renvoyé = fin de fenêtre (epoch futur, ~2 s)',
-      resteAttente > 0 && resteAttente <= 5,
+      'C1 : reset renvoyé = fin de fenêtre (epoch futur, ≤ 10 s)',
+      resteAttente > 0 && resteAttente <= 12,
       `attente=${resteAttente}s`
     );
     await attendre(resteAttente * 1000 + 400);
     const c1e = await limiterRequete(magRlAuth, { userId: cle }, optsRl);
     verifier('C1 : après la fenêtre, l’appel suivant est AUTORISÉ', c1e.autorise);
 
-    // C2. Quota mensuel réel : limite 100, période isolée.
+    // C2. Quota mensuel réel, période isolée.
+    //     ⚠ `public.reserver_quota` est PLAN-AWARE : le plafond passé est
+    //     remplacé par `public.limite_abonnement(...)`, qui prend le plus
+    //     grand des deux (un compte neuf reçoit un plan d'essai de 7 jours).
+    //     La limite EFFECTIVE est donc celle que renvoie la réservation —
+    //     on ne peut plus supposer que c'est le paramètre transmis.
     const dateIso = new Date(`${periode}T12:00:00Z`);
     const q1 = await reserverQuota(magQuotaAuth, userId, 60, dateIso, 100);
+    const limiteEffective = q1.limite;
     verifier(
-      'C2 : 60/100 réservés en base — autorisé',
-      q1.autorise && q1.utilise === 60 && q1.periode.debut === periode,
+      'C2 : 60 réservés en base — autorisé, limite effective ≥ plafond demandé',
+      q1.autorise && q1.utilise === 60 && q1.periode.debut === periode && limiteEffective >= 100,
       JSON.stringify(q1)
     );
-    const q2 = await reserverQuota(magQuotaAuth, userId, 50, dateIso, 100);
+    // Dépasser le plafond EFFECTIF : le reliquat serait pris sur les
+    // crédits prépayés, or ce compte de test n'en a aucun → refus.
+    const restantEffectif = limiteEffective - 60;
+    const q2 = await reserverQuota(magQuotaAuth, userId, restantEffectif + 1, dateIso, 100);
     verifier(
-      'C2 : 60+50 > 100 — REFUSÉ (code + message)',
+      'C2 : au-delà du plafond effectif — REFUSÉ (code + message)',
       !q2.autorise && q2.code === CODE_QUOTA_DEPASSE && q2.utilise === 60 && /Quota mensuel/.test(q2.message ?? ''),
       q2.message
     );

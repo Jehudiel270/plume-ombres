@@ -572,22 +572,43 @@ export default function EspaceLivre({
             par ce conteneur : la césure (`hyphens: auto`) travaille
             dans la bonne langue, sans faire changer les props du
             lecteur mémoïsé au moment de la bascule source/traduit. */}
-        <div lang={langueAffichee} className="contents">
-          <Lecteur
-            chapitreComplet={chapitreComplet}
-            chargementChapitre={chargementChapitre}
-            texteNet={texteNet}
-            corpsRef={corpsLectureRef}
-            cadreRef={cadreLectureRef}
-            chapitrePrecedentId={chapitrePrecedentId}
-            chapitreSuivantId={chapitreSuivantId}
-            onNaviguer={naviguerVers}
-            onOuvrirTiroir={ouvrirTiroir}
-            position={indexSelection + 1}
-            total={chapitres.length}
-            preferences={preferences}
-          />
-        </div>
+        {chapitres.length === 0 ? (
+          /* État vide défensif (C5) : un livre sans aucun chapitre —
+             anomalie de données (un import normal produit toujours au
+             moins un chapitre, cf. lib/segmenter.ts). On l'explique au
+             lieu de laisser le lecteur dire « choisissez un chapitre »
+             alors que la liste est vide. */
+          <div className="velours p-10 text-center animate-fondu-monte">
+            <p className="text-4xl mb-3 opacity-80" aria-hidden>
+              📖
+            </p>
+            <p className="text-encre-100 font-display text-xl">
+              Ce livre ne contient aucun chapitre.
+            </p>
+            <p className="text-encre-500 text-sm mt-3 max-w-md mx-auto leading-relaxed italic">
+              Le découpage n’a produit aucune section exploitable. Réimportez
+              le fichier — un .txt ou un .epub donne le découpage le plus
+              fiable — pour relancer l’extraction.
+            </p>
+          </div>
+        ) : (
+          <div lang={langueAffichee} className="contents">
+            <Lecteur
+              chapitreComplet={chapitreComplet}
+              chargementChapitre={chargementChapitre}
+              texteNet={texteNet}
+              corpsRef={corpsLectureRef}
+              cadreRef={cadreLectureRef}
+              chapitrePrecedentId={chapitrePrecedentId}
+              chapitreSuivantId={chapitreSuivantId}
+              onNaviguer={naviguerVers}
+              onOuvrirTiroir={ouvrirTiroir}
+              position={indexSelection + 1}
+              total={chapitres.length}
+              preferences={preferences}
+            />
+          </div>
+        )}
       </section>
     </div>
   );

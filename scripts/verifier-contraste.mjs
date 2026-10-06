@@ -57,7 +57,26 @@ function contraste(a, b) {
   return (clair + 0.05) / (sombre + 0.05);
 }
 
-const PALETTES = ['brume', 'orage', 'encre', 'sangOr', 'claire'];
+const PALETTES = [
+  'brume',
+  'orage',
+  'encre',
+  'sangOr',
+  'claire',
+  'sangLune',
+  'braiseRouge',
+  'foretNocturne',
+  'encreVerte',
+  'auroreBoreale',
+  'marineProfonde',
+  'givre',
+  'ambreCendre',
+  'cuivreHetre',
+  'crepusculeMauve',
+  'mauveGothique',
+  'roseFane',
+  'sepiaAncienne',
+];
 
 // Paires contrôlées : [libellé, jeton avant, jeton arrière, seuil]
 const PAIRES = [

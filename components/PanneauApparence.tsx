@@ -100,7 +100,7 @@ export default function PanneauApparence({
           role="dialog"
           aria-label="Apparence du site"
           tabIndex={-1}
-          className={`absolute z-40 velours p-4 text-left animate-fondu-monte max-h-[80vh] overflow-y-auto w-[min(20rem,calc(100vw-2.5rem))] outline-none ${
+          className={`absolute z-40 velours panneau-apparence p-4 text-left animate-fondu-monte max-h-[80vh] overflow-y-auto w-[min(20rem,calc(100vw-2.5rem))] outline-none ${
             flottant ? 'left-0 bottom-full mb-2' : 'right-0 top-full mt-2'
           }`}
         >

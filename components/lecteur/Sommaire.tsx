@@ -16,7 +16,7 @@
 // visibles sont mises en page.
 // ============================================================
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ETIQUETTE_STATUT_CHAPITRE,
@@ -118,6 +118,67 @@ function Sommaire({
     return () => media.removeEventListener('change', maj);
   }, []);
 
+  // ---------------- Accessibilité du tiroir mobile (C8) ----------------
+  // Sur petit écran, un tiroir ouvert est un VRAI dialogue modal :
+  //  · `role="dialog"` + `aria-modal` quand il est ouvert ;
+  //  · `aria-hidden` quand il est fermé (hors arbre d'accessibilité) ;
+  //  · le focus ENTRE dans le tiroir à l'ouverture et REVIENT au
+  //    déclencheur à la fermeture ;
+  //  · `Échap` ferme, et `Tab` ne sort pas du panneau (piège de focus).
+  // Sur grand écran, la colonne reste dans le flux : aucune de ces
+  // règles ne s'applique (le panneau n'est jamais « modal »).
+  const tiroirModal = !grandEcran && tiroirOuvert;
+  const tiroirMasque = !grandEcran && !tiroirOuvert;
+
+  const panneauRef = useRef<HTMLElement | null>(null);
+  /** Élément qui avait le focus AVANT l'ouverture (le bouton « ☰ »). */
+  const declencheurRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!tiroirModal) return;
+    declencheurRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const panneau = panneauRef.current;
+    const cible =
+      panneau?.querySelector<HTMLElement>('[data-focus-initial]') ?? panneau;
+    cible?.focus();
+    // Restitution du focus au déclencheur quand le tiroir se referme.
+    return () => {
+      declencheurRef.current?.focus?.();
+    };
+  }, [tiroirModal]);
+
+  useEffect(() => {
+    if (!tiroirModal) return;
+    function surTouche(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onFermerTiroir();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const panneau = panneauRef.current;
+      if (!panneau) return;
+      const focusables = panneau.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const premier = focusables[0];
+      const dernier = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === premier) {
+        e.preventDefault();
+        dernier.focus();
+      } else if (!e.shiftKey && document.activeElement === dernier) {
+        e.preventDefault();
+        premier.focus();
+      }
+    }
+    document.addEventListener('keydown', surTouche, true);
+    return () => document.removeEventListener('keydown', surTouche, true);
+  }, [tiroirModal, onFermerTiroir]);
+
   // Choisir un chapitre ferme aussi le tiroir (sur grand écran, fermer
   // un tiroir déjà fermé ne provoque aucun rendu). Identité stable.
   const choisir = useCallback(
@@ -149,7 +210,13 @@ function Sommaire({
 
       <aside
         id="sommaire-chapitres"
-        className={`fixed inset-y-0 left-0 z-50 w-[86vw] max-w-xs shrink-0 p-3 transition-transform duration-300 ease-out lg:static lg:inset-auto lg:z-auto lg:w-80 lg:max-w-none lg:p-0 ${
+        ref={panneauRef}
+        tabIndex={-1}
+        role={tiroirModal ? 'dialog' : undefined}
+        aria-modal={tiroirModal ? true : undefined}
+        aria-hidden={tiroirMasque ? true : undefined}
+        aria-label={tiroirModal ? 'Sommaire des chapitres' : undefined}
+        className={`fixed inset-y-0 left-0 z-50 w-[86vw] max-w-xs shrink-0 p-3 transition-transform duration-300 ease-out lg:static lg:inset-auto lg:z-auto lg:w-80 lg:max-w-none lg:p-0 focus:outline-none ${
           tiroirOuvert
             ? 'translate-x-0 visible pointer-events-auto'
             : '-translate-x-full invisible pointer-events-none lg:visible lg:translate-x-0 lg:pointer-events-auto'
@@ -160,6 +227,16 @@ function Sommaire({
             <h2 className="text-xs uppercase tracking-[0.25em] text-encre-500">
               Chapitres
             </h2>
+            {/* Compte « à reprendre » annoncé aux lecteurs d'écran quand il
+                change (C8 / P1.3) : le badge ci-dessous ne portait que
+                l'information visuelle + son aria-label. */}
+            <span className="sr-only" aria-live="polite">
+              {chapitresEnErreur.length > 0
+                ? `${chapitresEnErreur.length} chapitre${
+                    chapitresEnErreur.length > 1 ? 's' : ''
+                  } à reprendre.`
+                : ''}
+            </span>
             <span className="flex items-center gap-2">
               <span className="text-[11px] text-encre-500">
                 {chapitres.length}
@@ -185,6 +262,7 @@ function Sommaire({
               <span className="lg:hidden">
                 <button
                   type="button"
+                  data-focus-initial
                   onClick={onFermerTiroir}
                   aria-label="Fermer le sommaire"
                   className="bouton-fantome !px-2.5 !py-1 text-[11px]"
@@ -225,7 +303,7 @@ function Sommaire({
                 />
               </div>
               {compteurs.erreurs > 0 && (
-                <p className="text-[11px] text-amber-300 mt-1.5">
+                <p role="status" className="text-[11px] text-amber-300 mt-1.5">
                   ⚠ {compteurs.erreurs} segment(s) en erreur — relance une
                   traduction pour réessayer.
                 </p>

@@ -1,31 +1,54 @@
 // ============================================================
-// lib/abonnement.ts — Modèle d'abonnement (gratuit / premium) (P0.9).
+// lib/abonnement.ts — Modèle d'abonnement : LOGIQUE partagée (P0.9).
 //
-// Source de vérité PARTAGÉE entre le serveur et le navigateur :
-//  * la liste des plans (code, prix indicatif en XOF, durée, quota
-//    offert, moteur recommandé) ;
-//  * les statuts d'abonnement et leur cycle de vie ;
-//  * le calcul des périodes et la règle « ce plan est-il encore actif » ;
-//  * l'avantage Premium réellement appliqué ailleurs :
-//      - quota plus élevé (porté en base par public.reserver_quota,
-//        qui lit le quota du plan via public.limite_abonnement) ;
-//      - moteur supérieur recommandé (moteurPourPlan) — exposé ici et
-//        affiché dans l'interface ; son câblage dans /api/translate
-//        est documenté dans le rapport (route interdite à ce lot).
+// SOURCE DE VÉRITÉ = public.plans_abonnement (base de production).
+//   * la LECTURE SERVEUR du catalogue (base → PlanAbonnement) et les
+//     politiques de vente (plan masqué / legacy / essai / verrouillé)
+//     vivent dans lib/plans-catalogue.ts ;
+//   * ce fichier ne garde que la LOGIQUE : types, éligibilité
+//     (packs, premium), calcul de période, statuts, libellés ;
+//   * le catalogue embarqué ci-dessous n'est PAS maintenu à la main :
+//     c'est un SNAPSHOT GÉNÉRÉ depuis la base (voir le bandeau
+//     « GÉNÉRÉ » plus bas et scripts/_plans-generer-snapshot.mjs).
+//     Il sert de valeur par défaut aux fonctions synchrones (affichage
+//     navigateur / composants historiques), tandis que les points
+//     serveur (route API, tunnel de paiement) lisent la base en direct.
 //
 // Les prix sont en FRANCS CFA (XOF) : la clientèle visée paie en
-// Mobile Money (zone UEMOA). Ce sont des montants INDICATIFS, à
-// arrêter (juriste + comptable) avant l'ouverture réelle du paiement.
-// Le mode par défaut reste la SIMULATION : aucun prélèvement.
+// Mobile Money (zone UEMOA). Le mode par défaut reste la SIMULATION.
 // ============================================================
 
 import type { IdFournisseur } from './types';
 
-/** Code d'un plan. Le gratuit porte le code 'gratuit'. */
+/** Famille d'une offre, reprise de la colonne `categorie` de la base. */
+export type CategoriePlan =
+  | 'gratuit'
+  | 'essai'
+  | 'individuel'
+  | 'etudiant'
+  | 'groupe'
+  | 'ecole'
+  | 'legacy'
+  | 'pack';
+
+/**
+ * Code d'un plan. Reflète les lignes de public.plans_abonnement
+ * (13 plans) plus les 4 packs de crédits de public.packs_credits.
+ */
 export type CodePlan =
   | 'gratuit'
-  | 'premium_mensuel'
-  | 'premium_annuel'
+  | 'essai' // essai gratuit de 7 jours, attribué automatiquement à l'inscription
+  | 'lecteur_mensuel'
+  | 'lecteur_annuel'
+  | 'passionne_mensuel'
+  | 'passionne_annuel'
+  | 'illimite_mensuel'
+  | 'illimite_annuel'
+  | 'etudiant_mensuel'
+  | 'groupe_mensuel'
+  | 'ecole_annuel'
+  | 'premium_mensuel' // LEGACY (masqué, aliasé sur passionne_mensuel) — non vendable
+  | 'premium_annuel' // LEGACY — non vendable
   | 'credits_250' // packs de crédits PRÉPAYÉS (pay-as-you-go)
   | 'credits_600'
   | 'credits_1800'
@@ -44,7 +67,7 @@ export interface PlanAbonnement {
   code: CodePlan;
   nom: string;
   resume: string;
-  /** Prix en francs CFA (0 = gratuit). */
+  /** Prix en francs CFA (0 = gratuit). Porté par la base. */
   prixXof: number;
   devise: 'XOF';
   /** Durée offerte par un paiement, en jours (0 = gratuit/permanent). */
@@ -60,12 +83,55 @@ export interface PlanAbonnement {
   caracteres?: number;
   avantages: string[];
   ordre: number;
+  // ---- Champs de capacité et de vente (colonne de la base) ----
+  /** Famille de l'offre (gratuit / individuel / etudiant / legacy…). */
+  categorie?: CategoriePlan;
+  /** Faux si la ligne est désactivée en base (actif = false). */
+  actif?: boolean;
+  /** Vrai si l'offre ne doit jamais être proposée publiquement. */
+  masque?: boolean;
+  /** Code de l'offre de remplacement (plan legacy aliasé). */
+  aliasDe?: string | null;
+  /** Plafond de livres par mois (garde-fou de coût ; null = non plafonné). */
+  livresMois?: number | null;
+  /** Traductions menées en parallèle. */
+  traductionsSimultanees?: number;
+  /** File prioritaire quand la file est chargée. */
+  filePrioritaire?: boolean;
+  /** Glossaire de personnages (sagas). */
+  glossaire?: boolean;
+  /** Nombre minimum de personnes (offres groupe / école). */
+  minPersonnes?: number;
+  /** Vrai si le prix est PAR PERSONNE (groupe / école). */
+  parPersonne?: boolean;
+  /** Vrai si l'achat exige une vérification de statut (étudiant). */
+  verificationRequise?: boolean;
+  /** Vrai si l'usage raisonnable s'applique (anti-abus). */
+  usageRaisonnable?: boolean;
+  /** Prix mensuel équivalent (formules annuelles −20 %). */
+  prixMensuelXof?: number | null;
 }
 
 /** Code du plan gratuit (par défaut). */
 export const CODE_PLAN_GRATUIT: CodePlan = 'gratuit';
 
-/** Plan utilisé pour les attributions administrateur. */
+/** Code du plan d'ESSAI, attribué automatiquement à l'inscription. */
+export const CODE_PLAN_ESSAI: CodePlan = 'essai';
+
+/**
+ * Quota de l'essai gratuit, aligné sur public.plans_abonnement (plan
+ * « Essai gratuit — 7 jours », 4 000 000 caractères).
+ */
+export const QUOTA_ESSAI_CARACTERES = 4_000_000;
+
+/** Durée de l'essai gratuit, en jours (plan `essai`). */
+export const DUREE_ESSAI_JOURS = 7;
+
+/**
+ * Plan utilisé pour les attributions administrateur — le code LEGACY
+ * `premium_mensuel` reste la clé écrite par public.attribuer_abonnement
+ * (SQL de la base) et par le panneau admin (hors périmètre de ce lot).
+ */
 export const CODE_PLAN_PREMIUM: CodePlan = 'premium_mensuel';
 
 /**
@@ -74,165 +140,591 @@ export const CODE_PLAN_PREMIUM: CodePlan = 'premium_mensuel';
  */
 export const QUOTA_GRATUIT_CARACTERES = 400_000;
 
-/** Plafond Premium (caractères/mois) — l'avantage « quota plus élevé ». */
+/**
+ * Plafond historique « Premium » (caractères/mois) — ANCIEN plan
+ * `premium_mensuel`, conservé pour compatibilité des scripts ; la
+ * grille publique s'appuie désormais sur les quotas lus en base.
+ */
 export const QUOTA_PREMIUM_CARACTERES = 3_000_000;
 
-/**
- * Catalogue des plans. L'ORDRE est l'ordre d'affichage.
- * Montants en XOF, INDICATIFS (aucun engagement tant que le paiement
- * réel n'est pas ouvert).
- */
-export const PLANS: readonly PlanAbonnement[] = [
+// ============================================================
+// SNAPSHOT GÉNÉRÉ DU CATALOGUE — NE PAS ÉDITER À LA MAIN.
+//
+// Produit par `node scripts/_plans-generer-snapshot.mjs` à partir de
+// public.plans_abonnement + public.packs_credits. Régénérer après tout
+// changement du catalogue en base. Une vérification
+// (scripts/_plans-preuve-1-catalogue.ts) compare ce snapshot à la base.
+// ============================================================
+// <GENERE-DEBUT>
+export const PLANS_GENERES: readonly PlanAbonnement[] = [
   {
-    code: 'gratuit',
-    nom: 'Gratuit',
-    resume: 'Offre de lancement : import, traduction, lecture et exports.',
+    code: "gratuit",
+    nom: "Gratuit",
+    resume: "Pour lire et traduire un livre par mois, sans carte.",
     prixXof: 0,
     devise: 'XOF',
     dureeJours: 0,
-    quotaMensuelCaracteres: QUOTA_GRATUIT_CARACTERES,
-    moteur: 'auto',
-    avantages: [
-      'Import .txt, .md, .pdf (texte) et .epub',
-      'Découpage en chapitres et traduction vers le français',
-      'Lecture complète, reprise, favoris, recherche',
-      'Exports Markdown, Word et PDF',
-    ],
+    quotaMensuelCaracteres: 400000,
+    moteur: "auto",
+    avantages: ["Environ un livre complet par mois (400 000 caractères)","Import .txt, .md, .pdf (texte) et .epub","Traduction vers le français, lecture complète et reprise","Favoris, recherche et exports Markdown, Word et PDF"],
     ordre: 0,
+    categorie: "gratuit",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: null,
+    traductionsSimultanees: 1,
+    filePrioritaire: false,
+    glossaire: false,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
   },
   {
-    code: 'premium_mensuel',
-    nom: 'Premium — mensuel',
-    resume: 'Pour traduire plusieurs livres par mois, sans plafond gênant.',
+    code: "essai",
+    nom: "Essai gratuit — 7 jours",
+    resume: "Tout le confort du plan Passionné pendant 7 jours, plafonné à 3 livres au total.",
+    prixXof: 0,
+    devise: 'XOF',
+    dureeJours: 7,
+    quotaMensuelCaracteres: 4000000,
+    moteur: "auto",
+    avantages: ["7 jours offerts, sans carte ni numéro obligatoire","Même confort que le plan Passionné","Plafonné à 3 livres au total (garde-fou de coût)"],
+    ordre: 1,
+    categorie: "essai",
+    actif: true,
+    masque: true,
+    aliasDe: null,
+    livresMois: 3,
+    traductionsSimultanees: 2,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
+  },
+  {
+    code: "lecteur_mensuel",
+    nom: "Lecteur — mensuel",
+    resume: "3 livres par mois, confort de lecture et exports.",
+    prixXof: 1500,
+    devise: 'XOF',
+    dureeJours: 30,
+    quotaMensuelCaracteres: 1200000,
+    moteur: "auto",
+    avantages: ["3 livres traduits par mois","Confort de lecture complet (polices, thème, reprise)","Exports Markdown, Word et PDF","File normale"],
+    ordre: 2,
+    categorie: "individuel",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: 3,
+    traductionsSimultanees: 1,
+    filePrioritaire: false,
+    glossaire: false,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
+  },
+  {
+    code: "lecteur_annuel",
+    nom: "Lecteur — annuel",
+    resume: "3 livres par mois, payés à l’année (−20 %).",
+    prixXof: 14400,
+    devise: 'XOF',
+    dureeJours: 365,
+    quotaMensuelCaracteres: 1200000,
+    moteur: "auto",
+    avantages: ["Tous les avantages du plan Lecteur mensuel","14 400 F CFA l’année (au lieu de 18 000)","Soit 1 200 F CFA par mois"],
+    ordre: 3,
+    categorie: "individuel",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: 3,
+    traductionsSimultanees: 1,
+    filePrioritaire: false,
+    glossaire: false,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: 1200,
+  },
+  {
+    code: "passionne_mensuel",
+    nom: "Passionné — mensuel",
+    resume: "10 livres par mois, glossaire de personnages et file prioritaire.",
+    prixXof: 3500,
+    devise: 'XOF',
+    dureeJours: 30,
+    quotaMensuelCaracteres: 4000000,
+    moteur: "auto",
+    avantages: ["10 livres traduits par mois","2 traductions menées en parallèle","File prioritaire quand la file est chargée","Glossaire de personnages pour les sagas"],
+    ordre: 4,
+    categorie: "individuel",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: 10,
+    traductionsSimultanees: 2,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
+  },
+  {
+    code: "passionne_annuel",
+    nom: "Passionné — annuel",
+    resume: "10 livres par mois, payés à l’année (−20 %).",
+    prixXof: 33600,
+    devise: 'XOF',
+    dureeJours: 365,
+    quotaMensuelCaracteres: 4000000,
+    moteur: "auto",
+    avantages: ["Tous les avantages du plan Passionné mensuel","33 600 F CFA l’année (au lieu de 42 000)","Soit 2 800 F CFA par mois"],
+    ordre: 5,
+    categorie: "individuel",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: 10,
+    traductionsSimultanees: 2,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: 2800,
+  },
+  {
+    code: "illimite_mensuel",
+    nom: "Illimité — mensuel",
+    resume: "Volume illimité sous usage raisonnable, 3 traductions en parallèle et file prioritaire.",
+    prixXof: 9000,
+    devise: 'XOF',
+    dureeJours: 30,
+    quotaMensuelCaracteres: 25000000,
+    moteur: "auto",
+    avantages: ["Volume illimité, sous usage raisonnable (jusqu’à 25 000 000 caractères par mois)","3 traductions menées en parallèle","File prioritaire quand la file est chargée","Glossaire de personnages"],
+    ordre: 6,
+    categorie: "individuel",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: null,
+    traductionsSimultanees: 3,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: true,
+    prixMensuelXof: null,
+  },
+  {
+    code: "illimite_annuel",
+    nom: "Illimité — annuel",
+    resume: "Volume illimité sous usage raisonnable, payé à l’année.",
+    prixXof: 90000,
+    devise: 'XOF',
+    dureeJours: 365,
+    quotaMensuelCaracteres: 25000000,
+    moteur: "auto",
+    avantages: ["Tous les avantages du plan Illimité mensuel","90 000 F CFA l’année","Soit 7 500 F CFA par mois"],
+    ordre: 7,
+    categorie: "individuel",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: null,
+    traductionsSimultanees: 3,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: true,
+    prixMensuelXof: 7500,
+  },
+  {
+    code: "etudiant_mensuel",
+    nom: "Étudiant — mensuel",
+    resume: "3 livres par mois à tarif réduit — sur justificatif.",
+    prixXof: 1200,
+    devise: 'XOF',
+    dureeJours: 30,
+    quotaMensuelCaracteres: 1200000,
+    moteur: "auto",
+    avantages: ["3 livres traduits par mois","Confort de lecture complet et exports","Tarif étudiant : vérification du statut requise"],
+    ordre: 8,
+    categorie: "etudiant",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: 3,
+    traductionsSimultanees: 1,
+    filePrioritaire: false,
+    glossaire: false,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: true,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
+  },
+  {
+    code: "groupe_mensuel",
+    nom: "Groupe — mensuel",
+    resume: "2 400 F CFA par personne et par mois, 3 personnes minimum.",
+    prixXof: 2400,
+    devise: 'XOF',
+    dureeJours: 30,
+    quotaMensuelCaracteres: 1200000,
+    moteur: "auto",
+    avantages: ["2 400 F CFA par personne et par mois","3 personnes minimum (un seul payeur)","3 livres par mois et par personne","Glossaire partagé et file prioritaire"],
+    ordre: 9,
+    categorie: "groupe",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: 3,
+    traductionsSimultanees: 2,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 3,
+    parPersonne: true,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
+  },
+  {
+    code: "ecole_annuel",
+    nom: "École — annuel",
+    resume: "1 800 F CFA par personne et par mois, facturé à l’année (11 personnes minimum).",
+    prixXof: 21600,
+    devise: 'XOF',
+    dureeJours: 365,
+    quotaMensuelCaracteres: 4000000,
+    moteur: "auto",
+    avantages: ["1 800 F CFA par personne et par mois","Facturé annuellement : 21 600 F CFA par personne et par an","11 personnes minimum (un seul payeur)","10 livres par mois et par personne, 3 traductions en parallèle"],
+    ordre: 10,
+    categorie: "ecole",
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: 10,
+    traductionsSimultanees: 3,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 11,
+    parPersonne: true,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: 1800,
+  },
+  {
+    code: "premium_mensuel",
+    nom: "Premium — mensuel (historique)",
+    resume: "Offre historique conservée : même accès qu’un plan Passionné.",
     prixXof: 3000,
     devise: 'XOF',
     dureeJours: 30,
-    quotaMensuelCaracteres: QUOTA_PREMIUM_CARACTERES,
-    moteur: 'gemini',
-    avantages: [
-      'Quota de traduction élargi (plusieurs livres par mois)',
-      'Qualité littéraire supérieure (moteur payant)',
-      'Traductions en parallèle et file prioritaire',
-      'Glossaire de personnages pour les sagas',
-    ],
-    ordre: 1,
+    quotaMensuelCaracteres: 3000000,
+    moteur: "auto",
+    avantages: ["Conservé pour l’historique et le panneau d’administration","Accès équivalent à un plan Passionné"],
+    ordre: 90,
+    categorie: "legacy",
+    actif: true,
+    masque: true,
+    aliasDe: "passionne_mensuel",
+    livresMois: 10,
+    traductionsSimultanees: 2,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
   },
   {
-    code: 'premium_annuel',
-    nom: 'Premium — annuel',
-    resume: 'Deux mois offerts par rapport au mensuel.',
+    code: "premium_annuel",
+    nom: "Premium — annuel (historique)",
+    resume: "Offre historique conservée : même accès qu’un plan Passionné annuel.",
     prixXof: 30000,
     devise: 'XOF',
     dureeJours: 365,
-    quotaMensuelCaracteres: QUOTA_PREMIUM_CARACTERES,
-    moteur: 'gemini',
-    avantages: [
-      'Tous les avantages du Premium mensuel',
-      'Deux mois offerts sur l’année',
-      'Même quota élargi, mois après mois',
-    ],
-    ordre: 2,
+    quotaMensuelCaracteres: 3000000,
+    moteur: "auto",
+    avantages: ["Conservé pour l’historique et le panneau d’administration","Accès équivalent à un plan Passionné annuel"],
+    ordre: 91,
+    categorie: "legacy",
+    actif: true,
+    masque: true,
+    aliasDe: "passionne_annuel",
+    livresMois: 10,
+    traductionsSimultanees: 2,
+    filePrioritaire: true,
+    glossaire: true,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
   },
-  // ---- Packs de CRÉDITS prépayés (pay-as-you-go, SANS abonnement) ----
   {
-    code: 'credits_250',
-    nom: 'Pack Découverte',
-    resume: '250 000 caractères, sans abonnement ni prélèvement mensuel.',
+    code: "credits_250",
+    nom: "Pack Découverte",
+    resume: "Un premier roman traduit, sans engagement.",
     prixXof: 500,
     devise: 'XOF',
     dureeJours: 0,
     quotaMensuelCaracteres: 0,
     moteur: 'auto',
-    caracteres: 250_000,
-    avantages: [
-      '250 000 caractères — environ un roman',
-      'Crédits valables sans limite de temps',
-      'Aucun abonnement, aucun prélèvement mensuel',
-    ],
+    caracteres: 250000,
+    avantages: ["Un premier roman traduit, sans engagement."],
     ordre: 10,
+    categorie: 'pack',
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: null,
+    traductionsSimultanees: 1,
+    filePrioritaire: false,
+    glossaire: false,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
   },
   {
-    code: 'credits_600',
-    nom: 'Pack Lecteur',
-    resume: '600 000 caractères : deux à trois romans, au meilleur prix.',
+    code: "credits_600",
+    nom: "Pack Lecteur",
+    resume: "Deux à trois romans — le meilleur rapport qualité/prix.",
     prixXof: 1000,
     devise: 'XOF',
     dureeJours: 0,
     quotaMensuelCaracteres: 0,
     moteur: 'auto',
-    caracteres: 600_000,
-    avantages: [
-      '600 000 caractères — deux à trois romans',
-      'Le meilleur rapport qualité/prix',
-      'Aucun abonnement, aucun prélèvement mensuel',
-    ],
+    caracteres: 600000,
+    avantages: ["Deux à trois romans — le meilleur rapport qualité/prix."],
     ordre: 11,
+    categorie: 'pack',
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: null,
+    traductionsSimultanees: 1,
+    filePrioritaire: false,
+    glossaire: false,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
   },
   {
-    code: 'credits_1800',
-    nom: 'Pack Bibliothèque',
-    resume: '1 800 000 caractères pour une saga complète.',
+    code: "credits_1800",
+    nom: "Pack Bibliothèque",
+    resume: "Une saga complète, chapitre après chapitre.",
     prixXof: 2500,
     devise: 'XOF',
     dureeJours: 0,
     quotaMensuelCaracteres: 0,
     moteur: 'auto',
-    caracteres: 1_800_000,
-    avantages: [
-      '1 800 000 caractères — une saga complète',
-      'Idéal pour les séries au long cours',
-      'Aucun abonnement, aucun prélèvement mensuel',
-    ],
+    caracteres: 1800000,
+    avantages: ["Une saga complète, chapitre après chapitre."],
     ordre: 12,
+    categorie: 'pack',
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: null,
+    traductionsSimultanees: 1,
+    filePrioritaire: false,
+    glossaire: false,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
   },
   {
-    code: 'credits_4000',
-    nom: 'Pack Collection',
-    resume: '4 000 000 caractères : jamais à court, sans engagement.',
+    code: "credits_4000",
+    nom: "Pack Collection",
+    resume: "Pour les gros lecteurs : jamais à court de caractères.",
     prixXof: 5000,
     devise: 'XOF',
     dureeJours: 0,
     quotaMensuelCaracteres: 0,
     moteur: 'auto',
-    caracteres: 4_000_000,
-    avantages: [
-      '4 000 000 caractères — plusieurs sagas',
-      'Pour les gros lecteurs, sans engagement',
-      'Aucun abonnement, aucun prélèvement mensuel',
-    ],
+    caracteres: 4000000,
+    avantages: ["Pour les gros lecteurs : jamais à court de caractères."],
     ordre: 13,
+    categorie: 'pack',
+    actif: true,
+    masque: false,
+    aliasDe: null,
+    livresMois: null,
+    traductionsSimultanees: 1,
+    filePrioritaire: false,
+    glossaire: false,
+    minPersonnes: 1,
+    parPersonne: false,
+    verificationRequise: false,
+    usageRaisonnable: false,
+    prixMensuelXof: null,
   },
 ];
+// <GENERE-FIN>
+
+// ============================================================
+// Catalogue courant (mémoire du serveur / valeur par défaut).
+// Le serveur peut l'hydrater depuis la base via definirCatalogue().
+// ============================================================
+let CATALOGUE: readonly PlanAbonnement[] = PLANS_GENERES;
+
+/** Remplace le catalogue courant (ex. après lecture de la base). */
+export function definirCatalogue(plans: readonly PlanAbonnement[]): void {
+  CATALOGUE = plans;
+}
+
+/** Catalogue courant (snapshot généré par défaut). */
+export function catalogueCourant(): readonly PlanAbonnement[] {
+  return CATALOGUE;
+}
 
 /** Tous les plans, triés par ordre d'affichage. */
-export function tousLesPlans(): readonly PlanAbonnement[] {
-  return [...PLANS].sort((a, b) => a.ordre - b.ordre);
+export function tousLesPlans(
+  source: readonly PlanAbonnement[] = CATALOGUE
+): readonly PlanAbonnement[] {
+  return [...source].sort((a, b) => a.ordre - b.ordre);
 }
 
 /** Les plans payants (souscriptibles par Mobile Money), packs compris. */
-export function plansPayants(): readonly PlanAbonnement[] {
-  return tousLesPlans().filter((p) => p.prixXof > 0);
+export function plansPayants(
+  source: readonly PlanAbonnement[] = CATALOGUE
+): readonly PlanAbonnement[] {
+  return tousLesPlans(source).filter((p) => p.prixXof > 0);
 }
 
 /** Les plans d'ABONNEMENT (hors packs de crédits), triés. */
-export function plansAbonnement(): readonly PlanAbonnement[] {
-  return tousLesPlans().filter((p) => !estPackCredits(p));
+export function plansAbonnement(
+  source: readonly PlanAbonnement[] = CATALOGUE
+): readonly PlanAbonnement[] {
+  return tousLesPlans(source).filter((p) => !estPackCredits(p));
+}
+
+/**
+ * Vrai si l'offre fait partie de la GRILLE PUBLIQUE (les 4 offres
+ * mensuelles vendables : Gratuit, Lecteur, Passionné, Illimité).
+ * Écarte l'essai, les plans masqués/legacy, les annuelles (variantes de
+ * la carte du mensuel) et les offres étudiant/groupe/école.
+ */
+export function estOffrePublique(plan: PlanAbonnement | null | undefined): boolean {
+  if (!plan || estPackCredits(plan)) return false;
+  if (plan.actif === false) return false;
+  if (plan.masque === true) return false;
+  if (plan.aliasDe) return false;
+  if (plan.categorie === 'legacy' || plan.categorie === 'essai') return false;
+  return (
+    (plan.categorie === 'gratuit' || plan.categorie === 'individuel') &&
+    plan.dureeJours < 360
+  );
+}
+
+/** Les offres de la grille publique, triées. */
+export function offresPubliques(
+  source: readonly PlanAbonnement[] = CATALOGUE
+): readonly PlanAbonnement[] {
+  return tousLesPlans(source).filter(estOffrePublique);
+}
+
+/** Les « autres offres » (étudiant / groupe / école) : non vendables en ligne. */
+export function autresOffres(
+  source: readonly PlanAbonnement[] = CATALOGUE
+): readonly PlanAbonnement[] {
+  return tousLesPlans(source).filter(
+    (p) =>
+      !estPackCredits(p) &&
+      p.actif !== false &&
+      p.masque !== true &&
+      !p.aliasDe &&
+      p.categorie !== 'legacy' &&
+      (p.categorie === 'etudiant' ||
+        p.categorie === 'groupe' ||
+        p.categorie === 'ecole')
+  );
+}
+
+/**
+ * Variante annuelle d'une offre mensuelle (variante −20 %), ou null.
+ * La correspondance se fait sur le code : `lecteur_mensuel` →
+ * `lecteur_annuel`.
+ */
+export function annuellePour(
+  mensuel: PlanAbonnement | null | undefined,
+  source: readonly PlanAbonnement[] = CATALOGUE
+): PlanAbonnement | null {
+  if (!mensuel) return null;
+  const base = mensuel.code.replace(/_mensuel$/, '');
+  if (base === mensuel.code) return null;
+  return tousLesPlans(source).find((p) => p.code === `${base}_annuel`) ?? null;
+}
+
+/**
+ * Plans à MONTRER dans la grille « changer d'offre » — désormais la
+ * grille publique (les 4 offres). L'essai est attribué automatiquement,
+ * les annuelles sont des variantes, les offres étudiant/groupe/école
+ * vivent dans « autres offres ».
+ */
+export function plansAbonnementAffiches(
+  source: readonly PlanAbonnement[] = CATALOGUE
+): readonly PlanAbonnement[] {
+  return offresPubliques(source);
+}
+
+/** Vrai si le plan est l'essai gratuit attribué à l'inscription. */
+export function estPlanEssai(
+  plan: PlanAbonnement | null | undefined
+): boolean {
+  return !!plan && plan.code === CODE_PLAN_ESSAI;
 }
 
 /** Les PACKS DE CRÉDITS prépayés, triés par ordre d'affichage. */
-export function packsCredits(): readonly PlanAbonnement[] {
-  return tousLesPlans().filter((p) => estPackCredits(p));
+export function packsCredits(
+  source: readonly PlanAbonnement[] = CATALOGUE
+): readonly PlanAbonnement[] {
+  return tousLesPlans(source).filter((p) => estPackCredits(p));
 }
 
-/** Retrouve un plan par son code, ou null. */
-export function planParCode(code: string | null | undefined): PlanAbonnement | null {
+/**
+ * Retrouve un plan (ou un pack) par son code, ou null. Résout TOUS les
+ * codes connus, y compris l'essai et les lignes legacy : c'est la
+ * fonction d'AFFICHAGE (offre en cours, historique).
+ */
+export function planParCode(
+  code: string | null | undefined,
+  source: readonly PlanAbonnement[] = CATALOGUE
+): PlanAbonnement | null {
   if (!code) return null;
-  return PLANS.find((p) => p.code === code) ?? null;
+  return source.find((p) => p.code === code) ?? null;
 }
 
-/** Vrai si la chaîne est un code de plan connu. */
+/** Vrai si la chaîne est un code de plan connu (offre OU pack). */
 export function estCodePlan(valeur: unknown): valeur is CodePlan {
-  return typeof valeur === 'string' && PLANS.some((p) => p.code === valeur);
+  return typeof valeur === 'string' && CATALOGUE.some((p) => p.code === valeur);
 }
 
 /**
@@ -260,7 +752,8 @@ export function caracteresPack(plan: PlanAbonnement | null | undefined): number 
 /**
  * Vrai si le plan est un ABONNEMENT payant (donc Premium). Les packs
  * de crédits sont payants mais ne sont PAS un abonnement : ils
- * n'ouvrent aucun droit récurrent.
+ * n'ouvrent aucun droit récurrent. (Sert aussi à l'AFFICHAGE du badge
+ * « Premium » : on ne le restreint pas aux seules offres vendables.)
  */
 export function estPlanPremium(plan: PlanAbonnement | null | undefined): boolean {
   return !!plan && plan.prixXof > 0 && !estPackCredits(plan);
@@ -375,16 +868,28 @@ export function abonnementGratuit(
 /**
  * Quota mensuel effectif pour un plan, sachant un plafond de base
  * (celui de l'environnement). On ne réduit JAMAIS le plafond de base :
- * un plan gratuit garde `quotaBase`, un plan Premium prend le plus
- * grand des deux. C'est la règle miroir de public.limite_abonnement.
+ * on prend le PLUS GRAND des deux. C'est le miroir EXACT de
+ * public.limite_abonnement (SQL) : `greatest(coalesce(p_limite,0), quota)`.
  */
 export function quotaPourPlan(
   plan: PlanAbonnement | null | undefined,
   quotaBase: number
 ): number {
-  const base = Number.isFinite(quotaBase) && quotaBase > 0 ? quotaBase : QUOTA_GRATUIT_CARACTERES;
-  if (!plan || !estPlanPremium(plan)) return base;
-  return Math.max(base, plan.quotaMensuelCaracteres);
+  const base =
+    Number.isFinite(quotaBase) && quotaBase > 0
+      ? quotaBase
+      : QUOTA_GRATUIT_CARACTERES;
+  if (!plan) return base;
+  const quotaPlan = Number.isFinite(plan.quotaMensuelCaracteres)
+    ? Math.max(Math.trunc(plan.quotaMensuelCaracteres), 0)
+    : 0;
+  return Math.max(base, quotaPlan);
+}
+
+/** Plafond de LIVRES par mois d'un plan (null = non plafonné). */
+export function livresParMois(plan: PlanAbonnement | null | undefined): number | null {
+  const n = plan?.livresMois;
+  return typeof n === 'number' && n > 0 ? n : null;
 }
 
 /** Moteur recommandé pour un plan ('auto' = selon les clés présentes). */
@@ -419,4 +924,47 @@ export function libellePeriodicite(plan: PlanAbonnement): string {
   if (plan.dureeJours >= 360) return '/ an';
   if (plan.dureeJours >= 28) return '/ mois';
   return `pour ${plan.dureeJours} jours`;
+}
+
+/**
+ * « 600 000 caractères » — volume de traduction, lisible.
+ * Sert aux packs de crédits (le chiffre est l'argument de vente).
+ */
+export function libelleCaracteres(n: number): string {
+  const valeur = Number.isFinite(n) ? Math.max(Math.trunc(n), 0) : 0;
+  return `${valeur.toLocaleString('fr-FR')} caractères`;
+}
+
+/** Forme compacte : « 1,8 M caractères », « 250 k caractères ». */
+export function libelleCaracteresCourt(n: number): string {
+  const valeur = Number.isFinite(n) ? Math.max(Math.trunc(n), 0) : 0;
+  if (valeur >= 1_000_000) {
+    const m = valeur / 1_000_000;
+    const arrondi = Number.isInteger(m) ? String(m) : m.toFixed(1).replace('.', ',');
+    return `${arrondi} M caractères`;
+  }
+  if (valeur >= 1_000) {
+    const k = Math.round(valeur / 1_000);
+    return `${k.toLocaleString('fr-FR')} k caractères`;
+  }
+  return libelleCaracteres(valeur);
+}
+
+/**
+ * Estimation en « romans », pour donner une échelle concrète à un pack.
+ * Repère affiché partout ailleurs : ~600 000 caractères par roman.
+ * Renvoie null sous un demi-roman (on préfère alors ne rien promettre).
+ */
+export function estimationRomans(caracteres: number): number | null {
+  if (!Number.isFinite(caracteres) || caracteres <= 0) return null;
+  const romans = caracteres / 600_000;
+  if (romans < 0.5) return null;
+  return Math.max(1, Math.round(romans));
+}
+
+/** « ≈ 3 romans » / « ≈ 1 roman » (chaîne vide si non estimable). */
+export function libelleEstimationRomans(caracteres: number): string {
+  const romans = estimationRomans(caracteres);
+  if (romans === null) return '';
+  return `≈ ${romans.toLocaleString('fr-FR')} roman${romans > 1 ? 's' : ''}`;
 }

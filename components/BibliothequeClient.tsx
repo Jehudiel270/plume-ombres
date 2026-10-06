@@ -139,7 +139,12 @@ export default function BibliothequeClient({
     const { error } = await supabase.from('livres').delete().eq('id', livre.id);
     setSuppression(null);
     if (error) {
-      window.alert(`Suppression impossible : ${error.message}`);
+      // Détail technique en console ; l'utilisateur, lui, reçoit une
+      // explication (et non le message brut du fournisseur).
+      console.error('[Plume d’Ombres] suppression impossible :', error);
+      window.alert(
+        'La suppression n’a pas abouti. Vos livres et vos traductions sont intacts — réessayez dans un instant.'
+      );
       return;
     }
     setLivres((l) => l.filter((x) => x.id !== livre.id));
@@ -343,7 +348,17 @@ export default function BibliothequeClient({
                   className="carte-livre animate-fondu-monte group cursor-pointer"
                   style={{ animationDelay: `${i * 60}ms` }}
                   tabIndex={0}
-                  aria-label={`Ouvrir « ${livre.titre} » (${ETIQUETTES_STATUT[livre.statut]})`}
+                  aria-label={`Ouvrir « ${livre.titre} » (${ETIQUETTES_STATUT[
+                    livre.statut
+                  ]})${
+                    (chapitresEnErreur[livre.id] ?? 0) > 0
+                      ? `, ${
+                          chapitresEnErreur[livre.id] === 1
+                            ? '1 chapitre à reprendre'
+                            : `${chapitresEnErreur[livre.id]} chapitres à reprendre`
+                        }`
+                      : ''
+                  }`}
                   onClick={() => ouvrirLivre(livre)}
                   onKeyDown={(e) => {
                     // Clavier : Entrée ou Espace ouvre le livre (comme le clic).

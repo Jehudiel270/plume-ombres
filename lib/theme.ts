@@ -11,7 +11,25 @@
 // prefers-color-scheme (clair → « claire », sombre → « brume »).
 // ============================================================
 
-export type PaletteId = 'brume' | 'orage' | 'encre' | 'sangOr' | 'claire';
+export type PaletteId =
+  | 'brume'
+  | 'orage'
+  | 'encre'
+  | 'sangOr'
+  | 'claire'
+  | 'sangLune'
+  | 'foretNocturne'
+  | 'ambreCendre'
+  | 'cuivreHetre'
+  | 'encreVerte'
+  | 'crepusculeMauve'
+  | 'givre'
+  | 'braiseRouge'
+  | 'marineProfonde'
+  | 'mauveGothique'
+  | 'auroreBoreale'
+  | 'roseFane'
+  | 'sepiaAncienne';
 export type TypoId = 'plume' | 'velin' | 'native';
 
 /** Paramètres passés au shader du fond d'ambiance (0..1 par canal). */
@@ -159,14 +177,290 @@ export const PALETTES: Record<PaletteId, Palette> = {
       grain: 0.012,
     },
   },
+  // --- Ajouts (w8w9) : 13 palettes supplémentaires, dont 2 claires
+  //     (roseFane, sepiaAncienne) et une à fort contraste (givre).
+  sangLune: {
+    id: 'sangLune',
+    nom: 'Sang de lune',
+    description: 'Cramoisi lunaire sur un noir prune — le sang vu de nuit.',
+    sombre: true,
+    apercu: { fond: '#0b070a', surface: '#1e1218', accent: '#ff6d8f', texte: '#f7ecf1' },
+    webgl: {
+      base: v('#0b070a'),
+      lueurA: v('#5c1024'),
+      lueurB: v('#6b3d9c'),
+      brumeA: v('#8f1430'),
+      brumeB: v('#8a5fc4'),
+      braiseA: v('#f7d0db'),
+      braiseB: v('#ff6d8f'),
+      energie: 1,
+      braise: 1,
+      vignette: 1,
+      grain: 0.02,
+    },
+  },
+  foretNocturne: {
+    id: 'foretNocturne',
+    nom: 'Forêt nocturne',
+    description: 'Mousse et sous-bois au clair de lune, vert éteint.',
+    sombre: true,
+    apercu: { fond: '#060b08', surface: '#111d16', accent: '#6fd08f', texte: '#e9f5ec' },
+    webgl: {
+      base: v('#060b08'),
+      lueurA: v('#123a24'),
+      lueurB: v('#1f5c3a'),
+      brumeA: v('#1c6b3e'),
+      brumeB: v('#3f8f5c'),
+      braiseA: v('#d7f0c0'),
+      braiseB: v('#6fd08f'),
+      energie: 0.85,
+      braise: 0.8,
+      vignette: 1,
+      grain: 0.02,
+    },
+  },
+  ambreCendre: {
+    id: 'ambreCendre',
+    nom: 'Ambre et cendre',
+    description: 'Ambre tiède sur cendre grise — chaleur qui s’éteint.',
+    sombre: true,
+    apercu: { fond: '#0d0a07', surface: '#211a11', accent: '#e8a54a', texte: '#f7f0e4' },
+    webgl: {
+      base: v('#0d0a07'),
+      lueurA: v('#5e3c10'),
+      lueurB: v('#8a6a2a'),
+      brumeA: v('#a06a1a'),
+      brumeB: v('#c9a877'),
+      braiseA: v('#f7e3b0'),
+      braiseB: v('#e8a54a'),
+      energie: 0.95,
+      braise: 0.9,
+      vignette: 1,
+      grain: 0.02,
+    },
+  },
+  cuivreHetre: {
+    id: 'cuivreHetre',
+    nom: 'Cuivre et hêtre',
+    description: 'Cuivre patiné et bois de hêtre — l’atelier du traducteur.',
+    sombre: true,
+    apercu: { fond: '#0b0705', surface: '#1f150d', accent: '#d9894a', texte: '#f6ece0' },
+    webgl: {
+      base: v('#0b0705'),
+      lueurA: v('#5a3012'),
+      lueurB: v('#7d5a34'),
+      brumeA: v('#96562a'),
+      brumeB: v('#c39d72'),
+      braiseA: v('#f2d79b'),
+      braiseB: v('#d9894a'),
+      energie: 0.9,
+      braise: 0.9,
+      vignette: 1,
+      grain: 0.022,
+    },
+  },
+  encreVerte: {
+    id: 'encreVerte',
+    nom: 'Nuit d’encre verte',
+    description: 'Encre vert bouteille, humide et profonde, reflets d’algues.',
+    sombre: true,
+    apercu: { fond: '#050b0a', surface: '#101d1a', accent: '#62cfb4', texte: '#e8f4f0' },
+    webgl: {
+      base: v('#050b0a'),
+      lueurA: v('#12403a'),
+      lueurB: v('#1c5c52'),
+      brumeA: v('#1f6e60'),
+      brumeB: v('#4f9c8c'),
+      braiseA: v('#d0f0e6'),
+      braiseB: v('#62cfb4'),
+      energie: 0.85,
+      braise: 0.8,
+      vignette: 1,
+      grain: 0.02,
+    },
+  },
+  crepusculeMauve: {
+    id: 'crepusculeMauve',
+    nom: 'Crépuscule mauve',
+    description: 'Le ciel juste après le coucher — mauve et violet profond.',
+    sombre: true,
+    apercu: { fond: '#0a070d', surface: '#1b1324', accent: '#c07ce8', texte: '#f2ebf7' },
+    webgl: {
+      base: v('#0a070d'),
+      lueurA: v('#3f2668'),
+      lueurB: v('#6b3fa0'),
+      brumeA: v('#6a3a9c'),
+      brumeB: v('#9a6ac4'),
+      braiseA: v('#ecd0f7'),
+      braiseB: v('#c07ce8'),
+      energie: 1,
+      braise: 1,
+      vignette: 1,
+      grain: 0.02,
+    },
+  },
+  givre: {
+    id: 'givre',
+    nom: 'Givre',
+    description: 'Blanc de givre sur un bleu-noir glacé — contraste maximal.',
+    sombre: true,
+    apercu: { fond: '#04070b', surface: '#0d161f', accent: '#7fd4ff', texte: '#ffffff' },
+    webgl: {
+      base: v('#04070b'),
+      lueurA: v('#0d4459'),
+      lueurB: v('#2a3f78'),
+      brumeA: v('#1f6c94'),
+      brumeB: v('#5f7fc4'),
+      braiseA: v('#ffffff'),
+      braiseB: v('#7fd4ff'),
+      energie: 0.8,
+      braise: 0.7,
+      vignette: 1,
+      grain: 0.014,
+    },
+  },
+  braiseRouge: {
+    id: 'braiseRouge',
+    nom: 'Braise rouge',
+    description: 'Braise incandescente : rouge-orange sur cendres noires.',
+    sombre: true,
+    apercu: { fond: '#0c0403', surface: '#210d09', accent: '#ff7a3d', texte: '#f8eae3' },
+    webgl: {
+      base: v('#0c0403'),
+      lueurA: v('#6e260a'),
+      lueurB: v('#a85a20'),
+      brumeA: v('#c04a12'),
+      brumeB: v('#e08a4a'),
+      braiseA: v('#ffd9a0'),
+      braiseB: v('#ff7a3d'),
+      energie: 1,
+      braise: 1,
+      vignette: 1,
+      grain: 0.022,
+    },
+  },
+  marineProfonde: {
+    id: 'marineProfonde',
+    nom: 'Marine profonde',
+    description: 'Bleu d’abysse, froid et sans fond, écume pâle.',
+    sombre: true,
+    apercu: { fond: '#04080f', surface: '#0c1a28', accent: '#6ba6e8', texte: '#e8f0fa' },
+    webgl: {
+      base: v('#04080f'),
+      lueurA: v('#123a6e'),
+      lueurB: v('#2a4aa0'),
+      brumeA: v('#1f5aa8'),
+      brumeB: v('#5a78c8'),
+      braiseA: v('#cfe4ff'),
+      braiseB: v('#6ba6e8'),
+      energie: 0.9,
+      braise: 0.85,
+      vignette: 1,
+      grain: 0.018,
+    },
+  },
+  mauveGothique: {
+    id: 'mauveGothique',
+    nom: 'Mauve gothique',
+    description: 'Pourpre d’église et vitraux, gothique et théâtral.',
+    sombre: true,
+    apercu: { fond: '#08050d', surface: '#181124', accent: '#c070d6', texte: '#f0e8f7' },
+    webgl: {
+      base: v('#08050d'),
+      lueurA: v('#4f1f5e'),
+      lueurB: v('#7a3fa0'),
+      brumeA: v('#8a3aa8'),
+      brumeB: v('#a878d0'),
+      braiseA: v('#ecd0f7'),
+      braiseB: v('#c070d6'),
+      energie: 1,
+      braise: 1,
+      vignette: 1,
+      grain: 0.022,
+    },
+  },
+  auroreBoreale: {
+    id: 'auroreBoreale',
+    nom: 'Aurore boréale',
+    description: 'Voiles verts et violets dansant sur un ciel polaire.',
+    sombre: true,
+    apercu: { fond: '#040b0a', surface: '#0d211d', accent: '#3fe0b0', texte: '#e6f6f2' },
+    webgl: {
+      base: v('#040b0a'),
+      lueurA: v('#0e5644'),
+      lueurB: v('#5a3fa8'),
+      brumeA: v('#21b48a'),
+      brumeB: v('#8a6ad0'),
+      braiseA: v('#d0fff0'),
+      braiseB: v('#3fe0b0'),
+      energie: 1,
+      braise: 0.9,
+      vignette: 1,
+      grain: 0.018,
+    },
+  },
+  roseFane: {
+    id: 'roseFane',
+    nom: 'Rose fané',
+    description: 'Vieux papier rose pâle et encre lie-de-vin — lecture de jour.',
+    sombre: false,
+    apercu: { fond: '#f3ece8', surface: '#fdf9f6', accent: '#b23a5c', texte: '#33232a' },
+    webgl: {
+      base: v('#f3ece8'),
+      lueurA: v('#efd8d0'),
+      lueurB: v('#e6d6e0'),
+      brumeA: v('#f0d8d2'),
+      brumeB: v('#e4d6e6'),
+      braiseA: v('#c98a9a'),
+      braiseB: v('#b23a5c'),
+      energie: 0.55,
+      braise: 0,
+      vignette: 0.32,
+      grain: 0.012,
+    },
+  },
+  sepiaAncienne: {
+    id: 'sepiaAncienne',
+    nom: 'Sépia ancienne',
+    description: 'Manuscrit sépia, encre brune et parchemins jaunis.',
+    sombre: false,
+    apercu: { fond: '#f2e9d8', surface: '#fcf8ee', accent: '#8f4626', texte: '#2e2416' },
+    webgl: {
+      base: v('#f2e9d8'),
+      lueurA: v('#e6d3ac'),
+      lueurB: v('#ddcba8'),
+      brumeA: v('#ecd8b4'),
+      brumeB: v('#dbc9a0'),
+      braiseA: v('#b08a4a'),
+      braiseB: v('#8f4626'),
+      energie: 0.5,
+      braise: 0,
+      vignette: 0.3,
+      grain: 0.012,
+    },
+  },
 };
 
 export const ORDRE_PALETTES: PaletteId[] = [
+  // Les 5 palettes d'origine (inchangées), puis les ajouts w8w9.
   'brume',
   'orage',
   'encre',
   'sangOr',
   'claire',
+  'sangLune',
+  'braiseRouge',
+  'foretNocturne',
+  'encreVerte',
+  'auroreBoreale',
+  'marineProfonde',
+  'givre',
+  'ambreCendre',
+  'cuivreHetre',
+  'crepusculeMauve',
+  'mauveGothique',
+  'roseFane',
+  'sepiaAncienne',
 ];
 
 export const PALETTE_SOMBRE_DEFAUT: PaletteId = 'brume';

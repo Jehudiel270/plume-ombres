@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:abonnement": "tsx scripts/test-abonnement-paiement.ts",
+    "test:credits": "tsx scripts/test-credits-e2e.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",

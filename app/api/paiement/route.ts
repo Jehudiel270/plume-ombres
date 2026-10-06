@@ -14,6 +14,7 @@ import { estCodePlan } from '@/lib/abonnement';
 import { fournisseurActif } from '@/lib/paiement/fournisseur';
 import {
   MagasinAbonnementSupabase,
+  MagasinCreditsSupabase,
   MagasinPaiementSupabase,
 } from '@/lib/paiement/magasin';
 import { initierPaiement } from '@/lib/paiement/service';
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
       {
         magasinPaiement: new MagasinPaiementSupabase(supabase),
         magasinAbonnement: new MagasinAbonnementSupabase(supabase),
+        magasinCredits: new MagasinCreditsSupabase(supabase),
         fournisseur,
         baseUrl: base,
       },

@@ -3,13 +3,15 @@
 // Composant serveur : événements d'abonnement + paiements.
 // ============================================================
 
-import { libelleStatut, planParCode } from '@/lib/abonnement';
+import { libelleStatut, planParCode, libelleCaracteres } from '@/lib/abonnement';
 import type { EvenementAbonnement } from '@/lib/abonnement';
-import type { Paiement } from '@/lib/paiement/types';
+import type { MouvementCredit, Paiement } from '@/lib/paiement/types';
 
 interface Props {
   evenements: EvenementAbonnement[];
   paiements: Paiement[];
+  /** Journal des crédits prépayés (facultatif : additif). */
+  mouvements?: MouvementCredit[];
 }
 
 function date(iso: string): string {
@@ -26,7 +28,11 @@ function montant(p: Paiement): string {
   return `${p.montant.toLocaleString('fr-FR')} ${p.devise}`;
 }
 
-export default function AbonnementHistorique({ evenements, paiements }: Props) {
+export default function AbonnementHistorique({
+  evenements,
+  paiements,
+  mouvements = [],
+}: Props) {
   return (
     <div className="space-y-6">
       <div>
@@ -79,6 +85,35 @@ export default function AbonnementHistorique({ evenements, paiements }: Props) {
           </ul>
         )}
       </div>
+
+      {/* Crédits prépayés (P0.9+) : journal des recharges.
+          Additif : aucun impact si le compte n'a jamais acheté de pack. */}
+      {mouvements.length > 0 && (
+        <div>
+          <p className="sur-titre text-encre-300 mb-3">Crédits</p>
+          <ul className="space-y-2 text-sm">
+            {mouvements.map((m) => (
+              <li
+                key={m.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-nuit-700/50 pb-2"
+              >
+                <span className="text-encre-100">
+                  + {libelleCaracteres(m.caracteres)}
+                  {planParCode(m.pack_code)?.nom
+                    ? ` — ${planParCode(m.pack_code)?.nom}`
+                    : ''}
+                </span>
+                <span className="text-encre-500 text-xs">
+                  {m.montant !== null
+                    ? `${m.montant.toLocaleString('fr-FR')} ${m.devise ?? 'XOF'} · `
+                    : ''}
+                  {date(m.created_at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

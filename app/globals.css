@@ -4,7 +4,7 @@
    Plume d'Ombres — identité visuelle
    · Typographies AUTO-HÉBERGÉES (next/font/local, app/fonts) :
      Bodoni Moda (titres) / Literata (corps) / Cormorant Garamond.
-   · 5 PALETTES commutables via html[data-palette="…"] (plus bas).
+   · 18 PALETTES commutables via html[data-palette="…"] (plus bas).
      La palette par défaut reproduit « Brume & braises ».
    · Échelle typographique nommée (--text-*) + styles de titre.
    Les ratios de contraste sont MESURÉS par
@@ -259,6 +259,349 @@ html[data-palette='claire'] {
   --color-sur-accent: #ffffff;
 }
 
+/* ---------- Palettes ajoutées (w8w9) ---------- */
+/* 13 thèmes supplémentaires, contrôlés par scripts/verifier-contraste.mjs.
+   Les 5 palettes d'origine ci-dessus sont inchangées. givre est la
+   palette à fort contraste ; roseFane et sepiaAncienne sont claires. */
+
+html[data-palette='sangLune'] {
+  color-scheme: dark;
+  --color-nuit-950: #0b070a;
+  --color-nuit-900: #120b0f;
+  --color-nuit-850: #180e14;
+  --color-nuit-800: #1e1218;
+  --color-nuit-700: #3a2130;
+  --color-encre-100: #f7ecf1;
+  --color-encre-300: #cdb8c4;
+  --color-encre-500: #ae99a6;
+  --color-grenat-300: #ffb3c2;
+  --color-grenat-400: #ff6d8f;
+  --color-grenat-500: #d13f66;
+  --color-grenat-600: #a82c4d;
+  --color-grenat-700: #6e1a30;
+  --color-violet-rom-300: #d8bdf0;
+  --color-violet-rom-400: #bb93e4;
+  --color-violet-rom-500: #9a70cc;
+  --color-violet-rom-600: #6f4d9c;
+  --color-or-ros-300: #eecdba;
+  --color-bouton-1: #6e1a30;
+  --color-bouton-2: #a82c4d;
+  --color-bouton-3: #6f4d9c;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='foretNocturne'] {
+  color-scheme: dark;
+  --color-nuit-950: #060b08;
+  --color-nuit-900: #0a120d;
+  --color-nuit-850: #0d1711;
+  --color-nuit-800: #111d16;
+  --color-nuit-700: #1f3327;
+  --color-encre-100: #e9f5ec;
+  --color-encre-300: #b7cdbd;
+  --color-encre-500: #8fa896;
+  --color-grenat-300: #a8e6b8;
+  --color-grenat-400: #6fd08f;
+  --color-grenat-500: #3fa869;
+  --color-grenat-600: #2c7f4d;
+  --color-grenat-700: #1a5130;
+  --color-violet-rom-300: #c6e6d2;
+  --color-violet-rom-400: #9cd3b0;
+  --color-violet-rom-500: #6cae86;
+  --color-violet-rom-600: #477a5c;
+  --color-or-ros-300: #d9e8c0;
+  --color-bouton-1: #1a5130;
+  --color-bouton-2: #2c7f4d;
+  --color-bouton-3: #477a5c;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='ambreCendre'] {
+  color-scheme: dark;
+  --color-nuit-950: #0d0a07;
+  --color-nuit-900: #14100a;
+  --color-nuit-850: #1a150d;
+  --color-nuit-800: #211a11;
+  --color-nuit-700: #3d3120;
+  --color-encre-100: #f7f0e4;
+  --color-encre-300: #d4c3a6;
+  --color-encre-500: #b09a7c;
+  --color-grenat-300: #f6c98a;
+  --color-grenat-400: #e8a54a;
+  --color-grenat-500: #c07d22;
+  --color-grenat-600: #96601a;
+  --color-grenat-700: #5e3c10;
+  --color-violet-rom-300: #e6cfa8;
+  --color-violet-rom-400: #c9a877;
+  --color-violet-rom-500: #a07f4e;
+  --color-violet-rom-600: #6e5634;
+  --color-or-ros-300: #f2d79b;
+  --color-bouton-1: #5e3c10;
+  --color-bouton-2: #96601a;
+  --color-bouton-3: #6e5634;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='cuivreHetre'] {
+  color-scheme: dark;
+  --color-nuit-950: #0b0705;
+  --color-nuit-900: #120c08;
+  --color-nuit-850: #18110b;
+  --color-nuit-800: #1f150d;
+  --color-nuit-700: #3a2817;
+  --color-encre-100: #f6ece0;
+  --color-encre-300: #d2bda2;
+  --color-encre-500: #ac957a;
+  --color-grenat-300: #f0b585;
+  --color-grenat-400: #d9894a;
+  --color-grenat-500: #b3662c;
+  --color-grenat-600: #8a4c1e;
+  --color-grenat-700: #5a3012;
+  --color-violet-rom-300: #e3c4a0;
+  --color-violet-rom-400: #c39d72;
+  --color-violet-rom-500: #98764f;
+  --color-violet-rom-600: #6a5236;
+  --color-or-ros-300: #f2d79b;
+  --color-bouton-1: #5a3012;
+  --color-bouton-2: #8a4c1e;
+  --color-bouton-3: #6a5236;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='encreVerte'] {
+  color-scheme: dark;
+  --color-nuit-950: #050b0a;
+  --color-nuit-900: #09120f;
+  --color-nuit-850: #0c1714;
+  --color-nuit-800: #101d1a;
+  --color-nuit-700: #1d332e;
+  --color-encre-100: #e8f4f0;
+  --color-encre-300: #b3ccc5;
+  --color-encre-500: #8aa8a0;
+  --color-grenat-300: #a5e6d2;
+  --color-grenat-400: #62cfb4;
+  --color-grenat-500: #34a88c;
+  --color-grenat-600: #257f6b;
+  --color-grenat-700: #165046;
+  --color-violet-rom-300: #b8e0d8;
+  --color-violet-rom-400: #8cc9bd;
+  --color-violet-rom-500: #63a99b;
+  --color-violet-rom-600: #437a70;
+  --color-or-ros-300: #d7e8c8;
+  --color-bouton-1: #165046;
+  --color-bouton-2: #257f6b;
+  --color-bouton-3: #437a70;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='crepusculeMauve'] {
+  color-scheme: dark;
+  --color-nuit-950: #0a070d;
+  --color-nuit-900: #100c15;
+  --color-nuit-850: #150f1c;
+  --color-nuit-800: #1b1324;
+  --color-nuit-700: #33243f;
+  --color-encre-100: #f2ebf7;
+  --color-encre-300: #c8b8d6;
+  --color-encre-500: #a393b3;
+  --color-grenat-300: #d9a6f0;
+  --color-grenat-400: #c07ce8;
+  --color-grenat-500: #9c53c9;
+  --color-grenat-600: #7a3ca0;
+  --color-grenat-700: #522668;
+  --color-violet-rom-300: #d0b4ee;
+  --color-violet-rom-400: #b18ce0;
+  --color-violet-rom-500: #8f68c4;
+  --color-violet-rom-600: #64489a;
+  --color-or-ros-300: #e6c8d8;
+  --color-bouton-1: #522668;
+  --color-bouton-2: #7a3ca0;
+  --color-bouton-3: #64489a;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='givre'] {
+  color-scheme: dark;
+  --color-nuit-950: #04070b;
+  --color-nuit-900: #070c12;
+  --color-nuit-850: #0a1118;
+  --color-nuit-800: #0d161f;
+  --color-nuit-700: #172532;
+  --color-encre-100: #ffffff;
+  --color-encre-300: #dbe8f5;
+  --color-encre-500: #b0c6dd;
+  --color-grenat-300: #bfe9ff;
+  --color-grenat-400: #7fd4ff;
+  --color-grenat-500: #37a8e0;
+  --color-grenat-600: #1f7cb0;
+  --color-grenat-700: #10506e;
+  --color-violet-rom-300: #cfe0ff;
+  --color-violet-rom-400: #9fb8ff;
+  --color-violet-rom-500: #6b8ce0;
+  --color-violet-rom-600: #4560a8;
+  --color-or-ros-300: #e8f4ff;
+  --color-bouton-1: #0d4459;
+  --color-bouton-2: #166a97;
+  --color-bouton-3: #3a5296;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='braiseRouge'] {
+  color-scheme: dark;
+  --color-nuit-950: #0c0403;
+  --color-nuit-900: #140705;
+  --color-nuit-850: #1a0a07;
+  --color-nuit-800: #210d09;
+  --color-nuit-700: #3d1c13;
+  --color-encre-100: #f8eae3;
+  --color-encre-300: #d6b6a6;
+  --color-encre-500: #b18d7c;
+  --color-grenat-300: #ffb085;
+  --color-grenat-400: #ff7a3d;
+  --color-grenat-500: #e0561f;
+  --color-grenat-600: #b03f12;
+  --color-grenat-700: #6e260a;
+  --color-violet-rom-300: #f0c0a0;
+  --color-violet-rom-400: #d69068;
+  --color-violet-rom-500: #ad6a44;
+  --color-violet-rom-600: #7d4a2c;
+  --color-or-ros-300: #f2d79b;
+  --color-bouton-1: #6e260a;
+  --color-bouton-2: #b03f12;
+  --color-bouton-3: #7d4a2c;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='marineProfonde'] {
+  color-scheme: dark;
+  --color-nuit-950: #04080f;
+  --color-nuit-900: #07101a;
+  --color-nuit-850: #091520;
+  --color-nuit-800: #0c1a28;
+  --color-nuit-700: #16304a;
+  --color-encre-100: #e8f0fa;
+  --color-encre-300: #b6c8dd;
+  --color-encre-500: #8aa2bd;
+  --color-grenat-300: #a6c8f0;
+  --color-grenat-400: #6ba6e8;
+  --color-grenat-500: #3f7dc9;
+  --color-grenat-600: #2c5c9a;
+  --color-grenat-700: #1a3a66;
+  --color-violet-rom-300: #b8c4f0;
+  --color-violet-rom-400: #8f9ce0;
+  --color-violet-rom-500: #6a78c4;
+  --color-violet-rom-600: #4a549a;
+  --color-or-ros-300: #d9e6f2;
+  --color-bouton-1: #1a3a66;
+  --color-bouton-2: #2c5c9a;
+  --color-bouton-3: #4a549a;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='mauveGothique'] {
+  color-scheme: dark;
+  --color-nuit-950: #08050d;
+  --color-nuit-900: #0e0915;
+  --color-nuit-850: #130d1c;
+  --color-nuit-800: #181124;
+  --color-nuit-700: #2e2142;
+  --color-encre-100: #f0e8f7;
+  --color-encre-300: #c4b2d8;
+  --color-encre-500: #9e8cb4;
+  --color-grenat-300: #d9a0e6;
+  --color-grenat-400: #c070d6;
+  --color-grenat-500: #9d47b8;
+  --color-grenat-600: #7a3490;
+  --color-grenat-700: #4f1f5e;
+  --color-violet-rom-300: #c8b0f0;
+  --color-violet-rom-400: #a688e6;
+  --color-violet-rom-500: #8264cc;
+  --color-violet-rom-600: #5a3fa0;
+  --color-or-ros-300: #dcc4e6;
+  --color-bouton-1: #4f1f5e;
+  --color-bouton-2: #7a3490;
+  --color-bouton-3: #5a3fa0;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='auroreBoreale'] {
+  color-scheme: dark;
+  --color-nuit-950: #040b0a;
+  --color-nuit-900: #071412;
+  --color-nuit-850: #0a1a17;
+  --color-nuit-800: #0d211d;
+  --color-nuit-700: #143a33;
+  --color-encre-100: #e6f6f2;
+  --color-encre-300: #b0d6cd;
+  --color-encre-500: #86b0a6;
+  --color-grenat-300: #8ff0d0;
+  --color-grenat-400: #3fe0b0;
+  --color-grenat-500: #21b48a;
+  --color-grenat-600: #188a6a;
+  --color-grenat-700: #0e5644;
+  --color-violet-rom-300: #c0b0f0;
+  --color-violet-rom-400: #a088e6;
+  --color-violet-rom-500: #7a64cc;
+  --color-violet-rom-600: #5640a8;
+  --color-or-ros-300: #d0e8e0;
+  --color-bouton-1: #0e5644;
+  --color-bouton-2: #127a5c;
+  --color-bouton-3: #5640a8;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='roseFane'] {
+  color-scheme: light;
+  --color-nuit-950: #f3ece8;
+  --color-nuit-900: #ece2dd;
+  --color-nuit-850: #fbf6f3;
+  --color-nuit-800: #fdf9f6;
+  --color-nuit-700: #ddccc6;
+  --color-encre-100: #33232a;
+  --color-encre-300: #5c4750;
+  --color-encre-500: #746069;
+  --color-grenat-300: #a12f4e;
+  --color-grenat-400: #b23a5c;
+  --color-grenat-500: #c94f70;
+  --color-grenat-600: #96294a;
+  --color-grenat-700: #6e1c36;
+  --color-violet-rom-300: #7a4a86;
+  --color-violet-rom-400: #653c72;
+  --color-violet-rom-500: #4f2d5c;
+  --color-violet-rom-600: #3a1f45;
+  --color-or-ros-300: #94682e;
+  --color-bouton-1: #6e1c36;
+  --color-bouton-2: #96294a;
+  --color-bouton-3: #3a1f45;
+  --color-sur-accent: #ffffff;
+}
+
+html[data-palette='sepiaAncienne'] {
+  color-scheme: light;
+  --color-nuit-950: #f2e9d8;
+  --color-nuit-900: #ebdfc9;
+  --color-nuit-850: #faf4e6;
+  --color-nuit-800: #fcf8ee;
+  --color-nuit-700: #d8c8a8;
+  --color-encre-100: #2e2416;
+  --color-encre-300: #52412a;
+  --color-encre-500: #77614a;
+  --color-grenat-300: #7d3a1e;
+  --color-grenat-400: #8f4626;
+  --color-grenat-500: #a85833;
+  --color-grenat-600: #6e3318;
+  --color-grenat-700: #4d2410;
+  --color-violet-rom-300: #5c4a2a;
+  --color-violet-rom-400: #4a3a20;
+  --color-violet-rom-500: #3a2d18;
+  --color-violet-rom-600: #29200f;
+  --color-or-ros-300: #7a5a20;
+  --color-bouton-1: #4d2410;
+  --color-bouton-2: #6e3318;
+  --color-bouton-3: #29200f;
+  --color-sur-accent: #ffffff;
+}
+
 /* ---------- Base ---------- */
 
 @layer base {
@@ -484,6 +827,27 @@ body {
   background: color-mix(in srgb, var(--color-nuit-800) 92%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+}
+
+/* Panneau « Apparence » : surface NETTEMENT plus opaque que .velours
+   (qui laissait voir le fond animé). Le double sélecteur
+   `.panneau-apparence.velours` gagne la bataille de spécificité face à
+   `.velours` (hors couche) et aux utilitaires Tailwind ; la règle est
+   en outre écrite APRÈS `.velours`. Aucune position ni taille modifiée. */
+.panneau-apparence,
+.panneau-apparence.velours {
+  background-color: color-mix(
+    in srgb,
+    var(--color-nuit-800) 98%,
+    var(--color-nuit-950)
+  );
+  border: 1px solid
+    color-mix(in srgb, var(--color-grenat-600) 45%, var(--color-nuit-700));
+  box-shadow:
+    var(--liseret-haut),
+    var(--ombre-carte);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 /* Zone de dépôt */

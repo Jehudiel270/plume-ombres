@@ -4,7 +4,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import AbonnementStatut from '@/components/AbonnementStatut';
-import { statutEffectif } from '@/lib/abonnement';
+import { estPackCredits, planParCode, statutEffectif } from '@/lib/abonnement';
 import { MagasinAbonnementSupabase, MagasinPaiementSupabase } from '@/lib/paiement/magasin';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 
@@ -27,6 +27,7 @@ export default async function PageEchec({
   let plan = 'gratuit';
   let periodeFin: string | null = null;
   let montantTexte: string | null = null;
+  let achatCredits = false;
 
   if (utilisateur) {
     const supabase = await creerClientServeur();
@@ -39,6 +40,7 @@ export default async function PageEchec({
     periodeFin = abonnement?.periode_fin ?? null;
     if (paiement) {
       montantTexte = `${paiement.montant.toLocaleString('fr-FR')} ${paiement.devise}`;
+      achatCredits = estPackCredits(planParCode(paiement.plan));
     }
   }
 
@@ -52,7 +54,9 @@ export default async function PageEchec({
 
       <div className="velours p-6 mt-6 text-left space-y-3">
         <p className="text-sm text-encre-300">
-          Aucun abonnement n’a été activé : votre offre reste inchangée.
+          {achatCredits
+            ? 'Aucun crédit n’a été ajouté : votre solde reste inchangé.'
+            : 'Aucun abonnement n’a été activé : votre offre reste inchangée.'}
           {montantTexte ? ` Montant concerné : ${montantTexte}.` : ''} Rien ne
           vous sera prélevé pour cette tentative.
         </p>
@@ -61,12 +65,14 @@ export default async function PageEchec({
             Référence : <span className="text-encre-300">{reference}</span>
           </p>
         )}
-        <AbonnementStatut
-          statut={statut}
-          plan={plan}
-          periodeFin={periodeFin}
-          premium={statut === 'actif'}
-        />
+        {!achatCredits && (
+          <AbonnementStatut
+            statut={statut}
+            plan={plan}
+            periodeFin={periodeFin}
+            premium={statut === 'actif'}
+          />
+        )}
       </div>
 
       <div className="flex flex-wrap justify-center gap-3 mt-6">

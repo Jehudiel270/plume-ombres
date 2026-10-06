@@ -109,22 +109,46 @@ export default async function PageFavoris() {
         </div>
 
         {visibles.length === 0 ? (
-          /* ---------------- État vide ---------------- */
-          <div className="velours p-12 text-center">
-            <p className="text-5xl mb-4 opacity-80" aria-hidden>
-              ☆
-            </p>
-            <p className="text-encre-100 font-display text-2xl">
-              Aucun livre sous l’étoile.
-            </p>
-            <p className="text-encre-500 text-sm mt-3 max-w-md mx-auto leading-relaxed italic">
-              Depuis la bibliothèque, touchez l’étoile d’une carte : le livre viendra
-              s’aligner ici, à portée de main.
-            </p>
-            <Link href="/bibliotheque" className="bouton-principal mt-6 inline-flex">
-              Ouvrir ma bibliothèque
-            </Link>
-          </div>
+          /* ---------------- États vides (C5) ----------------
+             Deux cas DISTINCTS : aucun favori du tout, ou bien des
+             favoris dont les livres ont été supprimés entre-temps
+             (la RLS ne rend plus ces livres). Le message doit dire
+             la vérité dans les deux cas au lieu d'inviter à toucher
+             une étoile déjà touchée. */
+          lignes.length > 0 ? (
+            <div className="velours p-12 text-center">
+              <p className="text-5xl mb-4 opacity-80" aria-hidden>
+                ☆
+              </p>
+              <p className="text-encre-100 font-display text-2xl">
+                Ces livres se sont évanouis.
+              </p>
+              <p className="text-encre-500 text-sm mt-3 max-w-md mx-auto leading-relaxed italic">
+                Vous les aviez marqués d’une étoile, mais ils ne figurent
+                plus dans votre bibliothèque — supprimés, ou retirés de
+                votre compte. L’étoile s’efface avec eux.
+              </p>
+              <Link href="/bibliotheque" className="bouton-principal mt-6 inline-flex">
+                Ouvrir ma bibliothèque
+              </Link>
+            </div>
+          ) : (
+            <div className="velours p-12 text-center">
+              <p className="text-5xl mb-4 opacity-80" aria-hidden>
+                ☆
+              </p>
+              <p className="text-encre-100 font-display text-2xl">
+                Aucun livre sous l’étoile.
+              </p>
+              <p className="text-encre-500 text-sm mt-3 max-w-md mx-auto leading-relaxed italic">
+                Depuis la bibliothèque, touchez l’étoile d’une carte : le livre viendra
+                s’aligner ici, à portée de main.
+              </p>
+              <Link href="/bibliotheque" className="bouton-principal mt-6 inline-flex">
+                Ouvrir ma bibliothèque
+              </Link>
+            </div>
+          )
         ) : (
           <>
             <p className="sr-only" aria-live="polite">

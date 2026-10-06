@@ -90,7 +90,9 @@ function messageQuotaDepasse(usage: UsageQuota): string {
   return (
     `Quota mensuel de traduction dépassé : ${usage.utilise}/${usage.limite} ` +
     `caractères utilisés sur la période du ${usage.periode.debut} au ` +
-    `${usage.periode.fin}. Réessayez le mois prochain ou augmentez votre quota.`
+    `${usage.periode.fin}. Le quota se recharge le mois prochain — et un ` +
+    'pack de crédits prépayés permet de continuer tout de suite, sans ' +
+    'abonnement.'
   );
 }
 

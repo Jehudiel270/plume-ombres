@@ -4,6 +4,7 @@
 // ============================================================
 
 import {
+  estPlanEssai,
   libelleStatut,
   libellePrix,
   planParCode,
@@ -34,12 +35,15 @@ export default function AbonnementStatut({
 }: Props) {
   const planObj = planParCode(plan);
   const classe = COULEURS[statut] ?? COULEURS.inactif;
+  // L'essai gratuit n'est ni « Gratuit » (il ouvre un quota élargi) ni
+  // « Premium » : il porte son propre libellé, sans rien inventer.
+  const etiquette = premium ? 'Premium' : estPlanEssai(planObj) ? 'Essai' : 'Gratuit';
   return (
     <div className="flex flex-wrap items-center gap-3">
       <span
         className={`rounded-full border text-[11px] uppercase tracking-wider px-3 py-1 ${classe}`}
       >
-        {premium ? 'Premium' : 'Gratuit'} — {libelleStatut(statut)}
+        {etiquette} — {libelleStatut(statut)}
       </span>
       {planObj && (
         <span className="text-encre-300 text-sm">

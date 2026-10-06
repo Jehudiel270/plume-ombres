@@ -22,6 +22,7 @@ import { caracteresPack, planParCode } from '../abonnement';
 import type {
   DemandeCredit,
   MagasinCredits,
+  MouvementCredit,
   Paiement,
   StatutPaiement,
 } from './types';
@@ -391,4 +392,35 @@ export class MagasinCreditsSupabase implements MagasinCredits {
     if (error) throw new Error(`crédits (Supabase) : ${error.message}`);
     return Number(data ?? 0);
   }
+}
+
+/**
+ * Journal des crédits d'un compte (lecture seule, borné).
+ * La RLS ne laisse voir que ses propres lignes ; on borne en plus le
+ * nombre de lignes remontées à l'affichage.
+ */
+export async function lireMouvementsCredits(
+  client: SupabaseClient,
+  proprietaireId: string,
+  limite = 20
+): Promise<MouvementCredit[]> {
+  const { data, error } = await client
+    .from('credits_mouvements')
+    .select('*')
+    .eq('proprietaire_id', proprietaireId)
+    .order('created_at', { ascending: false })
+    .limit(limite);
+  if (error) throw new Error(`crédits (Supabase) : ${error.message}`);
+  return (data ?? []).map((l) => {
+    const r = l as Record<string, unknown>;
+    return {
+      id: Number(r.id),
+      pack_code: (r.pack_code as string | null) ?? null,
+      caracteres: Number(r.caracteres ?? 0),
+      montant: r.montant === null || r.montant === undefined ? null : Number(r.montant),
+      devise: (r.devise as string | null) ?? null,
+      reference_paiement: (r.reference_paiement as string | null) ?? null,
+      created_at: String(r.created_at),
+    };
+  });
 }

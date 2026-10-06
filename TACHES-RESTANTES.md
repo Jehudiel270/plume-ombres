@@ -123,7 +123,7 @@
 - [x] **P0.6** Suppression de compte et de toutes les données.
 - [x] **P0.7** Bug de reprise `en_cours` corrigé (tâche C10).
 - [x] **P0.8** Landing page publique (tâche C4).
-- [ ] **P0.9** Paiement + abonnement + pages de confirmation succès/échec. **MODÈLE TRANCHÉ (vague 6) → PAY-AS-YOU-GO par crédits prépayés, PAS d'abonnement mensuel obligatoire** (voir encadré ci-dessous).
+- [x] **P0.9** Paiement + abonnement + pages de confirmation succès/échec. **MODÈLE TRANCHÉ (vague 6) → PAY-AS-YOU-GO par crédits prépayés, PAS d'abonnement mensuel obligatoire** (voir encadré ci-dessous). **LIVRÉ (vague 9)** : solde de crédits + packs achetables sur `/abonnement`, tunnel ouvert aux packs (`/paiement/credits_250|600|1800|4000`), webhook qui crédite réellement (idempotent), restitution des crédits si la traduction échoue, journal des recharges dans l'historique, `GET /api/abonnement` exposant `credits.solde` + `credits.packs`. **Preuves réelles** : `npx tsx scripts/test-credits-e2e.ts` = **24/24 contrôles** (dont 13 contre la base Supabase de production, avec un vrai jeton de session) ; `npx tsx scripts/test-abonnement-paiement.ts` = tous verts (dont partie F sur l'essai) ; `npx tsx scripts/test-rate-limit-quota.ts` = tous verts ; sonde navigateur `scripts/prove-credits-navigateur.mjs` (achat réel en simulation → solde crédité → rejeu sans double crédit).
 - [x] **P0.10** Décision stockage — **TRANCHÉE : on CONSERVE le stockage actuel**. Décision explicite de Carrel (vague 8) : aucune fonctionnalité retirée. L'allègement du chantier B (B1→B6, ne plus garder les originaux) est **abandonné** ; à réévaluer seulement si le poids ou le coût devient problématique.
 
 > ### Décision P0.9 — « pay as you go » (crédits prépayés)
@@ -135,7 +135,11 @@
 > 4. **Pas d'expiration** des crédits (ou 12 mois — à trancher au lancement).
 > 5. **Encaissement FedaPay** (Mobile Money) ; le solde est crédité **au webhook de succès**, jamais à l'initiation.
 > 6. **La traduction déjà payée n'est jamais perdue** : le quota est rendu si la traduction échoue.
-> **À implémenter** : tables `packs_credits` + `credits_traduction` + `credits_mouvements`, `reserver_quota` étendu (gratuit → crédits), page `/abonnement` (solde + packs), branchement webhook. **Hors vague 6 (non lancé).**
+> **À implémenter** : tables `packs_credits` + `credits_traduction` + `credits_mouvements`, `reserver_quota` étendu (gratuit → crédits), page `/abonnement` (solde + packs), branchement webhook. **FAIT (vague 9)** — migration `20261004000002_credits_traduction.sql` appliquée en base, page `/abonnement` avec solde + 4 packs, webhook créditant via `public.crediter_pack` (idempotent par `reference_paiement`), `reserver_quota`/`liberer_quota` étendus (plan d'abord, puis crédits ; restitution des crédits à l'échec).
+>
+> **⚠️ Divergence relevée (à trancher par Carrel)** : la table `public.plans_abonnement` EN BASE contient **13 plans** (gratuit, essai 7 j, lecteur mensuel/annuel, passionné mensuel/annuel, illimité mensuel/annuel, étudiant, groupe, école, + les deux `premium_*` marqués « historique »), alors que le catalogue du code (`lib/abonnement.ts`) n'en expose que 3 (+ les 4 packs). Les plans de la base autres que `premium_*` **ne sont pas achetables depuis l'application**. Décision attendue : aligner le code sur la base (rendre les nouveaux plans vendables) ou aligner la base sur le code.
+>
+> **Essai gratuit** : tout compte neuf reçoit un abonnement `essai` (7 jours, **4 000 000** caractères) par déclencheur d'inscription. L'application l'ignorait et affichait « Gratuit — 500 000 » ; **corrigé en vague 9** (`quotaPourPlan` est désormais le miroir exact de `public.limite_abonnement`, et l'essai porte son propre libellé).
 
 ### P1 — IMPORTANT (avant lancement commercial large)
 - [x] **P1.1** Cohérence de traduction : glossaire de personnages/lieux + contexte glissant (principal déficit de qualité).
@@ -172,7 +176,7 @@
 |---|---|---|
 | **W7** | **A9** (catalogue de langues étendu à 71) + ajouts | **FAIT** — 71 langues, preuve réelle sur 7 paires |
 | **W8** | **C5, C7, C8** (bibliothèque, pages d'état, accessibilité) + **P1.3** (chapitres en erreur visibles) + correctif PWA (mise à jour automatique) | **EN COURS** — ajouts uniquement, aucun retrait |
-| **W9** | **P0.1** (hébergement commercial), **P0.9** (pay-as-you-go : crédits, FedaPay), **P0.5** (CGU/CGV + information sur le transit du texte), **P0.10** | **Vague qui permet d'encaisser** |
+| **W9** | **P0.1** (hébergement commercial), **P0.9** (pay-as-you-go : crédits, FedaPay), **P0.5** (CGU/CGV + information sur le transit du texte), **P0.10** | **Vague qui permet d'encaisser** — P0.9 crédits **LIVRÉ** (solde + packs + tunnel + webhook idempotent + restitution, 24/24 preuves) ; P0.10 tranché ; restent P0.1 (compte Netlify à créer par Carrel) et P0.5 |
 | **W10** | **P1.4** (mot de passe oublié), **P1.6** (monitoring), **P1.7** (sauvegarde BDD), **A11** (alerte cron) | **FAIT** — statut public `ok`/`degrade`, veille 15 min, sauvegarde 13 307 lignes vérifiée |
 | **W11** | **P2** (reprise serveur, batching, catégories, stats) puis **P3** | Après lancement |
 

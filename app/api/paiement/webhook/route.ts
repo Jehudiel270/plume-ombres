@@ -19,6 +19,7 @@ import { SimulationFournisseur, simulationAutorisee } from '@/lib/paiement/simul
 import type { EntetesWebhook } from '@/lib/paiement/types';
 import {
   MagasinAbonnementSupabase,
+  MagasinCreditsSupabase,
   MagasinPaiementSupabase,
 } from '@/lib/paiement/magasin';
 import { traiterWebhook } from '@/lib/paiement/service';
@@ -100,6 +101,9 @@ export async function POST(request: NextRequest) {
       {
         magasinPaiement: new MagasinPaiementSupabase(client),
         magasinAbonnement: new MagasinAbonnementSupabase(client),
+        // Indispensable pour les PACKS DE CRÉDITS : sans lui, un paiement
+        // de pack échoue (« Tunnel incomplet ») au lieu de créditer.
+        magasinCredits: new MagasinCreditsSupabase(client),
         fournisseur,
       },
       evenement

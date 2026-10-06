@@ -1,98 +1,71 @@
 // ============================================================
-// components/AbonnementTarifs.tsx — Grille de tarifs ACTIONNABLE (P0.9).
+// components/AbonnementTarifs.tsx — Grille d'abonnement (Lot C).
 //
-// Composant serveur : affiche les plans et renvoie les plans payants
-// vers le tunnel /paiement/<code>. Le plan gratuit n'a pas de bouton
-// d'achat. Prix en francs CFA (FedaPay / Mobile Money).
+// Refonte : la grille PUBLIQUE = 4 offres (Gratuit, Lecteur mensuel,
+// Passionné mensuel, Illimité mensuel) ; chaque mensuel payant porte
+// sa variante ANNUELLE « 2 mois offerts » SUR SA CARTE ; en dessous,
+// la section « autres offres » (Étudiant / Groupe / École) affichée
+// mais NON achetable en ligne.
+//
+// Les packs de crédits restent rendus par components/AbonnementCredits.tsx
+// (hors de ce composant, non modifié).
+//
+// CE COMPOSANT NE LIT AUCUN PRIX NI QUOTA : tout lui arrive par props,
+// sous forme d'objets déjà résolus par la source de vérité
+// (public.plans_abonnement). Le nom de prop `plans` est conservé pour
+// ne pas casser l'appel existant ; le type est volontairement
+// structurel (voir components/abonnement/types.ts) pour qu'un tableau
+// de plans plus riche reste assignable.
+//
+// Charte : velours, sur-titre, bouton-principal, bouton-fantome,
+// liseret, texte-douche, text-encre-*, text-grenat-*, text-violet-rom-*.
 // ============================================================
 
-import Link from 'next/link';
-import {
-  libellePeriodicite,
-  libellePrix,
-  type CodePlan,
-  type PlanAbonnement,
-} from '@/lib/abonnement';
+import CarteOffre from './abonnement/CarteOffre';
+import AutresOffres from './abonnement/AutresOffres';
+import type { GrilleTarifsProps } from './abonnement/types';
 
-interface Props {
-  plans: readonly PlanAbonnement[];
-  /** Plan effectif du compte. */
-  planActuel: CodePlan;
-  /** Vrai si le compte est Premium actif. */
-  premium: boolean;
-  /** Vrai si le paiement est en simulation. */
-  simulation: boolean;
-}
+export type {
+  VarianteAnnuelle,
+  OffrePublique,
+  OffreAutre,
+  GrilleTarifsProps,
+} from './abonnement/types';
 
 export default function AbonnementTarifs({
   plans,
+  autresOffres = [],
   planActuel,
   premium,
   simulation,
-}: Props) {
+}: GrilleTarifsProps) {
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      {plans.map((plan) => {
-        const courant = plan.code === planActuel;
-        const payant = plan.prixXof > 0;
-        return (
-          <div
-            key={plan.code}
-            className={`velours p-6 flex flex-col relative overflow-hidden ${
-              courant ? 'border border-violet-rom-500/50' : ''
-            }`}
-          >
-            {courant && (
-              <div className="absolute top-5 right-5">
-                <span className="rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
-                  votre offre
-                </span>
+    <div>
+      {plans && plans.length > 0 ? (
+        <ul
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none p-0 m-0"
+          aria-label="Offres d’abonnement"
+        >
+          {plans.map((offre) => (
+            <li key={offre.code} className="flex">
+              <div className="w-full">
+                <CarteOffre
+                  offre={offre}
+                  planActuel={planActuel}
+                  premium={premium}
+                  simulation={simulation}
+                />
               </div>
-            )}
-            <p className="sur-titre text-violet-rom-300">{plan.nom}</p>
-            <p className="font-display text-4xl text-encre-100 mt-3">
-              {libellePrix(plan)}
-              {payant && (
-                <span className="text-base text-encre-500">
-                  {' '}
-                  {libellePeriodicite(plan)}
-                </span>
-              )}
-            </p>
-            <p className="text-encre-500 text-xs mt-1">
-              {payant
-                ? 'prix indicatif — à confirmer avant l’ouverture'
-                : 'sans engagement, sans carte bancaire'}
-            </p>
-            <ul className="mt-6 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
-              {plan.avantages.map((ligne) => (
-                <li key={ligne}>{ligne}</li>
-              ))}
-            </ul>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-encre-500 text-sm italic">
+          Les offres seront affichées dès que le catalogue sera disponible.
+        </p>
+      )}
 
-            {!payant && (
-              <span className="mt-6 text-encre-500 text-sm italic">
-                {courant ? 'Inclus par défaut' : 'Toujours inclus'}
-              </span>
-            )}
-            {payant && courant && premium && (
-              <span className="mt-6 text-violet-rom-300 text-sm">
-                Actif sur votre compte
-              </span>
-            )}
-            {payant && !(courant && premium) && (
-              <Link
-                href={`/paiement/${plan.code}`}
-                className="bouton-principal mt-6 justify-center"
-              >
-                {simulation
-                  ? `Tester ${plan.nom} (simulation)`
-                  : `Souscrire — ${plan.nom}`}
-              </Link>
-            )}
-          </div>
-        );
-      })}
+      <AutresOffres offres={autresOffres} />
     </div>
   );
 }

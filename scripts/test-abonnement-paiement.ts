@@ -19,8 +19,14 @@ import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import {
   QUOTA_PREMIUM_CARACTERES,
-  quotaPourPlan,
+  estCodePlan,
+  estPackCredits,
+  estPlanPremium,
+  packsCredits,
   planParCode,
+  plansAbonnement,
+  plansAbonnementAffiches,
+  quotaPourPlan,
   statutEffectif,
 } from '../lib/abonnement';
 import {
@@ -378,12 +384,51 @@ function partieE() {
   );
 }
 
+// ------------------------------------------------------------
+// F. Essai gratuit : cohérence code ↔ base de production
+//    (plan `essai` : 7 jours, 4 000 000 caractères, attribué
+//    automatiquement à l'inscription — jamais achetable).
+// ------------------------------------------------------------
+function partieF() {
+  console.log('\n— F. Essai gratuit et grille d’offres —');
+  const essai = planParCode('essai');
+  verifier(
+    'F1 : le plan « essai » existe dans le catalogue partagé',
+    essai !== null && essai.dureeJours === 7,
+    JSON.stringify(essai ?? {})
+  );
+  verifier(
+    'F2 : son quota (4 000 000) est bien celui appliqué par la base',
+    quotaPourPlan(essai, QUOTA_BASE) === 4_000_000,
+    String(quotaPourPlan(essai, QUOTA_BASE))
+  );
+  verifier(
+    'F3 : l’essai n’est PAS vendable (aucun tunnel possible)',
+    !estPlanPremium(essai) && estCodePlan('essai') && essai?.prixXof === 0
+  );
+  verifier(
+    'F4 : la grille « changer d’offre » ne propose pas l’essai',
+    !plansAbonnementAffiches().some((p) => p.code === 'essai') &&
+      plansAbonnementAffiches().length >= 3
+  );
+  verifier(
+    'F5 : les packs de crédits restent hors des abonnements',
+    packsCredits().length === 4 &&
+      !plansAbonnement().some((p) => estPackCredits(p))
+  );
+  verifier(
+    'F6 : un pack n’est jamais « Premium » (aucun droit récurrent)',
+    packsCredits().every((p) => !estPlanPremium(p) && estPackCredits(p))
+  );
+}
+
 async function principal() {
   await partieA();
   await partieB();
   await partieC();
   await partieD();
   partieE();
+  partieF();
 
   console.log(
     `\n${echecs === 0 ? '✓ Tous les tests passent' : `✗ ${echecs} test(s) en échec`}`

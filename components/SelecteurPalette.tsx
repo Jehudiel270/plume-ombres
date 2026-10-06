@@ -1,9 +1,13 @@
 // ============================================================
-// SelecteurPalette.tsx — Choix de la palette (groupes de radios).
+// SelecteurPalette.tsx — Choix de la palette (grille de radios).
 //
 // Accessibilité : vrais <input type="radio"> (nom commun) → flèches
 // du clavier, lecture d'écran et cibles tactiles natives ; le style
 // passe par peer-checked / peer-focus-visible.
+//
+// w8w9 : la grille passe à 3 colonnes avec aperçu compact et sa
+// propre zone de défilement — nécessaire dès lors qu'il y a ~18
+// palettes. Aucun changement de la navigation clavier.
 // ============================================================
 
 'use client';
@@ -20,18 +24,23 @@ export default function SelecteurPalette({
   nom?: string;
 }) {
   return (
-    <fieldset className="mb-3">
+    <fieldset className="mb-3 min-w-0">
       <legend className="text-micro text-encre-500 mb-1.5">Palette</legend>
-      <div role="radiogroup" className="grid grid-cols-2 gap-1.5">
+      <div
+        role="radiogroup"
+        aria-label="Palette de couleurs"
+        className="grid grid-cols-3 gap-1.5 max-h-[38vh] overflow-y-auto pr-1"
+      >
         {ORDRE_PALETTES.map((id) => {
           const p = PALETTES[id];
           const actif = valeur === id;
           return (
             <label
               key={id}
-              className={`relative flex items-center gap-2 rounded-lg border px-2 py-1.5 cursor-pointer transition-colors ${
+              title={p.nom}
+              className={`relative flex min-w-0 flex-col gap-1 rounded-lg border p-1 cursor-pointer transition-colors ${
                 actif
-                  ? 'border-grenat-600'
+                  ? 'border-grenat-600 bg-nuit-700/40'
                   : 'border-nuit-700 hover:border-grenat-600/70'
               }`}
             >
@@ -43,14 +52,14 @@ export default function SelecteurPalette({
                 onChange={() => onChoix(id)}
                 className="sr-only peer"
               />
-              {/* Aperçu : fond + surface + accent réels de la palette */}
+              {/* Aperçu compact : fond + surface + accent réels */}
               <span
                 aria-hidden="true"
-                className="relative h-7 w-7 shrink-0 rounded-md border border-black/30 overflow-hidden peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-grenat-400"
+                className="relative block h-6 w-full shrink-0 overflow-hidden rounded border border-black/30 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-grenat-400"
                 style={{ background: p.apercu.fond }}
               >
                 <span
-                  className="absolute inset-x-0 bottom-0 h-2.5"
+                  className="absolute inset-x-0 bottom-0 h-2"
                   style={{ background: p.apercu.surface }}
                 />
                 <span
@@ -59,12 +68,12 @@ export default function SelecteurPalette({
                 />
               </span>
               <span
-                className={`min-w-0 text-micro leading-tight truncate ${
+                className={`min-w-0 truncate text-center text-nano leading-tight ${
                   actif ? 'text-encre-100' : 'text-encre-300'
                 }`}
                 style={{
-                  borderLeft: `2px solid ${p.apercu.accent}`,
-                  paddingLeft: '0.35rem',
+                  borderTop: `2px solid ${p.apercu.accent}`,
+                  paddingTop: '0.15rem',
                 }}
               >
                 {p.nom}

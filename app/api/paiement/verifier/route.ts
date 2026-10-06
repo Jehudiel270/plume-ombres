@@ -13,6 +13,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { fournisseurActif } from '@/lib/paiement/fournisseur';
 import {
   MagasinAbonnementSupabase,
+  MagasinCreditsSupabase,
   MagasinPaiementSupabase,
 } from '@/lib/paiement/magasin';
 import { lireStatutAbonnement, verifierAuRetour } from '@/lib/paiement/service';
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest) {
 
   const magasinPaiement = new MagasinPaiementSupabase(supabase);
   const magasinAbonnement = new MagasinAbonnementSupabase(supabase);
+  const magasinCredits = new MagasinCreditsSupabase(supabase);
   const existing = await magasinPaiement.lire(reference);
   if (!existing) {
     return NextResponse.json({ erreur: 'Paiement introuvable.' }, { status: 404 });
@@ -50,6 +52,7 @@ export async function POST(request: NextRequest) {
       {
         magasinPaiement,
         magasinAbonnement,
+        magasinCredits,
         fournisseur: fournisseurActif(),
       },
       reference

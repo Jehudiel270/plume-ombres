@@ -66,6 +66,37 @@ async function attendreHydratation(page, selecteur) {
 }
 const norm = (s) => (s ?? '').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();
 
+/**
+ * Active l'onglet d'index `index` (0-based) de la barre ARIA et renvoie
+ * son libellé une fois `aria-selected="true"` confirmé, sinon null.
+ *
+ * Un seul panneau est monté à la fois : les étapes interactives doivent
+ * donc activer l'onglet « Comptes » AVANT de viser ses champs.
+ * Le clic est REJOUÉ tant que l'hydratation tardive de `next dev` n'a pas
+ * accroché le gestionnaire : sans cela, le premier clic sur du HTML
+ * serveur inerte ne ferait rien.
+ */
+async function activerOnglet(page, index) {
+  for (let essai = 0; essai < 10; essai += 1) {
+    const etat = await page.evaluate((i) => {
+      const onglets = [...document.querySelectorAll('[role="tab"]')];
+      if (onglets.length <= i) return { present: false, actif: false, nb: onglets.length };
+      const cible = onglets[i];
+      const actif = cible.getAttribute('aria-selected') === 'true';
+      if (!actif) cible.click();
+      return {
+        present: true,
+        actif,
+        libelle: (cible.innerText || '').replace(/\s+/g, ' ').trim(),
+        nb: onglets.length,
+      };
+    }, index);
+    if (etat.actif) return etat.libelle ?? '';
+    await pause(500);
+  }
+  return null;
+}
+
 const journal = [];
 function etape(nom, ok, details = {}) {
   journal.push({ nom, ok, details });
@@ -305,69 +336,164 @@ try {
     path: '/',
   });
 
-  // ---------- 4. Trois largeurs ----------
+  // ---------- 4. Trois largeurs × tous les onglets ----------
+  // Un seul panneau est monté à la fois : pour prouver que CHAQUE
+  // panneau est correct à CHAQUE largeur, on active chaque onglet, on
+  // capture (admin-<largeur>-<onglet>.png) et on mesure débordement,
+  // cibles ≥ 44 px (dans <main>), focus visible et titres.
+  const ONGLETS = [
+    { slug: 'vue-ensemble', motif: 'Vue d’ensemble' },
+    { slug: 'comptes', motif: 'Comptes' },
+    { slug: 'abonnements', motif: 'Abonnements' },
+    { slug: 'paiements', motif: 'Paiements' },
+    { slug: 'systeme', motif: 'Système' },
+  ];
+
   for (const largeur of [360, 768, 1440]) {
     const hauteur = largeur === 360 ? 780 : largeur === 768 ? 1000 : 900;
     await page.setViewport({ width: largeur, height: hauteur, deviceScaleFactor: 1 });
     const rep = await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle2', timeout: 180_000 });
     await pause(1200);
+    await attendreHydratation(page, '[role="tab"]');
     await page.evaluate(() => document.fonts.ready);
 
-    const capture = join(DOSSIER, `admin-${largeur}.png`);
-    await page.screenshot({ path: capture, fullPage: true });
+    const parOnglet = {};
+    const problemes = [];
+    const libelles = [];
 
-    const debordement = await page.evaluate(MESURE_DEBORDEMENT);
-    const titres = await page.evaluate(MESURE_TITRES);
-    const cibles = await page.evaluate(MESURE_TARGETS);
-    await page.keyboard.press('Tab');
-    await page.evaluate(() => document.activeElement?.blur?.());
-    const focus = await page.evaluate(MESURE_FOCUS);
+    for (let k = 0; k < ONGLETS.length; k += 1) {
+      const o = ONGLETS[k];
+      const libelle = await activerOnglet(page, k);
+      if (libelle === null) {
+        problemes.push(`${o.slug}: onglet non activé (aria-selected jamais vrai)`);
+        parOnglet[o.slug] = { actif: false, capture: null };
+        continue;
+      }
+      libelles.push(libelle);
+      await page.evaluate(() => document.fonts.ready);
+      await pause(250);
 
-    const echecsCible = cibles.filter((c) => c.exige44 && (c.largeur < 44 || c.hauteur < 44));
-    const echecsCibleMain = echecsCible.filter((c) => c.dansMain);
-    const echecsCibleChrome = echecsCible.filter((c) => !c.dansMain);
-    const echecsFocus = focus.filter((f) => !f.indicateur);
-    const nonFocusables = focus.filter((f) => !f.focusable);
+      const capture = join(DOSSIER, `admin-${largeur}-${o.slug}.png`);
+      await page.screenshot({ path: capture, fullPage: true });
 
-    const ok =
-      rep.status() === 200 &&
-      !debordement.deborde &&
-      echecsCibleMain.length === 0 &&
-      echecsFocus.length === 0 &&
-      nonFocusables.length === 0 &&
-      titres.h1 === 1 &&
-      !titres.sautDeNiveau;
+      const debordement = await page.evaluate(MESURE_DEBORDEMENT);
+      const cibles = await page.evaluate(MESURE_TARGETS);
+      const titres = await page.evaluate(MESURE_TITRES);
+      await page.keyboard.press('Tab');
+      await page.evaluate(() => document.activeElement?.blur?.());
+      const focus = await page.evaluate(MESURE_FOCUS);
 
+      const echecsCible = cibles.filter(
+        (c) => c.exige44 && (c.largeur < 44 || c.hauteur < 44)
+      );
+      const echecsCibleMain = echecsCible.filter((c) => c.dansMain);
+      const echecsCibleChrome = echecsCible.filter((c) => !c.dansMain);
+      const echecsFocus = focus.filter((f) => !f.indicateur);
+      const nonFocusables = focus.filter((f) => !f.focusable);
+      const panneau = await page.evaluate(
+        (i) => {
+          const onglets = [...document.querySelectorAll('[role="tab"]')];
+          const idCible = onglets[i]?.getAttribute('aria-controls');
+          const p = idCible ? document.getElementById(idCible) : null;
+          const autres = [...document.querySelectorAll('[role="tabpanel"]')].filter(
+            (x) => x.id !== idCible
+          );
+          return {
+            panneauId: idCible,
+            panneauPresent: !!p,
+            panneauxAutres: autres.length,
+            hauteurPanneau: p ? Math.round(p.getBoundingClientRect().height) : 0,
+          };
+        },
+        k
+      );
+
+      parOnglet[o.slug] = {
+        libelle,
+        actif: true,
+        capture,
+        panneau,
+        debordement: {
+          scrollWidth: debordement.scrollWidth,
+          clientWidth: debordement.clientWidth,
+          deborde: debordement.deborde,
+          coupables: debordement.coupables,
+        },
+        cibles: {
+          total: cibles.length,
+          echecsPerimetreAdmin: echecsCibleMain.length,
+          echecsChromeGlobal: echecsCibleChrome.length,
+          exemplesPerimetreAdmin: echecsCibleMain.slice(0, 6),
+          exemplesChromeGlobal: echecsCibleChrome.slice(0, 6),
+        },
+        focus: {
+          total: focus.length,
+          echecs: echecsFocus.length,
+          exemples: echecsFocus.slice(0, 6),
+        },
+        nonFocusables: nonFocusables.length,
+        titres: {
+          h1: titres.h1,
+          sautDeNiveau: titres.sautDeNiveau,
+          liste: titres.titres.slice(0, 10),
+        },
+      };
+
+      if (debordement.deborde)
+        problemes.push(
+          `${o.slug}: débordement ${debordement.scrollWidth}>${debordement.clientWidth}`
+        );
+      if (echecsCibleMain.length)
+        problemes.push(
+          `${o.slug}: ${echecsCibleMain.length} cible(s) < 44 px (${echecsCibleMain
+            .map((c) => c.texte)
+            .slice(0, 4)
+            .join(' | ')})`
+        );
+      if (echecsFocus.length)
+        problemes.push(
+          `${o.slug}: ${echecsFocus.length} focus invisible (${echecsFocus
+            .map((f) => f.texte)
+            .slice(0, 4)
+            .join(' | ')})`
+        );
+      if (nonFocusables.length) problemes.push(`${o.slug}: ${nonFocusables.length} non focusable`);
+      if (titres.h1 !== 1) problemes.push(`${o.slug}: h1=${titres.h1}`);
+      if (titres.sautDeNiveau) problemes.push(`${o.slug}: saut de niveau de titre`);
+      if (!panneau.panneauPresent) problemes.push(`${o.slug}: tabpanel absent du DOM`);
+      if (panneau.panneauxAutres !== 0)
+        problemes.push(`${o.slug}: ${panneau.panneauxAutres} autre(s) panneau(x) monté(s)`);
+    }
+
+    const ok = rep.status() === 200 && problemes.length === 0;
     resultats.largeurs[largeur] = {
       statutHttp: rep.status(),
-      capture,
-      debordement,
-      titres: { h1: titres.h1, sautDeNiveau: titres.sautDeNiveau, liste: titres.titres.slice(0, 12) },
-      cibles: {
-        total: cibles.length,
-        echecsPerimetreAdmin: echecsCibleMain.length,
-        echecsChromeGlobal: echecsCibleChrome.length,
-        exemplesPerimetreAdmin: echecsCibleMain.slice(0, 6),
-        exemplesChromeGlobal: echecsCibleChrome.slice(0, 6),
-      },
-      focus: { total: focus.length, echecs: echecsFocus.length, exemples: echecsFocus.slice(0, 6) },
-      nonFocusables: nonFocusables.length,
+      onglets: ONGLETS.length,
+      libelles,
+      problemes,
+      parOnglet,
     };
-    etape(`/admin à ${largeur} px : pas de débordement, cibles ≥ 44 px (main), focus visible, titres`, ok, {
-      statut: rep.status(),
-      scrollWidth: debordement.scrollWidth,
-      clientWidth: debordement.clientWidth,
-      echecsCibleMain: echecsCibleMain.length,
-      echecsCibleChromeHorsPerimetre: echecsCibleChrome.map((c) => c.texte),
-      echecsFocus: echecsFocus.length,
-      capture,
-    });
+    etape(
+      `/admin à ${largeur} px — ${ONGLETS.length} onglets : débordement, cibles ≥ 44 px (main), focus, titres`,
+      ok,
+      {
+        statut: rep.status(),
+        ongletsMesures: libelles.length,
+        problemes,
+        coupablesPremierOnglet: parOnglet[ONGLETS[0].slug]?.debordement?.coupables ?? [],
+        captures: ONGLETS.map((o) => join(DOSSIER, `admin-${largeur}-${o.slug}.png`)),
+      }
+    );
   }
 
   // ---------- 5. Recherche / filtre / tri / pagination ----------
   {
     await page.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
     await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle2', timeout: 180_000 });
+    await attendreHydratation(page, '[role="tab"]');
+    // Les champs visés vivent dans le panneau « Comptes » : on l'active
+    // d'abord (un seul panneau est monté à la fois).
+    const libelleComptes = await activerOnglet(page, 1);
     await attendreHydratation(page, 'input[type="search"]');
     await pause(500);
 
@@ -443,6 +569,7 @@ try {
       texteRecherche,
     };
     etape('recherche + réinitialisation + filtre anomalies + pagination', ok, {
+      ongletComptes: libelleComptes,
       total, apresRecherche, apresReset, apresAnomalies, page1, page2,
     });
     await page.setViewport({ width: 1440, height: 1000 });
@@ -452,6 +579,9 @@ try {
   // ---------- 6. Confirmation avant action destructrice ----------
   {
     await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle2', timeout: 120_000 });
+    await attendreHydratation(page, '[role="tab"]');
+    // Le bouton « retirer » vit dans le panneau « Comptes ».
+    const libelleComptesConf = await activerOnglet(page, 1);
     await attendreHydratation(page, '#liste-comptes');
     await pause(500);
     const ouvert = await page.evaluate(() => {
@@ -482,6 +612,7 @@ try {
 
     resultats.fonctionnalites.confirmation = { ouvert, modale, fermeeParEchap: fermee, capture };
     etape('confirmation explicite avant « retirer » (modale + Échap)', Boolean(modale) && fermee, {
+      ongletComptes: libelleComptesConf,
       ouvert,
       titre: modale?.titre,
       focusSur: modale?.focusSur,

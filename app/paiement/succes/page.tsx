@@ -7,8 +7,17 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import FormulairePaiement from '@/components/paiement/FormulairePaiement';
 import AbonnementStatut from '@/components/AbonnementStatut';
-import { statutEffectif } from '@/lib/abonnement';
-import { MagasinAbonnementSupabase, MagasinPaiementSupabase } from '@/lib/paiement/magasin';
+import {
+  estPackCredits,
+  libelleCaracteres,
+  planParCode,
+  statutEffectif,
+} from '@/lib/abonnement';
+import {
+  MagasinAbonnementSupabase,
+  MagasinCreditsSupabase,
+  MagasinPaiementSupabase,
+} from '@/lib/paiement/magasin';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -43,11 +52,26 @@ export default async function PageSucces({
   const statut = statutEffectif(abonnement);
   const enAttente = !paiement || paiement.statut === 'en_attente';
 
+  // Achat de CRÉDITS PRÉPAYÉS : on confirme le nouveau solde (le pack
+  // n'ouvre aucun droit récurrent — l'afficher comme un abonnement
+  // serait trompeur).
+  const planPaye = planParCode(paiement?.plan ?? null);
+  const achatCredits = estPackCredits(planPaye);
+  const solde = achatCredits
+    ? await new MagasinCreditsSupabase(supabase)
+        .lireSolde(utilisateur.id)
+        .catch(() => 0)
+    : 0;
+
   return (
     <main className="max-w-xl mx-auto px-4 sm:px-6 py-12 text-center animate-fondu-monte">
       <p className="sur-titre text-violet-rom-300">Paiement</p>
       <h1 className="font-display text-3xl text-encre-100 mt-3">
-        {enAttente ? 'Paiement reçu, en cours de validation' : 'Paiement confirmé'}
+        {enAttente
+          ? 'Paiement reçu, en cours de validation'
+          : achatCredits
+            ? 'Crédits ajoutés'
+            : 'Paiement confirmé'}
       </h1>
       <div className="liseret mt-4 mx-auto" />
 
@@ -60,12 +84,30 @@ export default async function PageSucces({
             {paiement.statut}
           </p>
         )}
-        <AbonnementStatut
-          statut={statut}
-          plan={abonnement?.plan ?? 'gratuit'}
-          periodeFin={abonnement?.periode_fin ?? null}
-          premium={statut === 'actif'}
-        />
+
+        {achatCredits && !enAttente && (
+          <div className="rounded-xl border border-or-ros-300/40 bg-or-ros-300/5 px-4 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-encre-500">
+              Nouveau solde de crédits
+            </p>
+            <p className="font-display text-2xl text-encre-100 mt-1" aria-live="polite">
+              {libelleCaracteres(solde)}
+            </p>
+            <p className="text-encre-500 text-xs mt-1">
+              Ils sont rattachés à votre compte et n’expirent pas.
+            </p>
+          </div>
+        )}
+
+        {!achatCredits && (
+          <AbonnementStatut
+            statut={statut}
+            plan={abonnement?.plan ?? 'gratuit'}
+            periodeFin={abonnement?.periode_fin ?? null}
+            premium={statut === 'actif'}
+          />
+        )}
+
         {enAttente && reference && (
           <div className="pt-2">
             <p className="text-xs text-encre-500 mb-2">

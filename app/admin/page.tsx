@@ -15,12 +15,18 @@
 // VAGUE W8/W9 : recherche/filtre/tri/pagination des comptes, export
 // CSV, vue abonnements & crédits, journal des paiements, journal des
 // actions admin et comptes en anomalie.
+//
+// VAGUE ONGLETS : les blocs ne sont plus empilés à la suite (page
+// interminable) mais regroupés en CINQ onglets ARIA. Un seul panneau
+// est monté à la fois ; le composant serveur reste le propriétaire des
+// données et passe à <OngletsAdmin> le JSX de chaque panneau.
 // ============================================================
 
 import type { Metadata } from 'next';
 import { creerClientServeur } from '@/lib/supabase/server';
 import { exigerPermission } from '@/lib/roles-garde';
 import BarreNavigation from '@/components/BarreNavigation';
+import OngletsAdmin, { type OngletAdmin } from '@/components/admin/OngletsAdmin';
 import TableauComptes from '@/components/admin/TableauComptes';
 import SanteMoteurs from '@/components/admin/SanteMoteurs';
 import RepartitionAbonnements from '@/components/admin/RepartitionAbonnements';
@@ -123,117 +129,113 @@ export default async function PageAdmin() {
   for (const c of resultatComptes.comptes) pseudos[c.id] = c.pseudo;
   const anomalies = comptesEnAnomalie(resultatComptes.comptes, plans);
 
-  return (
-    <>
-      <BarreNavigation email={user?.email ?? ''} pseudo={pseudo} role={role} />
-
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fondu-monte">
-        <header>
-          <p className="sur-titre text-grenat-400">Administration</p>
-          <h1 className="font-display text-3xl text-encre-100 mt-2">Tableau de bord</h1>
-          <div className="liseret mt-3" />
-          <p className="text-encre-500 text-sm mt-3 italic">
-            Comptes, usage, abonnements et paiements. Aucun contenu de livre d’autrui n’est
-            lisible ici.
-          </p>
-        </header>
-
-        {resultatStats.erreur && (
-          <p className="text-grenat-300 text-sm rounded-lg border border-grenat-500/40 bg-grenat-500/10 px-3 py-2">
-            Statistiques indisponibles : {resultatStats.erreur}
-          </p>
-        )}
-
-        {stats && (
-          <>
-            <section aria-labelledby="titre-vue-ensemble" className="space-y-4">
-              <div>
-                <h2 id="titre-vue-ensemble" className="sur-titre text-encre-300">
-                  Vue d’ensemble
-                </h2>
-                <div className="liseret mt-3" />
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                <CarteStat libelle="Comptes" valeur={formaterNombre(stats.comptes)} />
-                <CarteStat
-                  libelle="Livres importés"
-                  valeur={formaterNombre(stats.livres)}
-                  detail={`${formaterNombre(stats.chapitres)} chapitres, ${formaterNombre(
-                    stats.segments
-                  )} segments`}
-                />
-                <CarteStat
-                  libelle="Chapitres traduits"
-                  valeur={formaterNombre(stats.chapitresTraduits)}
-                  detail={`sur ${formaterNombre(stats.chapitres)} chapitres`}
-                />
-                <CarteStat
-                  libelle="Caractères traduits (période)"
-                  valeur={formaterNombre(stats.caracteresPeriode)}
-                  detail={`du ${stats.periodeDebut} au ${stats.periodeFin}`}
-                />
-                <CarteStat
-                  libelle="Caractères utilisés (total)"
-                  valeur={formaterNombre(stats.caracteresUtilisesTotal)}
-                />
-                <CarteStat
-                  libelle="Abonnements actifs"
-                  valeur={
-                    stats.abonnementsActifs === null
-                      ? '—'
-                      : formaterNombre(stats.abonnementsActifs)
-                  }
-                  detail={
-                    stats.paiementsReussis === null
-                      ? 'schéma abonnement non fusionné'
-                      : `${formaterNombre(stats.paiementsReussis)} paiements réussis`
-                  }
-                />
-              </div>
-            </section>
-
-            {stats.periodes.length > 0 && (
-              <section className="velours p-5 sm:p-6" aria-labelledby="titre-periodes">
-                <h2 id="titre-periodes" className="sur-titre text-encre-300">
-                  Caractères traduits par mois
-                </h2>
-                <div className="liseret mt-3" />
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[280px] text-sm">
-                    <caption className="sr-only">
-                      Caractères traduits par mois sur la période sélectionnée.
-                    </caption>
-                    <thead>
-                      <tr className="text-left text-encre-500 text-xs uppercase tracking-wider">
-                        <th scope="col" className="py-2 font-normal">Période</th>
-                        <th scope="col" className="py-2 font-normal text-right">Caractères</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.periodes.map((p) => (
-                        <tr key={p.periode} className="border-t border-nuit-700/50">
-                          <th scope="row" className="py-2 text-left font-normal text-encre-300">
-                            {formaterPeriode(p.periode)}
-                          </th>
-                          <td className="py-2 text-encre-100 text-right">
-                            {formaterNombre(p.caracteres)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+  // ------------------------------------------------------------
+  // Regroupement en CINQ onglets. Chaque panneau conserve son
+  // contenu d'origine à l'identique : aucun bloc n'est retiré, seul
+  // l'affichage change (un seul panneau monté à la fois).
+  // Les pastilles n'utilisent que des données déjà chargées.
+  // ------------------------------------------------------------
+  const onglets: OngletAdmin[] = [
+    {
+      id: 'apercu',
+      libelle: 'Vue d’ensemble',
+      contenu: (
+        <>
+          {stats ? (
+            <>
+              <section aria-labelledby="titre-vue-ensemble" className="space-y-4">
+                <div>
+                  <h2 id="titre-vue-ensemble" className="sur-titre text-encre-300">
+                    Vue d’ensemble
+                  </h2>
+                  <div className="liseret mt-3" />
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  <CarteStat libelle="Comptes" valeur={formaterNombre(stats.comptes)} />
+                  <CarteStat
+                    libelle="Livres importés"
+                    valeur={formaterNombre(stats.livres)}
+                    detail={`${formaterNombre(stats.chapitres)} chapitres, ${formaterNombre(
+                      stats.segments
+                    )} segments`}
+                  />
+                  <CarteStat
+                    libelle="Chapitres traduits"
+                    valeur={formaterNombre(stats.chapitresTraduits)}
+                    detail={`sur ${formaterNombre(stats.chapitres)} chapitres`}
+                  />
+                  <CarteStat
+                    libelle="Caractères traduits (période)"
+                    valeur={formaterNombre(stats.caracteresPeriode)}
+                    detail={`du ${stats.periodeDebut} au ${stats.periodeFin}`}
+                  />
+                  <CarteStat
+                    libelle="Caractères utilisés (total)"
+                    valeur={formaterNombre(stats.caracteresUtilisesTotal)}
+                  />
+                  <CarteStat
+                    libelle="Abonnements actifs"
+                    valeur={
+                      stats.abonnementsActifs === null
+                        ? '—'
+                        : formaterNombre(stats.abonnementsActifs)
+                    }
+                    detail={
+                      stats.paiementsReussis === null
+                        ? 'schéma abonnement non fusionné'
+                        : `${formaterNombre(stats.paiementsReussis)} paiements réussis`
+                    }
+                  />
                 </div>
               </section>
-            )}
-          </>
-        )}
 
-        {sante && <SanteMoteurs sante={sante} />}
-
-        <RepartitionAbonnements stats={resultatAgr.stats} erreur={resultatAgr.erreur} />
-
-        <AnomaliesComptes anomalies={anomalies} plans={plans} />
-
+              {stats.periodes.length > 0 && (
+                <section className="velours p-5 sm:p-6" aria-labelledby="titre-periodes">
+                  <h2 id="titre-periodes" className="sur-titre text-encre-300">
+                    Caractères traduits par mois
+                  </h2>
+                  <div className="liseret mt-3" />
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full min-w-[280px] text-sm">
+                      <caption className="sr-only">
+                        Caractères traduits par mois sur la période sélectionnée.
+                      </caption>
+                      <thead>
+                        <tr className="text-left text-encre-500 text-xs uppercase tracking-wider">
+                          <th scope="col" className="py-2 font-normal">Période</th>
+                          <th scope="col" className="py-2 font-normal text-right">Caractères</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.periodes.map((p) => (
+                          <tr key={p.periode} className="border-t border-nuit-700/50">
+                            <th scope="row" className="py-2 text-left font-normal text-encre-300">
+                              {formaterPeriode(p.periode)}
+                            </th>
+                            <td className="py-2 text-encre-100 text-right">
+                              {formaterNombre(p.caracteres)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+            </>
+          ) : (
+            <p className="text-encre-500 text-sm italic">
+              Statistiques indisponibles pour le moment.
+            </p>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'comptes',
+      libelle: 'Comptes',
+      pastille: { nombre: resultatComptes.comptes.length, libelle: 'comptes listés' },
+      contenu: (
         <section className="velours p-5 sm:p-6" aria-labelledby="titre-comptes">
           <h2 id="titre-comptes" className="sur-titre text-encre-300">
             Comptes et abonnements
@@ -258,16 +260,78 @@ export default async function PageAdmin() {
             />
           </div>
         </section>
-
-        <JournalActions
-          actions={actions}
-          pseudos={pseudos}
-          erreur={actionsErreur ? actionsErreur.message : null}
+      ),
+    },
+    {
+      id: 'abonnements',
+      libelle: 'Abonnements',
+      pastille:
+        anomalies.length > 0
+          ? { nombre: anomalies.length, libelle: 'anomalies', alerte: true }
+          : undefined,
+      contenu: (
+        <>
+          <RepartitionAbonnements stats={resultatAgr.stats} erreur={resultatAgr.erreur} />
+          <AnomaliesComptes anomalies={anomalies} plans={plans} />
+        </>
+      ),
+    },
+    {
+      id: 'paiements',
+      libelle: 'Paiements',
+      pastille: {
+        nombre: resultatPaiements.paiements.length,
+        libelle: 'paiements récents',
+      },
+      contenu: (
+        <JournalPaiements
+          paiements={resultatPaiements.paiements}
+          erreur={resultatPaiements.erreur}
         />
+      ),
+    },
+    {
+      id: 'systeme',
+      libelle: 'Système',
+      contenu: (
+        <>
+          {sante && <SanteMoteurs sante={sante} />}
+          <JournalActions
+            actions={actions}
+            pseudos={pseudos}
+            erreur={actionsErreur ? actionsErreur.message : null}
+          />
+          <ExportsAdmin />
+        </>
+      ),
+    },
+  ];
 
-        <JournalPaiements paiements={resultatPaiements.paiements} erreur={resultatPaiements.erreur} />
+  return (
+    <>
+      <BarreNavigation email={user?.email ?? ''} pseudo={pseudo} role={role} />
 
-        <ExportsAdmin />
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fondu-monte">
+        <header>
+          <p className="sur-titre text-grenat-400">Administration</p>
+          <h1 className="font-display text-3xl text-encre-100 mt-2">Tableau de bord</h1>
+          <div className="liseret mt-3" />
+          <p className="text-encre-500 text-sm mt-3 italic">
+            Comptes, usage, abonnements et paiements. Aucun contenu de livre d’autrui n’est
+            lisible ici.
+          </p>
+        </header>
+
+        {resultatStats.erreur && (
+          <p className="text-grenat-300 text-sm rounded-lg border border-grenat-500/40 bg-grenat-500/10 px-3 py-2">
+            Statistiques indisponibles : {resultatStats.erreur}
+          </p>
+        )}
+
+        <OngletsAdmin
+          libelleBarre="Sections du tableau de bord d’administration"
+          onglets={onglets}
+        />
       </main>
     </>
   );

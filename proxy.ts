@@ -51,6 +51,10 @@ export async function proxy(request: NextRequest) {
     // Récupération de compte : accessibles SANS session, par nature.
     '/mot-de-passe-oublie',
     '/nouveau-mot-de-passe',
+    // Repli du flux implicit : le fragment #access_token… est posé côté
+    // navigateur, donc la page doit rester publique (le matcher exclut
+    // déjà `auth/`, cette entrée rend l'intention explicite).
+    '/auth/reinitialiser',
   ];
   const surPagePublique = PAGES_PUBLIQUES.includes(chemin);
 

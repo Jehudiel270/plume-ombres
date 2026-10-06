@@ -7,19 +7,27 @@ import { redirect } from 'next/navigation';
 import BarreNavigation from '@/components/BarreNavigation';
 import AbonnementStatut from '@/components/AbonnementStatut';
 import AbonnementTarifs from '@/components/AbonnementTarifs';
+import AbonnementCredits from '@/components/AbonnementCredits';
 import AbonnementHistorique from '@/components/AbonnementHistorique';
 import {
   CODE_PLAN_GRATUIT,
   estPlanPremium,
+  libelleCaracteres,
+  packsCredits,
   planParCode,
+  plansAbonnementAffiches,
   quotaPourPlan,
   statutEffectif,
-  tousLesPlans,
   type CodePlan,
 } from '@/lib/abonnement';
 import { quotaMensuel } from '@/lib/quota';
 import { modePriveStrict } from '@/lib/providers';
-import { MagasinAbonnementSupabase, MagasinPaiementSupabase } from '@/lib/paiement/magasin';
+import {
+  MagasinAbonnementSupabase,
+  MagasinCreditsSupabase,
+  MagasinPaiementSupabase,
+  lireMouvementsCredits,
+} from '@/lib/paiement/magasin';
 import { modePaiementAffiche } from '@/lib/paiement/mode';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 
@@ -27,7 +35,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Abonnement',
-  description: 'Votre offre, votre quota de traduction et votre historique.',
+  description:
+    'Votre offre, votre quota de traduction, vos crédits et votre historique.',
 };
 
 export default async function PageAbonnement() {
@@ -37,13 +46,23 @@ export default async function PageAbonnement() {
   const supabase = await creerClientServeur();
   const magasinAbonnement = new MagasinAbonnementSupabase(supabase);
   const magasinPaiement = new MagasinPaiementSupabase(supabase);
+  const magasinCredits = new MagasinCreditsSupabase(supabase);
 
-  const [profil, abonnement, evenements, paiements] = await Promise.all([
-    supabase.from('profiles').select('pseudo').eq('id', utilisateur.id).maybeSingle(),
-    magasinAbonnement.lire(utilisateur.id),
-    magasinAbonnement.listerHistorique(utilisateur.id),
-    magasinPaiement.lister(utilisateur.id),
-  ]);
+  const [profil, abonnement, evenements, paiements, solde, mouvements] =
+    await Promise.all([
+      supabase
+        .from('profiles')
+        .select('pseudo')
+        .eq('id', utilisateur.id)
+        .maybeSingle(),
+      magasinAbonnement.lire(utilisateur.id),
+      magasinAbonnement.listerHistorique(utilisateur.id),
+      magasinPaiement.lister(utilisateur.id),
+      // Tolérant : un compte sans crédits (ou une base pas encore migrée)
+      // ne doit jamais casser la page.
+      magasinCredits.lireSolde(utilisateur.id).catch(() => 0),
+      lireMouvementsCredits(supabase, utilisateur.id).catch(() => []),
+    ]);
 
   const pseudo =
     (profil.data as { pseudo?: string } | null)?.pseudo ||
@@ -104,13 +123,24 @@ export default async function PageAbonnement() {
               premium={premium}
             />
           </div>
-          <dl className="mt-5 grid gap-3 sm:grid-cols-2 text-sm">
+          <dl className="mt-5 grid gap-3 sm:grid-cols-3 text-sm">
             <div>
               <dt className="text-encre-500">Quota mensuel de traduction</dt>
               <dd className="text-encre-100">
                 {quota.toLocaleString('fr-FR')} caractères
                 {premium && (
                   <span className="text-encre-500"> (plafond Premium élargi)</span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-encre-500">Crédits prépayés</dt>
+              <dd className="text-encre-100" aria-live="polite">
+                {libelleCaracteres(solde)}
+                {solde > 0 ? (
+                  <span className="text-encre-500"> — sans expiration</span>
+                ) : (
+                  <span className="text-encre-500"> — aucun</span>
                 )}
               </dd>
             </div>
@@ -125,14 +155,21 @@ export default async function PageAbonnement() {
           </dl>
         </section>
 
-        {/* Tarifs actionnables */}
+        {/* Crédits prépayés : solde + packs (pay-as-you-go) */}
+        <AbonnementCredits
+          solde={solde}
+          packs={packsCredits()}
+          simulation={etatPaiement.mode === 'simulation'}
+        />
+
+        {/* Tarifs actionnables (abonnements) */}
         <section className="mt-8" aria-label="Tarifs">
-          <p className="sur-titre text-violet-rom-300">Tarifs</p>
+          <p className="sur-titre text-violet-rom-300">Abonnements</p>
           <h2 className="font-display text-2xl text-encre-100 mt-2 mb-4">
             Changer d’offre
           </h2>
           <AbonnementTarifs
-            plans={tousLesPlans()}
+            plans={plansAbonnementAffiches()}
             planActuel={plan.code as CodePlan}
             premium={premium}
             simulation={etatPaiement.mode === 'simulation'}
@@ -141,7 +178,11 @@ export default async function PageAbonnement() {
 
         {/* Historique */}
         <section className="velours p-6 mt-8" aria-label="Historique">
-          <AbonnementHistorique evenements={evenements} paiements={paiements} />
+          <AbonnementHistorique
+            evenements={evenements}
+            paiements={paiements}
+            mouvements={mouvements}
+          />
         </section>
       </main>
     </>

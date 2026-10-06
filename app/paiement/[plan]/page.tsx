@@ -1,6 +1,12 @@
 // Tunnel de paiement (P0.9) — page du plan choisi, avec le
 // formulaire Mobile Money. Renvoie vers /connexion si la session est
 // absente (le paiement exige un compte).
+//
+// A5 : le REFUS d'un code inconnu, masqué, legacy, « essai »,
+// hors-ligne (étudiant/groupe/école) ou verrouillé (Illimité) est
+// appliqué CÔTÉ SERVEUR, à partir du catalogue lu dans la BASE — pas
+// seulement en cachant un bouton. Un ?plan=premium_mensuel forgé à la
+// main échoue (404).
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -8,11 +14,17 @@ import { notFound, redirect } from 'next/navigation';
 import BarreNavigation from '@/components/BarreNavigation';
 import FormulairePaiement from '@/components/paiement/FormulairePaiement';
 import {
-  estPlanPremium,
+  estPackCredits,
+  libelleCaracteres,
   libellePeriodicite,
   libellePrix,
   planParCode,
 } from '@/lib/abonnement';
+import {
+  catalogueComplet,
+  diagnostiquerAchat,
+  lireCatalogue,
+} from '@/lib/plans-catalogue';
 import { modePaiementAffiche } from '@/lib/paiement/mode';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 
@@ -20,7 +32,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Paiement',
-  description: 'Souscrire au Premium de Plume d’Ombres par Mobile Money.',
+  description:
+    'Acheter des crédits de traduction ou souscrire à un abonnement, par Mobile Money.',
 };
 
 export default async function PagePaiementPlan({
@@ -29,13 +42,32 @@ export default async function PagePaiementPlan({
   params: Promise<{ plan: string }>;
 }) {
   const { plan: code } = await params;
-  const plan = planParCode(code);
-  if (!plan || !estPlanPremium(plan)) notFound();
+
+  // Catalogue LU DANS LA BASE (source de vérité) : prix, durée, quota,
+  // statut de vente. Hydrate aussi le catalogue partagé.
+  const supabase = await creerClientServeur();
+  const catalogue = await lireCatalogue(supabase);
+  const diag = diagnostiquerAchat(code, catalogue);
+
+  if (!diag.achetable) {
+    const planConnu = catalogue.plans.some((p) => p.code === code);
+    // En anonyme, la RLS peut empêcher la lecture des packs : on ne peut
+    // alors PAS conclure qu'un code « credits_… » est inconnu — on exige
+    // la session (elle lira le catalogue des packs).
+    if (!planConnu && !catalogue.packsLus) {
+      redirect(`/connexion?suivant=/paiement/${code}`);
+    }
+    // Refus franc : code inconnu, inactif, masqué, legacy, essai,
+    // hors-ligne ou Illimité verrouillé.
+    notFound();
+  }
+
+  const plan = planParCode(code, catalogueComplet(catalogue));
+  if (!plan) notFound();
 
   const utilisateur = await utilisateurConnecte();
   if (!utilisateur) redirect(`/connexion?suivant=/paiement/${code}`);
 
-  const supabase = await creerClientServeur();
   const { data: profil } = await supabase
     .from('profiles')
     .select('pseudo')
@@ -46,7 +78,14 @@ export default async function PagePaiementPlan({
     (utilisateur.email?.split('@')[0] ?? 'Lecteur');
 
   const etatPaiement = modePaiementAffiche();
-  const prixLibelle = `${libellePrix(plan)} ${libellePeriodicite(plan)}`.trim();
+  const pack = estPackCredits(plan);
+  // Un pack n'a pas de périodicité : on annonce son volume à la place.
+  const dureeLibelle = pack
+    ? libelleCaracteres(plan.caracteres ?? 0)
+    : libellePeriodicite(plan) || 'durée 30 jours';
+  const prixLibelle = pack
+    ? libellePrix(plan)
+    : `${libellePrix(plan)} ${libellePeriodicite(plan)}`.trim();
 
   return (
     <>
@@ -70,10 +109,14 @@ export default async function PagePaiementPlan({
             <span className="font-display text-3xl text-encre-100">
               {libellePrix(plan)}
             </span>
-            <span className="text-encre-500 text-sm">
-              {libellePeriodicite(plan) || 'durée 30 jours'}
-            </span>
+            <span className="text-encre-500 text-sm">{dureeLibelle}</span>
           </div>
+          {pack && (
+            <p className="text-or-ros-300 text-xs mt-2">
+              Paiement unique — aucun abonnement, aucune reconduction. Les
+              crédits s’ajoutent à votre solde et n’expirent pas.
+            </p>
+          )}
           <p className="text-encre-500 text-xs mt-2">
             {etatPaiement.mode === 'simulation'
               ? 'Prix indicatif — paiement simulé, aucun débit.'
