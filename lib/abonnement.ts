@@ -22,7 +22,14 @@
 import type { IdFournisseur } from './types';
 
 /** Code d'un plan. Le gratuit porte le code 'gratuit'. */
-export type CodePlan = 'gratuit' | 'premium_mensuel' | 'premium_annuel';
+export type CodePlan =
+  | 'gratuit'
+  | 'premium_mensuel'
+  | 'premium_annuel'
+  | 'credits_250' // packs de crédits PRÉPAYÉS (pay-as-you-go)
+  | 'credits_600'
+  | 'credits_1800'
+  | 'credits_4000';
 
 /** Cycle de vie d'un abonnement. */
 export type StatutAbonnement =
@@ -46,6 +53,11 @@ export interface PlanAbonnement {
   quotaMensuelCaracteres: number;
   /** Moteur de traduction recommandé ('auto' = selon les clés présentes). */
   moteur: IdFournisseur | 'auto';
+  /**
+   * Caractères offerts par un PACK DE CRÉDITS prépayés. Absent (ou 0)
+   * pour les plans d'abonnement : c'est le marqueur d'un pack.
+   */
+  caracteres?: number;
   avantages: string[];
   ordre: number;
 }
@@ -121,6 +133,75 @@ export const PLANS: readonly PlanAbonnement[] = [
     ],
     ordre: 2,
   },
+  // ---- Packs de CRÉDITS prépayés (pay-as-you-go, SANS abonnement) ----
+  {
+    code: 'credits_250',
+    nom: 'Pack Découverte',
+    resume: '250 000 caractères, sans abonnement ni prélèvement mensuel.',
+    prixXof: 500,
+    devise: 'XOF',
+    dureeJours: 0,
+    quotaMensuelCaracteres: 0,
+    moteur: 'auto',
+    caracteres: 250_000,
+    avantages: [
+      '250 000 caractères — environ un roman',
+      'Crédits valables sans limite de temps',
+      'Aucun abonnement, aucun prélèvement mensuel',
+    ],
+    ordre: 10,
+  },
+  {
+    code: 'credits_600',
+    nom: 'Pack Lecteur',
+    resume: '600 000 caractères : deux à trois romans, au meilleur prix.',
+    prixXof: 1000,
+    devise: 'XOF',
+    dureeJours: 0,
+    quotaMensuelCaracteres: 0,
+    moteur: 'auto',
+    caracteres: 600_000,
+    avantages: [
+      '600 000 caractères — deux à trois romans',
+      'Le meilleur rapport qualité/prix',
+      'Aucun abonnement, aucun prélèvement mensuel',
+    ],
+    ordre: 11,
+  },
+  {
+    code: 'credits_1800',
+    nom: 'Pack Bibliothèque',
+    resume: '1 800 000 caractères pour une saga complète.',
+    prixXof: 2500,
+    devise: 'XOF',
+    dureeJours: 0,
+    quotaMensuelCaracteres: 0,
+    moteur: 'auto',
+    caracteres: 1_800_000,
+    avantages: [
+      '1 800 000 caractères — une saga complète',
+      'Idéal pour les séries au long cours',
+      'Aucun abonnement, aucun prélèvement mensuel',
+    ],
+    ordre: 12,
+  },
+  {
+    code: 'credits_4000',
+    nom: 'Pack Collection',
+    resume: '4 000 000 caractères : jamais à court, sans engagement.',
+    prixXof: 5000,
+    devise: 'XOF',
+    dureeJours: 0,
+    quotaMensuelCaracteres: 0,
+    moteur: 'auto',
+    caracteres: 4_000_000,
+    avantages: [
+      '4 000 000 caractères — plusieurs sagas',
+      'Pour les gros lecteurs, sans engagement',
+      'Aucun abonnement, aucun prélèvement mensuel',
+    ],
+    ordre: 13,
+  },
 ];
 
 /** Tous les plans, triés par ordre d'affichage. */
@@ -128,9 +209,19 @@ export function tousLesPlans(): readonly PlanAbonnement[] {
   return [...PLANS].sort((a, b) => a.ordre - b.ordre);
 }
 
-/** Les plans payants (souscriptibles par Mobile Money). */
+/** Les plans payants (souscriptibles par Mobile Money), packs compris. */
 export function plansPayants(): readonly PlanAbonnement[] {
   return tousLesPlans().filter((p) => p.prixXof > 0);
+}
+
+/** Les plans d'ABONNEMENT (hors packs de crédits), triés. */
+export function plansAbonnement(): readonly PlanAbonnement[] {
+  return tousLesPlans().filter((p) => !estPackCredits(p));
+}
+
+/** Les PACKS DE CRÉDITS prépayés, triés par ordre d'affichage. */
+export function packsCredits(): readonly PlanAbonnement[] {
+  return tousLesPlans().filter((p) => estPackCredits(p));
 }
 
 /** Retrouve un plan par son code, ou null. */
@@ -144,9 +235,35 @@ export function estCodePlan(valeur: unknown): valeur is CodePlan {
   return typeof valeur === 'string' && PLANS.some((p) => p.code === valeur);
 }
 
-/** Vrai si le plan est payant (donc Premium). */
+/**
+ * Vrai si le plan est un PACK DE CRÉDITS prépayés (et non un
+ * abonnement). Marqueur : un nombre de caractères strictement positif.
+ */
+export function estPackCredits(plan: PlanAbonnement | null | undefined): boolean {
+  return (
+    !!plan &&
+    typeof plan.caracteres === 'number' &&
+    plan.caracteres > 0
+  );
+}
+
+/** Vrai si le code correspond à un pack de crédits. */
+export function estCodeCredits(valeur: unknown): boolean {
+  return estPackCredits(planParCode(typeof valeur === 'string' ? valeur : null));
+}
+
+/** Nombre de caractères offerts par un pack (0 pour un abonnement). */
+export function caracteresPack(plan: PlanAbonnement | null | undefined): number {
+  return estPackCredits(plan) ? (plan as PlanAbonnement).caracteres ?? 0 : 0;
+}
+
+/**
+ * Vrai si le plan est un ABONNEMENT payant (donc Premium). Les packs
+ * de crédits sont payants mais ne sont PAS un abonnement : ils
+ * n'ouvrent aucun droit récurrent.
+ */
 export function estPlanPremium(plan: PlanAbonnement | null | undefined): boolean {
-  return !!plan && plan.prixXof > 0;
+  return !!plan && plan.prixXof > 0 && !estPackCredits(plan);
 }
 
 /** Vrai si le code correspond à un plan Premium. */
@@ -266,7 +383,7 @@ export function quotaPourPlan(
   quotaBase: number
 ): number {
   const base = Number.isFinite(quotaBase) && quotaBase > 0 ? quotaBase : QUOTA_GRATUIT_CARACTERES;
-  if (!plan || plan.prixXof <= 0) return base;
+  if (!plan || !estPlanPremium(plan)) return base;
   return Math.max(base, plan.quotaMensuelCaracteres);
 }
 

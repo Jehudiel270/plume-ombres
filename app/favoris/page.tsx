@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 import BarreNavigation from '@/components/BarreNavigation';
 import type { Livre, StatutLivre } from '@/lib/types';
+import { libelleLangue } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,6 +75,23 @@ export default async function PageFavoris() {
   const pseudo =
     (profil as { pseudo?: string } | null)?.pseudo ||
     (utilisateur.email?.split('@')[0] ?? 'Lecteur');
+
+  // P1.3 : chapitres en erreur par livre favori (RLS). Un favori ne doit
+  // pas masquer un chapitre à reprendre — même signal que la bibliothèque,
+  // sans remonter le texte des chapitres (comptage seul).
+  const idsVisibles = visibles.map((l) => l.id);
+  const { data: chapitresEnErreur } = idsVisibles.length
+    ? await supabase
+        .from('chapitres')
+        .select('livre_id')
+        .eq('statut', 'erreur')
+        .in('livre_id', idsVisibles)
+    : { data: [] as { livre_id: string }[] };
+
+  const comptesErreur: Record<string, number> = {};
+  for (const ligne of (chapitresEnErreur ?? []) as { livre_id: string }[]) {
+    comptesErreur[ligne.livre_id] = (comptesErreur[ligne.livre_id] ?? 0) + 1;
+  }
 
   return (
     <>
@@ -142,9 +160,24 @@ export default async function PageFavoris() {
                   </div>
 
                   <p className="text-[11px] text-encre-500 break-all min-w-0">
-                    {livre.langue_source.toUpperCase()} → {livre.langue_cible.toUpperCase()}
+                    {libelleLangue(livre.langue_source)} →{' '}
+                    {libelleLangue(livre.langue_cible)}
                     {livre.nom_fichier ? ` · ${livre.nom_fichier}` : ''}
                   </p>
+
+                  {/* P1.3 : chapitres à reprendre visibles jusque dans les
+                      favoris — le livre peut être « traduit » et garder
+                      des chapitres en erreur. */}
+                  {(comptesErreur[livre.id] ?? 0) > 0 && (
+                    <p className="text-[11px] text-amber-300 flex items-center gap-1.5 min-w-0">
+                      <span aria-hidden>⚠</span>
+                      <span className="truncate">
+                        {comptesErreur[livre.id] === 1
+                          ? '1 chapitre à reprendre'
+                          : `${comptesErreur[livre.id]} chapitres à reprendre`}
+                      </span>
+                    </p>
+                  )}
 
                   <div className="flex items-center justify-between gap-2 text-[11px] text-encre-500 mt-auto pt-2 border-t border-nuit-700/60">
                     <span

@@ -18,7 +18,13 @@ import type {
   EvenementAbonnement,
   StatutAbonnement,
 } from '../abonnement';
-import type { Paiement, StatutPaiement } from './types';
+import { caracteresPack, planParCode } from '../abonnement';
+import type {
+  DemandeCredit,
+  MagasinCredits,
+  Paiement,
+  StatutPaiement,
+} from './types';
 
 export interface ChampsMajPaiement {
   url_paiement?: string | null;
@@ -166,6 +172,41 @@ export class MagasinAbonnementMemoire implements MagasinAbonnement {
       .filter((e) => e.proprietaire_id === proprietaireId)
       .sort((a, b) => b.cree_le.localeCompare(a.cree_le))
       .map((e) => ({ ...e }));
+  }
+}
+
+// ------------------------------------------------------------
+// CRÉDITS PRÉPAYÉS — implémentations
+// ------------------------------------------------------------
+
+/**
+ * Magasin de crédits en MÉMOIRE : crédit idempotent par
+ * `referencePaiement`, comme la contrainte UNIQUE de
+ * public.credits_mouvements.
+ */
+export class MagasinCreditsMemoire implements MagasinCredits {
+  private readonly soldes = new Map<string, number>();
+  private readonly references = new Set<string>();
+
+  async crediter(demande: DemandeCredit): Promise<number> {
+    const courant = this.soldes.get(demande.proprietaireId) ?? 0;
+    // Idempotence : une référence déjà vue ne crédite plus rien.
+    if (this.references.has(demande.referencePaiement)) return courant;
+    const apport = caracteresPack(planParCode(demande.pack));
+    if (apport <= 0) throw new Error(`Pack de crédits inconnu : ${demande.pack}`);
+    this.references.add(demande.referencePaiement);
+    const nouveau = courant + apport;
+    this.soldes.set(demande.proprietaireId, nouveau);
+    return nouveau;
+  }
+
+  async lireSolde(proprietaireId: string): Promise<number> {
+    return this.soldes.get(proprietaireId) ?? 0;
+  }
+
+  /** (Tests) Fixe directement un solde de départ. */
+  definirSolde(proprietaireId: string, solde: number): void {
+    this.soldes.set(proprietaireId, Math.max(Math.trunc(solde), 0));
   }
 }
 
@@ -321,5 +362,33 @@ export class MagasinAbonnementSupabase implements MagasinAbonnement {
         cree_le: String(r.cree_le),
       };
     });
+  }
+}
+
+/**
+ * Magasin de crédits SUPABASE : écriture via public.crediter_pack
+ * (SECURITY DEFINER, IDEMPOTENTE) et lecture via public.solde_credits.
+ * Aucun droit d'écriture direct sur public.credits_traduction.
+ */
+export class MagasinCreditsSupabase implements MagasinCredits {
+  constructor(private readonly client: SupabaseClient) {}
+
+  async crediter(demande: DemandeCredit): Promise<number> {
+    const { data, error } = await this.client.rpc('crediter_pack', {
+      p_proprietaire: demande.proprietaireId,
+      p_pack: demande.pack,
+      p_reference_paiement: demande.referencePaiement,
+      p_montant: demande.montant,
+    });
+    if (error) throw new Error(`crédits (Supabase) : ${error.message}`);
+    return Number(data ?? 0);
+  }
+
+  async lireSolde(proprietaireId: string): Promise<number> {
+    const { data, error } = await this.client.rpc('solde_credits', {
+      p_proprietaire: proprietaireId,
+    });
+    if (error) throw new Error(`crédits (Supabase) : ${error.message}`);
+    return Number(data ?? 0);
   }
 }

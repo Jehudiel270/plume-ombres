@@ -23,7 +23,10 @@ export default function Erreur({
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-16">
-      <div className="velours w-full max-w-lg p-8 text-center animate-fondu-monte">
+      <div
+        role="alert"
+        className="velours w-full max-w-lg p-8 text-center animate-fondu-monte"
+      >
         <p className="text-4xl mb-4 opacity-80" aria-hidden>
           🕯️
         </p>

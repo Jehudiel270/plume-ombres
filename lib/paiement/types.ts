@@ -92,3 +92,33 @@ export interface EvenementPaiement {
 export interface EntetesWebhook {
   get(nom: string): string | null;
 }
+
+// ------------------------------------------------------------
+// Crédits prépayés (pay-as-you-go)
+// ------------------------------------------------------------
+
+/**
+ * Demande de crédit d'un pack. `referencePaiement` est la clé
+ * d'IDEMPOTENCE : un même paiement ne crédite le compte qu'une fois.
+ */
+export interface DemandeCredit {
+  proprietaireId: string;
+  /** Code du pack acheté (ex. 'credits_250'). */
+  pack: string;
+  /** Référence du paiement (paiements.reference). */
+  referencePaiement: string;
+  /** Montant payé, en unité entière de la devise. */
+  montant: number;
+}
+
+/**
+ * Magasin de crédits : crédite un pack (idempotent) et lit le solde.
+ * Implémentations mémoire (tests) et Supabase (RPC crediter_pack /
+ * solde_credits).
+ */
+export interface MagasinCredits {
+  /** Crédite le pack ; renvoie le NOUVEAU solde (idempotent). */
+  crediter(demande: DemandeCredit): Promise<number>;
+  /** Solde de crédits courant (0 si aucun). */
+  lireSolde(proprietaireId: string): Promise<number>;
+}

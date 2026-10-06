@@ -3,9 +3,11 @@
 // ============================================================
 
 export type {
+  DemandeCredit,
   DemandePaiement,
   EntetesWebhook,
   EvenementPaiement,
+  MagasinCredits,
   ModePaiement,
   Paiement,
   ResultatPaiement,
@@ -37,6 +39,8 @@ export {
 export {
   MagasinAbonnementMemoire,
   MagasinAbonnementSupabase,
+  MagasinCreditsMemoire,
+  MagasinCreditsSupabase,
   MagasinPaiementMemoire,
   MagasinPaiementSupabase,
   type ChampsMajPaiement,

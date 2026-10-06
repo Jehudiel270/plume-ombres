@@ -526,6 +526,34 @@ body {
     var(--ombre-carte);
 }
 
+/* ---------- C8 : cibles tactiles ≥ 44 px (WCAG 2.5.5) ---------- */
+/* Les cartes portent des commandes (favori, suppression) : on garantit
+   leur surface réactive sans les déformer ni rogner le texte. */
+.carte-livre button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Commandes principales, champs et sélecteurs : même garantie sur tout
+   le site (un pouce sur du verre vaut mieux qu'un curseur de souris). */
+.bouton-principal,
+.bouton-fantome,
+.bouton-fidele,
+.select-sombre,
+.champ-sombre {
+  min-height: 44px;
+}
+
+/* Le focus clavier reste TOUJOURS visible, y compris sur fond dégradé :
+   un anneau net, jamais supprimé par un outline:none local. */
+.bouton-principal:focus-visible,
+.bouton-fantome:focus-visible,
+.bouton-fidele:focus-visible,
+.select-sombre:focus-visible {
+  outline: 2px solid var(--color-grenat-400);
+  outline-offset: 2px;
+}
+
 /* ---------- Fond d'ambiance (WebGL + image fixe de repli) ---------- */
 /* Canvas fixe derrière tout le contenu : la nuit vivante.
    .fond-ambiance ne s'affiche qu'une fois la 1ʳᵉ image WebGL prête

@@ -16,7 +16,7 @@
 // visibles sont mises en page.
 // ============================================================
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ETIQUETTE_STATUT_CHAPITRE,
@@ -38,7 +38,14 @@ interface Props {
 }
 
 /** Une ligne de chapitre — mémoïsée : changer de chapitre ne re-rend
- *  que les deux lignes concernées (l'ancienne et la nouvelle). */
+ *  que les deux lignes concernées (l'ancienne et la nouvelle).
+ *
+ *  P1.3 : un chapitre en erreur est SIGNALÉ ici (badge « à reprendre »),
+ *  pas seulement par un point de couleur. Le statut vient de la base et
+ *  a été calculé par `chapitreEntierementTraduit()` (lib/types.ts, via
+ *  lib/useMoteurTraduction.ts) : on n'invente aucune règle de
+ *  complétude, on se contente d'afficher ce verdict.
+ *  Cible tactile ≥ 44 px (C8) : `min-h-11`. */
 const LigneChapitre = memo(function LigneChapitre({
   chapitre,
   actif,
@@ -48,11 +55,14 @@ const LigneChapitre = memo(function LigneChapitre({
   actif: boolean;
   onChoisir: (id: string) => void;
 }) {
+  const enErreur = chapitre.statut === 'erreur';
+  const libelleStatut = ETIQUETTE_STATUT_CHAPITRE[chapitre.statut];
   return (
     <button
       type="button"
       onClick={() => onChoisir(chapitre.id)}
-      className={`[content-visibility:auto] [contain-intrinsic-size:auto_2.6rem] w-full text-left rounded-xl px-3 py-2.5 flex items-center gap-2.5 transition-colors cursor-pointer border ${
+      aria-current={actif ? 'true' : undefined}
+      className={`[content-visibility:auto] [contain-intrinsic-size:auto_2.6rem] w-full min-h-11 text-left rounded-xl px-3 py-2.5 flex items-center gap-2.5 transition-colors cursor-pointer border ${
         actif
           ? 'bg-nuit-700/60 border-grenat-700 text-encre-100'
           : 'border-transparent hover:bg-nuit-700/40 text-encre-300'
@@ -60,9 +70,20 @@ const LigneChapitre = memo(function LigneChapitre({
     >
       <span
         className={`w-2 h-2 rounded-full shrink-0 ${POINT_STATUT[chapitre.statut]}`}
-        title={ETIQUETTE_STATUT_CHAPITRE[chapitre.statut]}
+        aria-hidden
       />
-      <span className="truncate text-sm">{chapitre.titre}</span>
+      <span className="truncate text-sm flex-1">{chapitre.titre}</span>
+      {/* Statut lisible par les lecteurs d'écran (le point seul ne
+          portait l'information que par la couleur + `title`). */}
+      <span className="sr-only">— {libelleStatut}</span>
+      {enErreur && (
+        <span
+          aria-hidden
+          className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300"
+        >
+          ⚠ à reprendre
+        </span>
+      )}
     </button>
   );
 });
@@ -107,6 +128,13 @@ function Sommaire({
     [onSelection, onFermerTiroir]
   );
 
+  // P1.3 : chapitres à reprendre, pour un compte visible en tête du
+  // sommaire et un accès direct (« ouvrir le premier à reprendre »).
+  const chapitresEnErreur = useMemo(
+    () => chapitres.filter((c) => c.statut === 'erreur'),
+    [chapitres]
+  );
+
   const voileEtTiroir = (
     <>
       {/* Voile de fermeture (mobile) */}
@@ -136,6 +164,21 @@ function Sommaire({
               <span className="text-[11px] text-encre-500">
                 {chapitres.length}
               </span>
+              {/* P1.3 : compte des chapitres à reprendre + accès direct
+                  au premier (cible tactile ≥ 44 px, C8). */}
+              {chapitresEnErreur.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => choisir(chapitresEnErreur[0].id)}
+                  aria-label={`${chapitresEnErreur.length} chapitre${
+                    chapitresEnErreur.length > 1 ? 's' : ''
+                  } à reprendre — ouvrir le premier`}
+                  className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 min-h-11 text-[10px] font-semibold uppercase tracking-wider text-amber-300 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                >
+                  <span aria-hidden>⚠</span>
+                  <span aria-hidden>{chapitresEnErreur.length}</span>
+                </button>
+              )}
               {/* Fermeture du tiroir — petit écran uniquement (le `lg:hidden`
                   doit vivre sur un élément neutre : `.bouton-fantome` est du
                   CSS hors couche, son `display` gagnerait). */}
@@ -152,7 +195,10 @@ function Sommaire({
             </span>
           </div>
 
-          <nav className="space-y-1 overflow-y-auto pr-1 flex-1">
+          <nav
+            aria-label="Chapitres du livre"
+            className="space-y-1 overflow-y-auto pr-1 flex-1"
+          >
             {chapitres.map((chapitre) => (
               <LigneChapitre
                 key={chapitre.id}

@@ -18,6 +18,7 @@
 
 import {
   abonnementActif,
+  estPackCredits,
   estPlanPremium,
   periodePlan,
   planParCode,
@@ -27,12 +28,14 @@ import {
   type StatutAbonnement,
 } from '../abonnement';
 import type { FournisseurPaiement } from './fournisseur';
-import type { EvenementPaiement, Paiement } from './types';
+import type { EvenementPaiement, MagasinCredits, Paiement } from './types';
 import type { MagasinAbonnement, MagasinPaiement } from './magasin';
 
 export interface ContextePaiement {
   magasinPaiement: MagasinPaiement;
   magasinAbonnement: MagasinAbonnement;
+  /** Magasin de crédits prépayés (requis pour les packs). */
+  magasinCredits?: MagasinCredits;
   fournisseur: FournisseurPaiement;
   /** Base des URL (origine du site), sans slash final. */
   baseUrl?: string;
@@ -75,7 +78,7 @@ export async function initierPaiement(
 ): Promise<ResultatPaiementInitial> {
   const plan = planParCode(params.plan);
   if (!plan) throw new Error(`Plan inconnu : ${params.plan}`);
-  if (!estPlanPremium(plan)) {
+  if (!estPlanPremium(plan) && !estPackCredits(plan)) {
     throw new Error('Le plan gratuit ne nécessite aucun paiement.');
   }
   const telephone = params.telephone.replace(/[^\d+]/g, '');
@@ -116,7 +119,9 @@ export async function initierPaiement(
     prenom: params.prenom,
     nom: params.nom,
     email: params.email,
-    description: `Abonnement Plume d’Ombres — ${plan.nom}`,
+    description: `${
+      estPackCredits(plan) ? 'Crédits de traduction' : 'Abonnement'
+    } Plume d’Ombres — ${plan.nom}`,
     urlRetour: `${base}/paiement/succes?reference=${encodeURIComponent(reference)}`,
     urlNotification: `${base}/api/paiement/webhook`,
   });
@@ -190,7 +195,40 @@ export async function traiterEvenement(
       );
     }
     const plan = planParCode(paiement.plan);
-    if (!plan || !estPlanPremium(plan)) {
+    if (!plan) {
+      throw new Error(`Plan inconnu pour le paiement ${paiement.reference}.`);
+    }
+
+    // ---- PACK DE CRÉDITS PRÉPAYÉS (pay-as-you-go) ----
+    // On crédite le compte (idempotent) et on NE TOUCHE PAS à
+    // l'abonnement : le compte garde son plan courant.
+    if (estPackCredits(plan)) {
+      if (!ctx.magasinCredits) {
+        throw new Error(
+          'Tunnel incomplet : magasin de crédits absent pour un paiement de pack.'
+        );
+      }
+      await ctx.magasinCredits.crediter({
+        proprietaireId: paiement.proprietaire_id,
+        pack: plan.code,
+        referencePaiement: paiement.reference,
+        montant: paiement.montant,
+      });
+      const majCredit = await ctx.magasinPaiement.majStatut(
+        paiement.reference,
+        'reussi',
+        { operateur: evenement.operateur ?? undefined }
+      );
+      return {
+        paiement: majCredit ?? paiement,
+        abonnement: abonnementCourant,
+        dejaTraite: false,
+        applique: true,
+        statutAbonnement: statutEffectif(abonnementCourant, maintenant),
+      };
+    }
+
+    if (!estPlanPremium(plan)) {
       throw new Error(`Plan non premium pour le paiement ${paiement.reference}.`);
     }
     const periode = periodePlan(plan, maintenant);

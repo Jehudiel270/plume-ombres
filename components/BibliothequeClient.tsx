@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { Livre } from '@/lib/types';
 import type { StatutLivre } from '@/lib/types';
+import { libelleLangue } from '@/lib/types';
 import { assainirProgression } from '@/lib/progression';
 import type { ProgressionLecture } from '@/lib/progression';
 import { CLEF_PROGRESSION } from '@/lib/progression';
@@ -115,6 +116,12 @@ export default function BibliothequeClient({
     critereTri
   );
 
+  // C5 / P1.3 : nombre de livres portant au moins un chapitre à reprendre
+  // (résumé visible au-dessus de la grille, en plus du badge par carte).
+  const livresAReprendre = livres.filter(
+    (l) => (chapitresEnErreur[l.id] ?? 0) > 0
+  ).length;
+
   function ouvrirLivre(livre: Livre) {
     routeur.push(`/livres/${livre.id}`);
   }
@@ -152,7 +159,7 @@ export default function BibliothequeClient({
         type="button"
         onClick={action}
         aria-pressed={actif}
-        className={`rounded-full px-2.5 py-1 text-[10px] uppercase tracking-wider transition-colors cursor-pointer border focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 ${
+        className={`inline-flex items-center justify-center min-h-11 min-w-11 rounded-full px-3 text-[10px] uppercase tracking-normal transition-colors cursor-pointer border focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 ${
           actif
             ? 'bg-grenat-500/20 text-grenat-300 border-grenat-500/60'
             : 'bg-white/[0.03] text-encre-500 border-transparent hover:text-encre-300 hover:bg-white/[0.07]'
@@ -234,6 +241,19 @@ export default function BibliothequeClient({
               ? ` sur ${livres.length} (statut : ${ETIQUETTES_STATUT[filtreStatut]})`
               : ''}
           </p>
+
+          {/* P1.3 : résumé des chapitres à reprendre — visible, annoncé. */}
+          {livresAReprendre > 0 && (
+            <p
+              role="status"
+              className="mt-3 flex items-center gap-2 text-[11px] text-amber-300"
+            >
+              <span aria-hidden>⚠</span>
+              {livresAReprendre === 1
+                ? '1 livre porte des chapitres à reprendre'
+                : `${livresAReprendre} livres portent des chapitres à reprendre`}
+            </p>
+          )}
         </section>
       )}
 
@@ -353,8 +373,9 @@ export default function BibliothequeClient({
 
                   <div className="flex items-center justify-between gap-2 min-w-0">
                     <p className="text-[11px] text-encre-500 break-all min-w-0">
-                      {livre.langue_source.toUpperCase()} →{' '}
-                      {livre.langue_cible.toUpperCase()} · {livre.nom_fichier}
+                      {libelleLangue(livre.langue_source)} →{' '}
+                      {libelleLangue(livre.langue_cible)}
+                      {livre.nom_fichier ? ` · ${livre.nom_fichier}` : ''}
                     </p>
                     <span
                       aria-hidden
@@ -436,7 +457,7 @@ export default function BibliothequeClient({
                         }
                       }}
                       disabled={suppression === livre.id}
-                      className="text-encre-500 hover:text-grenat-400 transition-colors cursor-pointer disabled:opacity-40 shrink-0 px-2 py-1 rounded-md hover:bg-grenat-500/10 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-grenat-400"
+                      className="inline-flex items-center justify-center min-h-11 min-w-11 text-encre-500 hover:text-grenat-400 transition-colors cursor-pointer disabled:opacity-40 shrink-0 px-2 rounded-md hover:bg-grenat-500/10 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-grenat-400"
                       title="Supprimer le livre"
                       aria-label={`Supprimer « ${livre.titre} »`}
                     >
