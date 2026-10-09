@@ -192,3 +192,22 @@ Détail historique de l'ordre :
 5. **P0.5** : cadre légal. → **W9**
 6. **P0.1 → P0.9** : hébergement commercial, pay-as-you-go. → **W9**
 7. **B11** (spike TeraBox) en tâche de fond, sans jamais bloquer le reste.
+
+---
+
+## ÉTAT AU 2026-10-06 (session Devotron) — REPRISE ICI
+
+**Livré et déployé** (`main` = `41ad4e6`, prod `plume-ombres.vercel.app`) : tableau de bord admin en **5 onglets ARIA** (aucun bloc retiré ; barre qui revient à la ligne à 360 px au lieu de sortir du cadre), 9 comptes de test purgés (28 → 19 en base). Preuves : `tsc` 0 erreur, build de production vert (40 routes), sonde admin **11/11 rejouée CONTRE la production**, 216/216 paires de contraste ≥ AA, 23/23 tests providers, suites abonnement/paiement et crédits vertes.
+
+**Décision Carrel (2026-10-06) : VM Oracle ABANDONNÉE (trop lente).** Les tâches A1→A5 sont caduques ; le moteur auto-hébergé reste **à trancher**. Conséquences : le texte traverse un tiers (promesse « texte privé » non tenue) et le coût moteur est d'environ **405 F / 600 000 caractères (≈ 1 livre)** → l'Illimité à 9 000 F se vend à perte (il est donc correctement verrouillé).
+
+### À FAIRE — dans cet ordre
+
+1. **Moteur de traduction auto-hébergé — À TRANCHER** (ex-VM Oracle). Sans lui : pas de « texte privé », et l'essai gratuit (jusqu'à ~2 700 F de coût moteur par inscription) est un risque.
+2. **Hébergement commercial : Vercel Hobby → Netlify Free.** `netlify.toml` + `DEPLOIEMENT-NETLIFY.md` sont déjà écrits, jamais appliqués. Encaisser sur Vercel Hobby = risque de suspension.
+3. **Domaine propre** — exigé par SPF/DKIM Brevo et pour la crédibilité d'un produit payant.
+4. **SMTP Supabase (Brevo)** : identifiants au coffre dans `.env.local` (`SMTP_*`, expéditeur `carreldossou7@gmail.com`) — restent à poser dans Supabase (Auth → Emails → SMTP) + allow-list des redirections + modèle d'e-mail. Débloque P1.4 pour de vrais utilisateurs.
+5. **FedaPay (live)** : (a) corriger la réconciliation — le code envoie `metadata`, l'API FedaPay expose `merchant_reference` / `custom_metadata`, sinon le webhook répond « Paiement inconnu » et les crédits ne sont JAMAIS livrés ; (b) `FEDAPAY_WEBHOOK_SECRET` absente → tout webhook réel répond 401 ; (c) clés live + endpoint webhook + KYC marchand ; (d) test d'un vrai paiement à 500 F.
+6. **RBAC — demandé par Carrel, NON COMMENCÉ** : rôle **`super_admin`** + « nommer d'autres admins ». Portée réelle : `lib/roles.ts` (`Role`, `ROLES`, `PERMISSIONS_ACCORDEES`, `estAdmin`, `liensNavigationSupplementaires`), migration (CHECK `profiles.role`, `public.est_admin()` — sinon TOUTES les RLS/RPC cassent pour le super-admin, trigger `proteger_role_profiles`, CHECK `admin_actions.action` limité à `attribuer|revoquer`), nouvelle permission + route `/api/admin/roles` + interface réservée au super-admin, tests `scripts/test-roles-admin.ts`, `MATRICE-ROLES.md`. Données : `harcker137@gmail.com` (compte existant depuis le 29/09) → `admin` ; « l'admin actuel » → `super_admin` — **à confirmer : le compte de Carrel est-il bien `Miaou` (`dos***@gmail.com`) ? les deux autres admins sont en `@plume-ombres.local`.**
+7. **Trancher le sort des annuels** : `lecteur_annuel` (14 400 F) et `passionne_annuel` (33 600 F) sont **achetables par URL directe** mais absents de la grille publique (`offresPubliquesDe` filtre `dureeJours < 360`). Afficher, ou verrouiller.
+8. **Nettoyage** : `dev/RAPPORT-DOUBLONS.md` fait foi. Le 2026-10-06 : 15 worktrees fusionnés supprimés, brouillons archivés dans `dev/_archive-plume-2026-10-06/`. Restent les 15 décisions du rapport (worktrees à garder, collision de migration `20261002000003`, `components/importe/`, etc.).
