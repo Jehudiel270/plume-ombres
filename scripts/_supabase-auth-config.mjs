@@ -84,6 +84,8 @@ if (!patch) {
     'http://localhost:3951/**',
     'http://localhost:3000/**',
     'https://plume-ombres.vercel.app/**',
+    // Hébergement Netlify (site de production depuis le 2026-10-10).
+    'https://plume-ombres.netlify.app/**',
   ].join(',');
 
   const corps = {

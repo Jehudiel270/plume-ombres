@@ -69,6 +69,39 @@ seules strictement nécessaires (mêmes clés que celles déjà en prod Vercel).
 
 ---
 
+## 3 bis. PIÈGE VÉCU : « Unrecognized Git contributor » (repo privé + plan Free)
+
+**Symptôme** : le premier build (à la création du site) passe, puis **tout build
+déclenché par un `git push` est bloqué** :
+
+```
+Build blocked: This commit is from an unrecognized Git contributor.
+This plan allows only verified account members to push to private repos.
+```
+
+**Cause** : sur le plan Free, Netlify n'accepte de construire, pour un dépôt
+**privé**, que les commits dont l'**auteur est un membre vérifié du compte**
+Netlify. Ici les commits étaient signés `jehudieldossou@gmail.com` alors que le
+compte Netlify est enregistré avec `dossoucarrel@gmail.com` → auteur non
+reconnu, build refusé (ce n'est **pas** une erreur de code ni de configuration).
+
+**Correctif retenu** : aligner l'identité de commit sur l'adresse du compte
+Netlify, dans le dépôt :
+
+```bash
+git config user.email "dossoucarrel@gmail.com"
+git config user.name  "Jehudiel270"
+```
+
+(Les commits déjà poussés gardent leur ancien auteur : c'est le commit **en
+cours de build** qui est contrôlé.)
+
+**Autres issues possibles** : ajouter l'adresse de l'auteur comme adresse
+vérifiée du compte Netlify (Tableau de bord → *User settings → Emails*), ou
+rendre le dépôt public (la restriction ne vise que les dépôts privés).
+
+---
+
 ## 4. Limites réelles du plan Free (comptes créés après le 04/09/2025)
 
 Le plan gratuit est **à crédits**, pas à quotas séparés (bande passante,
