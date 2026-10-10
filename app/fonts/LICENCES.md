@@ -89,10 +89,13 @@ choisit la famille (chargement à la demande).
 ## 4. Conformité
 
 - Contrainte de licence : **SIL OFL 1.1, Apache 2.0 ou domaine public
-  uniquement** → les 9 familles sont sous **SIL OFL 1.1**. Le texte
-  intégral de la licence accompagne chaque paquet source (fichier
-  `LICENSE` de `@fontsource/<famille>@5.3.0`, ou copie conservée pour les
-  trois familles d'origine téléchargées depuis Google Fonts).
+  uniquement** → les 9 familles sont sous **SIL OFL 1.1**.
+- **Le TEXTE INTÉGRAL de la licence est embarqué dans le dépôt** :
+  `app/fonts/licences/<Famille>-OFL.txt` (un fichier par famille, récupéré
+  depuis le dépôt officiel `google/fonts`, contenant la notice de copyright
+  propre à la famille ET le texte complet de la SIL Open Font License 1.1).
+  L'OFL exige que ces deux éléments accompagnent la distribution des
+  polices : c'est donc une pièce du produit, pas une annexe.
 - Aucune police propriétaire n'est embarquée ni référencée.
 - Aucun appel réseau vers un CDN de polices au runtime : tous les
   fichiers sont servis depuis notre domaine.
