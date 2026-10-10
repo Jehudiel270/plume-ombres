@@ -25,7 +25,9 @@ export {
 
 export {
   FedaPayFournisseur,
+  analyserEnteteSignature,
   cleFedapay,
+  extraireReferenceInterne,
   fedapayConfigure,
   fedapayEnv,
   normaliserStatutFedapay,

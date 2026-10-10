@@ -37,6 +37,14 @@ export interface ChampsMajPaiement {
 export interface MagasinPaiement {
   creer(paiement: Paiement): Promise<Paiement>;
   lire(reference: string): Promise<Paiement | null>;
+  /**
+   * Relit un paiement par son identifiant FOURNISSEUR (id de transaction
+   * FedaPay). Sert de RATTrapage pour les transactions créées AVANT la
+   * correction (sans `merchant_reference` dans leur webhook).
+   */
+  lireParReferenceFournisseur(
+    referenceFournisseur: string
+  ): Promise<Paiement | null>;
   majStatut(
     reference: string,
     statut: StatutPaiement,
@@ -75,6 +83,16 @@ export class MagasinPaiementMemoire implements MagasinPaiement {
   async lire(reference: string): Promise<Paiement | null> {
     const p = this.paiements.get(reference);
     return p ? { ...p } : null;
+  }
+
+  async lireParReferenceFournisseur(
+    referenceFournisseur: string
+  ): Promise<Paiement | null> {
+    if (!referenceFournisseur) return null;
+    for (const p of this.paiements.values()) {
+      if (p.reference_fournisseur === referenceFournisseur) return { ...p };
+    }
+    return null;
   }
 
   async majStatut(
@@ -264,6 +282,21 @@ export class MagasinPaiementSupabase implements MagasinPaiement {
       .from('paiements')
       .select('*')
       .eq('reference', reference)
+      .maybeSingle();
+    if (error) throw new Error(`paiement (Supabase) : ${error.message}`);
+    return data ? ligneVersPaiement(data as Record<string, unknown>) : null;
+  }
+
+  async lireParReferenceFournisseur(
+    referenceFournisseur: string
+  ): Promise<Paiement | null> {
+    if (!referenceFournisseur) return null;
+    const { data, error } = await this.client
+      .from('paiements')
+      .select('*')
+      .eq('reference_fournisseur', referenceFournisseur)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
     if (error) throw new Error(`paiement (Supabase) : ${error.message}`);
     return data ? ligneVersPaiement(data as Record<string, unknown>) : null;
