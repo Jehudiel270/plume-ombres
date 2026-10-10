@@ -87,6 +87,55 @@ function egalConstant(a: string, b: string): boolean {
   return timingSafeEqual(ba, bb);
 }
 
+/**
+ * Analyse l'en-tête `X-FEDAPAY-SIGNATURE`.
+ *
+ * Format OFFICIEL (cf. bibliothèque `fedapay/lib/Webhook.ts`) :
+ *   `t=<horodatage_unix>,s=<hmac_hex>[,s=<hmac_hex>…]`
+ * Le HMAC-SHA256 porte sur la chaîne `"<horodatage>.<corps_brut>"`.
+ *
+ * On tolère aussi l'ancien format d'un HMAC hex nu (aucun `t=`/`s=`).
+ */
+export function analyserEnteteSignature(entete: string): {
+  horodatage: number | null;
+  signatures: string[];
+} {
+  const brut = (entete ?? '').trim();
+  const t = /(?:^|,)\s*t=(\d+)/.exec(brut);
+  const signatures = [...brut.matchAll(/(?:^|,)\s*s=([^,\s]+)/g)].map((m) => m[1]);
+  return {
+    horodatage: t ? Number(t[1]) : null,
+    signatures,
+  };
+}
+
+/**
+ * Extrait notre référence interne d'une entité transaction FedaPay.
+ * Ordre de recherche :
+ *   1. `merchant_reference` — le champ OFFICIEL (notre identifiant) ;
+ *   2. `custom_metadata.reference_interne` — notre copie de secours ;
+ *   3. `metadata.reference_interne` — ANCIEN format, conservé pour les
+ *      transactions historiques (au cas où FedaPay le renverrait).
+ * ⚠ On ne retombe JAMAIS sur `entite.reference` (= référence FedaPay,
+ *   PAS la nôtre) : c'est ce qui provoquait les faux « Paiement inconnu ».
+ */
+export function extraireReferenceInterne(
+  entite: Record<string, unknown>
+): string | null {
+  const mr = entite.merchant_reference;
+  if (typeof mr === 'string' && mr.trim()) return mr.trim();
+  const cm = (entite.custom_metadata ?? {}) as Record<string, unknown>;
+  if (typeof cm.reference_interne === 'string' && cm.reference_interne.trim()) {
+    return cm.reference_interne.trim();
+  }
+  const md = (entite.metadata ?? {}) as Record<string, unknown>;
+  if (typeof md.reference_interne === 'string' && md.reference_interne.trim()) {
+    return md.reference_interne.trim();
+  }
+  return null;
+}
+
+
 export class FedaPayFournisseur {
   readonly id = 'fedapay';
   readonly nom = 'FedaPay';
@@ -165,7 +214,25 @@ export class FedaPayFournisseur {
       amount: demande.montant,
       currency: { iso: demande.devise },
       callback_url: demande.urlRetour,
-      metadata: { reference_interne: demande.reference },
+      // RÉCONCILIATION (P0.9+) — champs OFFICIELS FedaPay.
+      //
+      //   * merchant_reference : NOTRE identifiant UNIQUE et STABLE de
+      //     paiement (la référence interne PLU-…). Il est CONSERVÉ par
+      //     FedaPay, RENVOYÉ tel quel dans le webhook, et interrogeable
+      //     via GET /transactions/merchant/{reference}. C'est LUI qui
+      //     permet de retrouver le paiement à la réception du webhook.
+      //   * custom_metadata : la même info en secours (non sensible).
+      //
+      // ⚠ NE PAS utiliser le champ `metadata` : c'est un champ SYSTÈME
+      //   FedaPay (il porte p.ex. `expire_schedule_jobid`) — nos valeurs
+      //   y sont ÉCRASÉES et ne reviennent JAMAIS dans le webhook, d'où
+      //   le fameux « Paiement inconnu » et les crédits jamais livrés.
+      merchant_reference: demande.reference,
+      custom_metadata: {
+        reference_interne: demande.reference,
+        plan: demande.plan,
+        fournisseur: this.id,
+      },
       customer: {
         ...(demande.prenom ? { firstname: demande.prenom } : {}),
         ...(demande.nom ? { lastname: demande.nom } : {}),
@@ -220,20 +287,73 @@ export class FedaPayFournisseur {
 
   /**
    * Vérifie la signature HMAC-SHA256 du webhook. FedaPay signe le
-   * corps BRUT avec le secret d'endpoint (FEDAPAY_WEBHOOK_SECRET) et
-   * l'expose dans l'en-tête X-FEDAPAY-SIGNATURE.
+   * corps BRUT avec le secret d'endpoint et l'expose dans l'en-tête
+   * `X-FEDAPAY-SIGNATURE`.
+   *
+   * Le secret `FEDAPAY_WEBHOOK_SECRET` est RÉCUPÉRÉ par Carrel dans le
+   * tableau de bord FedaPay : « Développeurs » → onglet « Webhooks » →
+   * ouvrir l'endpoint qui pointe vers `…/api/paiement/webhook` → bouton
+   * « Copier la clé » (valeur `wh_live_…` en production, `wh_sandbox_…`
+   * en test — CE SONT DEUX SECRETS DIFFÉRENTS). Une fois renseigné dans
+   * `.env.local` (et dans les variables de l'hébergeur), les webhooks
+   * sont signés et cette vérification passe.
+   *
+   * ÉCHEC FERMÉ : renvoie `false` si le secret OU l'en-tête manquent,
+   * ou si la signature ne correspond pas. Comparaison à TEMPS CONSTANT.
    */
-  verifierSignature(chargeBrute: string, entetes: { get(nom: string): string | null }): boolean {
+  verifierSignature(
+    chargeBrute: string,
+    entetes: { get(nom: string): string | null }
+  ): boolean {
     const secret = process.env.FEDAPAY_WEBHOOK_SECRET?.trim();
-    if (!secret) return false;
+    if (!secret) return false; // échec fermé : pas de secret → refus.
     const fourni =
       entetes.get('x-fedapay-signature') ??
       entetes.get('X-FEDAPAY-SIGNATURE') ??
       entetes.get('x-signature');
-    if (!fourni) return false;
-    const attendu = createHmac('sha256', secret).update(chargeBrute, 'utf8').digest('hex');
-    const fourniNettoye = fourni.replace(/^sha256=/i, '').trim();
-    return egalConstant(fourniNettoye, attendu);
+    if (!fourni) return false; // échec fermé : pas d'en-tête → refus.
+
+    const { horodatage, signatures } = analyserEnteteSignature(fourni);
+
+    // Format OFFICIEL : HMAC sur "<horodatage>.<corps brut>".
+    if (horodatage !== null && signatures.length > 0) {
+      const attendu = createHmac('sha256', secret)
+        .update(`${horodatage}.${chargeBrute}`, 'utf8')
+        .digest('hex');
+      return signatures.some((s) => egalConstant(s, attendu));
+    }
+
+    // Compatibilité : ancien envoi d'un HMAC hex nu sur le corps.
+    const nu = fourni.replace(/^sha256=/i, '').trim();
+    const attenduNu = createHmac('sha256', secret)
+      .update(chargeBrute, 'utf8')
+      .digest('hex');
+    return egalConstant(nu, attenduNu);
+  }
+
+  /** Vrai si le secret de signature du webhook est configuré côté serveur. */
+  webhookConfigure(): boolean {
+    return !!process.env.FEDAPAY_WEBHOOK_SECRET?.trim();
+  }
+
+  /**
+   * Relit une transaction par NOTRE référence (`merchant_reference`) via
+   * `GET /transactions/merchant/{reference}`. Sert à la réconciliation et
+   * aux tests (relecture par référence). Renvoie null si introuvable.
+   */
+  async retrouverParReferenceMarquand(
+    reference: string
+  ): Promise<Record<string, unknown> | null> {
+    try {
+      const donnees = await this.appel(
+        `/transactions/merchant/${encodeURIComponent(reference)}`,
+        { method: 'GET' }
+      );
+      const tx = FedaPayFournisseur.transaction(donnees);
+      return tx && Object.keys(tx).length > 0 ? tx : null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -252,13 +372,9 @@ export class FedaPayFournisseur {
         : typeof c.reference === 'string'
           ? c.reference
           : null;
-    const meta = (entite.metadata ?? {}) as Record<string, unknown>;
-    const referenceInterne =
-      typeof meta.reference_interne === 'string'
-        ? meta.reference_interne
-        : typeof entite.reference === 'string'
-          ? entite.reference
-          : null;
+    // Référence interne : merchant_reference d'abord (plus jamais de faux
+    // « Paiement inconnu »), puis custom_metadata, puis ancien metadata.
+    const referenceInterne = extraireReferenceInterne(entite);
     if (!idFournisseur && !referenceInterne) return null;
     // Statut INDICATIF seulement (le corps n'est jamais la source de vérité).
     const statutIndicatif = normaliserStatutFedapay(

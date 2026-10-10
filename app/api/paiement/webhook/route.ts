@@ -76,10 +76,32 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    // 1. Signature HMAC.
+    // 1. Signature HMAC — ÉCHEC FERMÉ : aucun traitement sans signature
+    //    VALIDE. Un secret MANQUANT est une mauvaise configuration (503) ;
+    //    une signature absente ou fausse est une requête illégitime (401).
+    //    Dans les deux cas, AUCUN crédit n'est livré.
+    //
+    //    FEDAPAY_WEBHOOK_SECRET se récupère dans le tableau de bord FedaPay
+    //    (« Développeurs » → « Webhooks » → ouvrir l'endpoint
+    //    `…/api/paiement/webhook` → « Copier la clé », valeur `wh_live_…`).
+    if (!process.env.FEDAPAY_WEBHOOK_SECRET?.trim()) {
+      return NextResponse.json(
+        {
+          erreur:
+            'Webhook FedaPay non configuré : FEDAPAY_WEBHOOK_SECRET est ' +
+            'absent (tableau de bord FedaPay → Webhooks → endpoint → ' +
+            '« Copier la clé »).',
+        },
+        { status: 503 }
+      );
+    }
     if (!fournisseur.verifierSignature(chargeBrute, entetes)) {
       return NextResponse.json(
-        { erreur: 'Signature de webhook invalide.' },
+        {
+          erreur:
+            'Signature de webhook invalide ou absente ' +
+            '(en-tête X-FEDAPAY-SIGNATURE).',
+        },
         { status: 401 }
       );
     }

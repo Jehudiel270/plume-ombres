@@ -158,12 +158,27 @@ export async function traiterEvenement(
   ctx: ContextePaiement,
   evenement: EvenementPaiement
 ): Promise<ResultatTraitement> {
-  const paiement = evenement.referenceInterne
+  // Réconciliation : on retrouve le paiement par NOTRE référence interne
+  // (merchant_reference renvoyé par le webhook). Repli de COMPATIBILITÉ
+  // pour les transactions créées AVANT la correction (aucune référence
+  // interne dans le corps) : recherche par identifiant fournisseur.
+  let paiement = evenement.referenceInterne
     ? await ctx.magasinPaiement.lire(evenement.referenceInterne)
     : null;
+  if (!paiement && evenement.referenceFournisseur) {
+    paiement = await ctx.magasinPaiement.lireParReferenceFournisseur(
+      evenement.referenceFournisseur
+    );
+  }
   if (!paiement) {
     throw new Error(
-      `Paiement inconnu (référence interne : ${evenement.referenceInterne ?? 'absente'}).`
+      `Paiement inconnu (référence interne : ${
+        evenement.referenceInterne ?? 'absente'
+      }${
+        evenement.referenceFournisseur
+          ? `, référence fournisseur : ${evenement.referenceFournisseur}`
+          : ''
+      }).`
     );
   }
 
