@@ -39,6 +39,7 @@ import {
 } from '@/lib/admin-stats';
 import ModaleConfirmation from './ModaleConfirmation';
 import Pagination from './Pagination';
+import { LIBELLES_ROLES, normaliserRole } from '@/lib/roles';
 
 interface Props {
   comptes: CompteAdmin[];
@@ -281,6 +282,7 @@ export default function TableauComptes({
             className="select-sombre mt-1 w-full"
           >
             <option value="tous">Tous les rôles</option>
+            <option value="super_admin">Super-administrateurs</option>
             <option value="admin">Administrateurs</option>
             <option value="utilisateur">Utilisateurs</option>
           </select>
@@ -409,12 +411,14 @@ export default function TableauComptes({
                   <Champ libelle="Rôle">
                     <span
                       className={
-                        compte.role === 'admin'
-                          ? 'inline-block rounded-full px-2 py-0.5 text-[11px] bg-grenat-500/20 text-grenat-300'
-                          : 'inline-block rounded-full px-2 py-0.5 text-[11px] bg-nuit-700/40 text-encre-300'
+                        normaliserRole(compte.role) === 'super_admin'
+                          ? 'inline-block rounded-full px-2 py-0.5 text-[11px] bg-violet-rom-500/25 text-violet-rom-200 border border-violet-rom-500/50'
+                          : normaliserRole(compte.role) === 'admin'
+                            ? 'inline-block rounded-full px-2 py-0.5 text-[11px] bg-grenat-500/20 text-grenat-300 border border-grenat-500/40'
+                            : 'inline-block rounded-full px-2 py-0.5 text-[11px] bg-nuit-700/40 text-encre-300 border border-nuit-700'
                       }
                     >
-                      {compte.role}
+                      {LIBELLES_ROLES[normaliserRole(compte.role)]}
                     </span>
                   </Champ>
 

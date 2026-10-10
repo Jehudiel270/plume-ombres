@@ -28,6 +28,8 @@ import { exigerPermission } from '@/lib/roles-garde';
 import BarreNavigation from '@/components/BarreNavigation';
 import OngletsAdmin, { type OngletAdmin } from '@/components/admin/OngletsAdmin';
 import TableauComptes from '@/components/admin/TableauComptes';
+import GestionRoles from '@/components/admin/GestionRoles';
+import OrdreChaine from '@/components/admin/OrdreChaine';
 import SanteMoteurs from '@/components/admin/SanteMoteurs';
 import RepartitionAbonnements from '@/components/admin/RepartitionAbonnements';
 import JournalPaiements from '@/components/admin/JournalPaiements';
@@ -50,6 +52,7 @@ import {
   type StatsAdmin,
 } from '@/lib/admin-stats';
 import type { ClientRpc } from '@/lib/rate-limit';
+import { estAdmin, estSuperAdmin, normaliserRole } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +122,14 @@ export default async function PageAdmin() {
     (profil as { pseudo?: string } | null)?.pseudo ||
     (user?.email?.split('@')[0] ?? 'Administrateur');
   const role = (profil as { role?: string } | null)?.role ?? 'admin';
+  const roleCourant = normaliserRole(role);
+  // Le panneau « Rôles » n'est monté QUE pour un super-administrateur :
+  // c'est un AJOUT au tableau de bord, les cinq onglets existants
+  // restent identiques (mêmes index) pour un administrateur simple.
+  const superAdmin = estSuperAdmin(roleCourant);
+  const nbAdministrateurs = resultatComptes.comptes.filter((c) =>
+    estAdmin(normaliserRole(c.role))
+  ).length;
 
   const stats: StatsAdmin | null = resultatStats.stats;
   const abonnementsDisponibles = stats !== null && stats.abonnementsActifs !== null;
@@ -290,12 +301,37 @@ export default async function PageAdmin() {
         />
       ),
     },
+    // AJOUT : panneau de gestion des rôles, monté UNIQUEMENT pour un
+    // super-administrateur. Les cinq onglets d'origine gardent leur
+    // ordre et leur index pour un administrateur simple.
+    ...(superAdmin
+      ? [
+          {
+            id: 'roles',
+            libelle: 'Rôles',
+            pastille: { nombre: nbAdministrateurs, libelle: 'comptes avec droits' },
+            contenu: (
+              <GestionRoles
+                comptes={resultatComptes.comptes}
+                emails={resultatCourriels.courriels}
+                moiId={user?.id ?? ''}
+                roleCourant={roleCourant}
+              />
+            ),
+          } satisfies OngletAdmin,
+        ]
+      : []),
     {
       id: 'systeme',
       libelle: 'Système',
       contenu: (
         <>
           {sante && <SanteMoteurs sante={sante} />}
+          {/* AJOUT : réordonnancement des moteurs de traduction depuis
+              l'admin (persisté en base, sans redéploiement). Le composant
+              existait mais n'était monté nulle part : il est désormais
+              accessible dans l'onglet Système. */}
+          <OrdreChaine />
           <JournalActions
             actions={actions}
             pseudos={pseudos}

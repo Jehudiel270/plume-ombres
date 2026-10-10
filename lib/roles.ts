@@ -12,17 +12,34 @@
 //   * listes de rôles EXPLICITES, jamais de hiérarchie implicite ;
 //   * l'admin n'accède QU'À ce qui lui est nécessaire : aucun rôle
 //     ne peut lire le contenu des livres d'autrui (permission
-//     INTERDITE, refusée pour TOUS les rôles, y compris admin).
+//     INTERDITE, refusée pour TOUS les rôles, y compris admin et
+//     super_admin) ;
+//   * TROIS rôles depuis la vague « super_admin » :
+//       - `utilisateur`     : espace personnel ;
+//       - `admin`           : tableau de bord d'exploitation
+//                             (comptes, abonnements, paiements) ;
+//       - `super_admin`     : tout ce que fait l'admin, PLUS la
+//                             nomination et la révocation des rôles.
+//     `super_admin` HÉRITE explicitement des permissions d'`admin`
+//     (liste recopiée, pas de hiérarchie implicite) et n'hérite
+//     JAMAIS d'une permission interdite.
 // ============================================================
 
 /** Rôles connus. Le rôle par défaut est `utilisateur`. */
-export type Role = 'utilisateur' | 'admin';
+export type Role = 'utilisateur' | 'admin' | 'super_admin';
 
-/** Liste exhaustive des rôles (ordre d'affichage). */
-export const ROLES: readonly Role[] = ['utilisateur', 'admin'];
+/** Liste exhaustive des rôles (ordre d'affichage : du plus bas au plus haut). */
+export const ROLES: readonly Role[] = ['utilisateur', 'admin', 'super_admin'];
 
 /** Rôle attribué à tout compte sans rôle explicite. */
 export const ROLE_PAR_DEFAUT: Role = 'utilisateur';
+
+/** Libellés lisibles des rôles (interface et journaux). */
+export const LIBELLES_ROLES: Record<Role, string> = {
+  utilisateur: 'Utilisateur',
+  admin: 'Administrateur',
+  super_admin: 'Super-administrateur',
+};
 
 /**
  * Permissions de l'application. Une permission décrit un DROIT,
@@ -38,10 +55,17 @@ export type Permission =
   | 'admin.abonnements.lire'
   | 'admin.abonnements.attribuer'
   | 'admin.abonnements.revoquer'
+  // Gestion des RÔLES (réservée au super-administrateur).
+  //  * `admin.roles.attribuer`    : nommer / rétrograder un compte
+  //    entre `utilisateur` et `admin` ;
+  //  * `admin.roles.super_admin`  : nommer / rétrograder un
+  //    `super_admin` (et toucher un compte qui l'est déjà).
+  | 'admin.roles.attribuer'
+  | 'admin.roles.super_admin'
   // Contenu des livres APPARTENANT À UN AUTRE COMPTE : interdit à
-  // tout le monde, admins compris. Explicite pour qu'un test le
-  // vérifie, et pour qu'un futur « super-admin » ne l'hérite pas
-  // silencieusement.
+  // tout le monde, admins et super-admins compris. Explicite pour
+  // qu'un test le vérifie, et pour qu'un « super_admin » ne
+  // l'hérite pas silencieusement.
   | 'contenu.tiers.lire';
 
 /** Toutes les permissions (ordre stable). */
@@ -53,14 +77,27 @@ export const PERMISSIONS: readonly Permission[] = [
   'admin.abonnements.lire',
   'admin.abonnements.attribuer',
   'admin.abonnements.revoquer',
+  'admin.roles.attribuer',
+  'admin.roles.super_admin',
   'contenu.tiers.lire',
 ];
 
 /**
- * Permissions INTERDITES à tout rôle, y compris admin. Une interdiction
- * l'emporte toujours sur une éventuelle autorisation.
+ * Permissions INTERDITES à tout rôle, y compris admin et super_admin.
+ * Une interdiction l'emporte toujours sur une éventuelle autorisation.
  */
 export const PERMISSIONS_INTERDITES: readonly Permission[] = ['contenu.tiers.lire'];
+
+/** Permissions d'exploitation : celles d'`admin`, recopiées (pas de hiérarchie implicite). */
+const PERMISSIONS_ADMIN: readonly Permission[] = [
+  'espace.mes_livres',
+  'admin.tableau_de_bord.voir',
+  'admin.stats.voir',
+  'admin.comptes.lister',
+  'admin.abonnements.lire',
+  'admin.abonnements.attribuer',
+  'admin.abonnements.revoquer',
+];
 
 /**
  * Matrice rôles × permissions : liste EXPLICITE des permissions
@@ -68,14 +105,11 @@ export const PERMISSIONS_INTERDITES: readonly Permission[] = ['contenu.tiers.lir
  */
 const PERMISSIONS_ACCORDEES: Record<Role, readonly Permission[]> = {
   utilisateur: ['espace.mes_livres'],
-  admin: [
-    'espace.mes_livres',
-    'admin.tableau_de_bord.voir',
-    'admin.stats.voir',
-    'admin.comptes.lister',
-    'admin.abonnements.lire',
-    'admin.abonnements.attribuer',
-    'admin.abonnements.revoquer',
+  admin: PERMISSIONS_ADMIN,
+  super_admin: [
+    ...PERMISSIONS_ADMIN,
+    'admin.roles.attribuer',
+    'admin.roles.super_admin',
   ],
 };
 
@@ -94,9 +128,39 @@ export function permissionsDe(role: Role): readonly Permission[] {
   return PERMISSIONS_ACCORDEES[role] ?? [];
 }
 
-/** Vrai si le rôle est administrateur. */
+/**
+ * Vrai si le rôle est administrateur — `admin` OU `super_admin`.
+ * C'est la porte d'entrée du tableau de bord : un super-admin est un
+ * admin qui a, en plus, la gestion des rôles.
+ */
 export function estAdmin(role: Role | null | undefined): boolean {
-  return role === 'admin';
+  return role === 'admin' || role === 'super_admin';
+}
+
+/** Vrai si le rôle est super-administrateur (gestion des rôles). */
+export function estSuperAdmin(role: Role | null | undefined): boolean {
+  return role === 'super_admin';
+}
+
+/** Vrai si le rôle peut nommer ou révoquer d'autres rôles. */
+export function peutGererLesRoles(role: Role | null | undefined): boolean {
+  return estSuperAdmin(role);
+}
+
+/**
+ * Permission EXIGÉE pour changer un rôle, selon le rôle ACTUEL de la
+ * cible et le rôle VISÉ. Source unique, partagée par la route serveur,
+ * l'interface et le test :
+ *   * la cible est déjà super-admin, ou le devient → la permission
+ *     forte `admin.roles.super_admin` ;
+ *   * sinon → `admin.roles.attribuer`.
+ * Un simple `admin` ne possède NI l'une NI l'autre : il ne peut donc
+ * jamais modifier un rôle, y compris le sien.
+ */
+export function permissionPourChangerRole(roleActuel: Role, roleVise: Role): Permission {
+  return roleActuel === 'super_admin' || roleVise === 'super_admin'
+    ? 'admin.roles.super_admin'
+    : 'admin.roles.attribuer';
 }
 
 /**
@@ -131,13 +195,15 @@ export interface LienNavigation {
 
 /**
  * Liens de navigation SUPPLÉMENTAIRES apportés par un rôle.
- *  * L'admin reçoit le lien vers son tableau de bord ;
+ *  * L'admin ET le super-admin reçoivent le lien vers le tableau de
+ *    bord ; le panneau « Rôles » n'apparaît qu'au super-admin, à
+ *    l'intérieur de ce tableau de bord ;
  *  * l'utilisateur n'en reçoit aucun.
  * Ces liens s'AJOUTENT aux liens existants (cumul) : l'appelant ne
  * doit jamais s'en servir pour remplacer la navigation de base.
  */
 export function liensNavigationSupplementaires(role: Role): LienNavigation[] {
-  if (role === 'admin') {
+  if (estAdmin(role)) {
     return [{ href: '/admin', libelle: 'Administration' }];
   }
   return [];
