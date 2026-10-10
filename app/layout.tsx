@@ -5,6 +5,7 @@ import { SCRIPT_THEME } from '@/lib/theme';
 import ProviderTheme from '@/components/ProviderTheme';
 import FondAmbiance from '@/components/FondAmbiance';
 import PanneauApparence from '@/components/PanneauApparence';
+import BanniereAnnonce from '@/components/BanniereAnnonce';
 import PWA from '@/components/PWA';
 
 export const metadata: Metadata = {
@@ -60,6 +61,10 @@ export default function RacineLayout({
       </head>
       <body>
         <ProviderTheme>
+          {/* Bandeau d'annonce (nouvelle adresse) — INERTE tant qu'il
+              n'est pas activé dans lib/annonce.ts. Monté ici, dans le
+              layout racine, il apparaît sur absolument toutes les pages. */}
+          <BanniereAnnonce />
           {children}
           <FondAmbiance />
           {/* Apparence du site (palette + typographie) : le bouton
