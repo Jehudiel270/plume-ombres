@@ -27,7 +27,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
-import { ChevronDown, LogOut, Menu, Palette, User } from 'lucide-react';
+import { ChevronDown, CreditCard, LogOut, Menu, Palette, User } from 'lucide-react';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import {
   liensNavigationSupplementaires,
@@ -387,6 +387,7 @@ export default function BarreNavigation({
 
   const initiale = pseudo.trim().slice(0, 1).toUpperCase() || 'L';
   const compteActif = estActif(chemin, '/compte');
+  const abonnementActif = estActif(chemin, '/abonnement');
 
   return (
     <header
@@ -493,6 +494,13 @@ export default function BarreNavigation({
                   libelle="Mon compte"
                   actif={compteActif}
                   icone={<User size={15} />}
+                  onClick={() => fermerMenuUtilisateur(false)}
+                />
+                <EntreeMenu
+                  href="/abonnement"
+                  libelle="Mon abonnement"
+                  actif={abonnementActif}
+                  icone={<CreditCard size={15} />}
                   onClick={() => fermerMenuUtilisateur(false)}
                 />
                 <EntreeMenu
@@ -607,6 +615,18 @@ export default function BarreNavigation({
             }`}
           >
             Mon compte
+          </Link>
+          <Link
+            href="/abonnement"
+            onClick={() => setMenuMobileOuvert(false)}
+            aria-current={abonnementActif ? 'page' : undefined}
+            className={`rounded-lg px-3 py-2.5 text-sm transition-colors ${
+              abonnementActif
+                ? 'text-grenat-300 bg-grenat-500/10 font-medium'
+                : 'text-encre-300 hover:text-encre-100 hover:bg-white/[0.05]'
+            }`}
+          >
+            Mon abonnement
           </Link>
           <button
             type="button"

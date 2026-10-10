@@ -118,6 +118,38 @@ export default async function PageTarifs() {
         </div>
       </SectionPublique>
 
+      {g.horsLigne.length > 0 && (
+        <SectionPublique
+          gabarit="etroit"
+          surTitre="Autres offres"
+          titre="Offres sur devis"
+          intro="Ces formules ne s’achètent pas en ligne : tarif étudiant sur justificatif de scolarité, ou devis au nom d’un groupe ou d’un établissement. Elles sont établies sur demande."
+        >
+          <ul className="grid gap-4 sm:grid-cols-3 list-none p-0 m-0">
+            {g.horsLigne.map((offre) => (
+              <li key={offre.code} className="flex">
+                <article className="velours p-5 flex flex-col w-full">
+                  <h3 className="font-display text-lg text-encre-100">{offre.nom}</h3>
+                  <p className="text-sm text-encre-300 leading-relaxed mt-2">{offre.resume}</p>
+                  <p className="font-display text-xl text-encre-100 mt-3">
+                    {offre.prixXof.toLocaleString('fr-FR')} F CFA
+                    {offre.parPersonne ? ' / personne' : ''}
+                    {offre.dureeJours >= 360 ? ' / an' : ''}
+                  </p>
+                  <p className="text-note text-amber-300 mt-2 leading-relaxed">{offre.note}</p>
+                  <Link
+                    href="/contact"
+                    className="bouton-fantome !px-4 !py-1.5 text-note mt-4 self-start"
+                  >
+                    Demander un devis
+                  </Link>
+                </article>
+              </li>
+            ))}
+          </ul>
+        </SectionPublique>
+      )}
+
       <SectionPublique
         gabarit="etroit"
         surTitre="Transparence"
