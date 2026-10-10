@@ -93,6 +93,17 @@ export default function CarteOffre({
     annuel && (moisOfferts(offre.prixXof, annuel.prixXof) ?? undefined);
   const annuelCourant = !!annuel && annuel.code === planActuel && premium;
 
+  // Durée annuelle affichée en mois (365 j ⇒ 12 mois), et équivalent mensuel.
+  const moisPeriode = !annuel
+    ? 12
+    : annuel.dureeJours && annuel.dureeJours >= 360
+      ? 12
+      : annuel.dureeJours
+        ? Math.max(1, Math.round(annuel.dureeJours / 30))
+        : 12;
+  const annuelParMois =
+    annuel && annuel.prixXof > 0 ? Math.round(annuel.prixXof / moisPeriode) : null;
+
   return (
     <article
       className={`velours p-6 flex flex-col relative overflow-hidden ${
@@ -169,10 +180,18 @@ export default function CarteOffre({
       {annuel && (
         <div className="mt-4 pt-4 border-t border-nuit-700">
           <p className="text-[11px] uppercase tracking-wider text-or-ros-300">
-            Ou à l’année
+            Ou {moisPeriode} mois
             {mois ? ` — ${mois} mois offerts` : ''}
             {remise ? ` (−${remise} %)` : ''}
           </p>
+
+          {annuelParMois && (
+            <p className="text-encre-500 text-xs mt-1 leading-relaxed">
+              Soit {annuelParMois.toLocaleString('fr-FR')} F CFA / mois payés à
+              l’année
+              {remise ? ` — ${remise} % d’économie sur le mensuel` : ''}.
+            </p>
+          )}
 
           {annuelCourant ? (
             <span className="mt-2 block text-or-ros-300 text-sm">
@@ -181,11 +200,11 @@ export default function CarteOffre({
           ) : (
             <Link
               href={`/paiement/${annuel.code}`}
-              className="bouton-fantome mt-2 w-full justify-center"
+              className="bouton-fantome mt-3 w-full justify-center"
               aria-label={
                 simulation
-                  ? `Tester la formule annuelle ${offre.nom} en simulation`
-                  : `Souscrire à la formule annuelle ${offre.nom}, ${formaterPrix(annuel.prixXof)} par an`
+                  ? `Tester la formule annuelle ${offre.nom} (${moisPeriode} mois) en simulation`
+                  : `Souscrire à la formule annuelle ${offre.nom}, ${formaterPrix(annuel.prixXof)} pour ${moisPeriode} mois`
               }
             >
               {formaterPrix(annuel.prixXof)} / an

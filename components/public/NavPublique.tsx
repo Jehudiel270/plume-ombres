@@ -47,7 +47,7 @@ export default function NavPublique() {
         <Link
           href="/"
           onClick={() => setMenuOuvert(false)}
-          className="flex items-center gap-2.5 group shrink-0"
+          className="flex items-center gap-2.5 group shrink-0 min-h-11"
           aria-label="Plume d’Ombres — accueil"
         >
           <Image
@@ -55,9 +55,9 @@ export default function NavPublique() {
             alt=""
             width={40}
             height={40}
-            className="h-9 w-9 sm:h-10 sm:w-10 object-contain transition-transform duration-300 group-hover:scale-105"
+            className="h-10 w-10 object-contain transition-transform duration-300 group-hover:scale-105"
           />
-          <span className="font-display text-lg sm:text-xl text-encre-100">
+          <span className="hidden sm:inline font-display text-lg sm:text-xl text-encre-100">
             Plume <span className="texte-douche italic">d’Ombres</span>
           </span>
         </Link>

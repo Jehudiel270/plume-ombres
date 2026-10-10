@@ -48,6 +48,8 @@ export async function proxy(request: NextRequest) {
     '/mentions-legales',
     '/conditions',
     '/confidentialite',
+    '/remboursement',
+    '/cookies',
     // Récupération de compte : accessibles SANS session, par nature.
     '/mot-de-passe-oublie',
     '/nouveau-mot-de-passe',

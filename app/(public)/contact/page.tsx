@@ -13,8 +13,11 @@ export const metadata: Metadata = {
     'Écrire au studio Plume d’Ombres : question, bug, demande d’effacement de données ou signalement d’un contenu.',
 };
 
-/** Adresse PROVISOIRE : à remplacer par la boîte réelle avant mise en ligne. */
-const ADRESSE_PROVISOIRE = 'contact@plume-dombres.example';
+/**
+ * Adresse de contact : PLACEHOLDER visible et unique. Le propriétaire doit
+ * la remplacer par la boîte réelle — elle n'a pas été inventée.
+ */
+const ADRESSE_CONTACT = '[À REMPLIR : adresse e-mail de contact du studio]';
 
 const MOTIFS: { titre: string; texte: React.ReactNode }[] = [
   {
@@ -75,25 +78,25 @@ export default function PageContact() {
         intro="Un projet indépendant, tenu par peu de mains : réponses dans un délai de quelques jours ouvrés, sans promesse de permanence téléphonique."
       >
         <BandeauGabarit>
-          L’adresse affichée ci-dessous est <strong>provisoire</strong> (domaine de
-          démonstration) : elle doit être remplacée par la boîte réelle du studio avant la
-          mise en ligne publique. Elle est également l’adresse à reprendre dans les mentions
-          légales et la politique de confidentialité.
+          L’adresse de contact ci-dessous est un <strong>placeholder</strong> : le
+          propriétaire doit la remplacer par la boîte réelle du studio avant la
+          mise en ligne publique. Elle est également l’adresse à reprendre dans les
+          mentions légales et la politique de confidentialité.
         </BandeauGabarit>
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="Adresse" titre="Par écrit">
         <div className="velours p-6">
           <p className="text-encre-500 text-sm">
-            Adresse à utiliser — <span className="text-amber-300">provisoire, à créer</span> :
+            Adresse à utiliser — <span className="text-amber-300">à créer</span> :
           </p>
           <p className="font-display text-xl sm:text-2xl text-grenat-300 mt-3 break-all">
-            {ADRESSE_PROVISOIRE}
+            {ADRESSE_CONTACT}
           </p>
           <p className="text-encre-500 text-xs mt-4 leading-relaxed italic">
-            Le lien n’est volontairement pas cliquable tant que l’adresse n’est pas réelle :
-            mieux vaut une adresse visible mais provisoire qu’un envoi qui échoue en
-            silence.
+            Le lien n’est volontairement pas cliquable tant que l’adresse n’est pas
+            réelle : mieux vaut une adresse visible mais provisoire qu’un envoi qui
+            échoue en silence.
           </p>
         </div>
 

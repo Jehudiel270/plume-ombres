@@ -17,6 +17,9 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+  annuellePour,
+  autresOffres,
+  catalogueCourant,
   definirCatalogue,
   estPackCredits,
   tousLesPlans,
@@ -358,7 +361,17 @@ export function verifierPlafondLivres(
 // Sélection d'affichage (dérivée de la base)
 // ------------------------------------------------------------
 
-/** Les 4 offres de la grille publique (Gratuit, Lecteur, Passionné, Illimité). */
+/**
+ * Les offres de la GRILLE PUBLIQUE — familles `gratuit` et `individuel`,
+ * triées par ordre d'affichage. Depuis le lot « offres visibles », les
+ * formules ANNUELLES (`lecteur_annuel`, `passionne_annuel`,
+ * `illimite_annuel`) en font partie : elles sont achetables par URL
+ * directe et ne doivent donc PAS être absentes de la grille.
+ *
+ * Le filtre `dureeJours < 360` a été retiré : il masquait les annuelles.
+ * Le rattachement annuel/mensuel (jamais une carte en double) et le tri
+ * par ordre d'affichage sont faits par `grillePubliqueDepuis`.
+ */
 export function offresPubliquesDe(
   catalogue: CatalogueCatalogue
 ): PlanAbonnement[] {
@@ -370,7 +383,139 @@ export function offresPubliquesDe(
       !p.aliasDe &&
       p.categorie !== 'legacy' &&
       p.categorie !== 'essai' &&
-      (p.categorie === 'gratuit' || p.categorie === 'individuel') &&
-      p.dureeJours < 360
+      (p.categorie === 'gratuit' || p.categorie === 'individuel')
   );
+}
+
+// ------------------------------------------------------------
+// Grille publique /tarifs (dérivée de la base)
+// ------------------------------------------------------------
+
+/** Variante annuelle d'une offre publique, rattachée à sa carte mensuelle. */
+export interface VarianteAnnuellePublique {
+  code: string;
+  prixXof: number;
+  dureeJours: number;
+}
+
+/** Une offre AFFICHABLE de la grille publique (gratuite ou achetables). */
+export interface OffrePubliqueGrille {
+  code: string;
+  nom: string;
+  resume: string;
+  prixXof: number;
+  dureeJours: number;
+  quotaMensuelCaracteres: number;
+  avantages: readonly string[];
+  annuel: VarianteAnnuellePublique | null;
+}
+
+/** Une offre « sur dossier » (étudiant / groupe / école), hors achat en ligne. */
+export interface OffreHorsLigneGrille {
+  code: string;
+  nom: string;
+  resume: string;
+  prixXof: number;
+  dureeJours: number;
+  quotaMensuelCaracteres: number;
+  avantages: readonly string[];
+  parPersonne: boolean;
+  minPersonnes: number;
+  verificationRequise: boolean;
+  note: string;
+}
+
+export interface GrillePublique {
+  /** Les cartes affichées sur /tarifs : gratuit + abonnements ACHETABLES. */
+  offres: OffrePubliqueGrille[];
+  /** Les offres non achetables en ligne (montrées ailleurs, jamais ici). */
+  horsLigne: OffreHorsLigneGrille[];
+}
+
+/** Note éditoriale associée à chaque famille d'offre hors ligne. */
+const NOTE_HORS_LIGNE: Record<string, string> = {
+  etudiant:
+    'Tarif étudiant : un justificatif de scolarité est requis. Hors achat en ligne.',
+  groupe:
+    'Devis au nom de la structure (un seul payeur). Hors achat en ligne.',
+  ecole:
+    'Devis annuel au nom de l’établissement. Hors achat en ligne.',
+};
+
+/**
+ * Construit la grille publique à partir du catalogue (base de vérité) :
+ *   * une carte par famille achetable — le gratuit, puis chaque formule
+ *     mensuelle ACHETABLE — avec sa variante annuelle rattachée (prix,
+ *     durée) si cette variante est elle-même achetable ;
+ *   * les offres étudiant / groupe / école sont classées à part : elles
+ *     n'ont PAS de bouton d'achat et ne figurent donc jamais comme
+ *     formule achetable affichée.
+ *
+ * Aucune valeur de prix, de quota ou de durée n'est écrite en dur : tout
+ * provient des lignes de `public.plans_abonnement`.
+ */
+export function grillePubliqueDepuis(
+  catalogue: CatalogueCatalogue
+): GrillePublique {
+  const publiques = offresPubliquesDe(catalogue);
+
+  const offres: OffrePubliqueGrille[] = [];
+  for (const p of publiques) {
+    // Offre de BASE : le plan gratuit, ou une formule MENSUELLE achetable.
+    const estBase =
+      p.categorie === 'gratuit' ||
+      (estAchetableEnLigne(p.code, catalogue) && p.dureeJours < 360);
+    if (!estBase) continue;
+
+    const annuelle = annuellePour(p, publiques);
+    const annuel =
+      annuelle && estAchetableEnLigne(annuelle.code, catalogue)
+        ? {
+            code: annuelle.code,
+            prixXof: annuelle.prixXof,
+            dureeJours: annuelle.dureeJours,
+          }
+        : null;
+
+    offres.push({
+      code: p.code,
+      nom: p.nom,
+      resume: p.resume,
+      prixXof: p.prixXof,
+      dureeJours: p.dureeJours,
+      quotaMensuelCaracteres: p.quotaMensuelCaracteres,
+      avantages: p.avantages,
+      annuel,
+    });
+  }
+
+  const horsLigne: OffreHorsLigneGrille[] = autresOffres(catalogue.plans).map(
+    (p) => ({
+      code: p.code,
+      nom: p.nom,
+      resume: p.resume,
+      prixXof: p.prixXof,
+      dureeJours: p.dureeJours,
+      quotaMensuelCaracteres: p.quotaMensuelCaracteres,
+      avantages: p.avantages,
+      parPersonne: p.parPersonne === true,
+      minPersonnes: p.minPersonnes ?? 1,
+      verificationRequise: p.verificationRequise === true,
+      note: NOTE_HORS_LIGNE[p.categorie ?? ''] ?? 'Hors achat en ligne.',
+    })
+  );
+
+  return { offres, horsLigne };
+}
+
+/**
+ * Grille publique dérivée du catalogue COURANT (le snapshot généré,
+ * utilisé en repli si la base n'est pas joignable). Même code, même tri.
+ */
+export function grillePubliqueCourante(): GrillePublique {
+  return grillePubliqueDepuis({
+    plans: [...catalogueCourant()],
+    packs: [],
+    packsLus: false,
+  });
 }
