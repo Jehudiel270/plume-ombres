@@ -195,15 +195,87 @@ Détail historique de l'ordre :
 
 ---
 
-## ÉTAT AU 2026-10-06 (session Devotron) — REPRISE ICI
+## ÉTAT AU 2026-10-06 (session Devotron) — historique
 
 **Livré et déployé** (`main` = `41ad4e6`, prod `plume-ombres.vercel.app`) : tableau de bord admin en **5 onglets ARIA** (aucun bloc retiré ; barre qui revient à la ligne à 360 px au lieu de sortir du cadre), 9 comptes de test purgés (28 → 19 en base). Preuves : `tsc` 0 erreur, build de production vert (40 routes), sonde admin **11/11 rejouée CONTRE la production**, 216/216 paires de contraste ≥ AA, 23/23 tests providers, suites abonnement/paiement et crédits vertes.
 
 **Décision Carrel (2026-10-06) : VM Oracle ABANDONNÉE (trop lente).** Les tâches A1→A5 sont caduques ; le moteur auto-hébergé reste **à trancher**. Conséquences : le texte traverse un tiers (promesse « texte privé » non tenue) et le coût moteur est d'environ **405 F / 600 000 caractères (≈ 1 livre)** → l'Illimité à 9 000 F se vend à perte (il est donc correctement verrouillé).
 
+## ÉTAT AU 2026-10-10 (session Devotron, suite) — REPRISE ICI
+
+**Livré, vérifié et DÉPLOYÉ** (`main` = `9d6d519`, prod `plume-ombres.vercel.app` ; contrôle post-déploiement :
+`POST /api/admin/roles` → **401** sans session, `/admin` → **307**, `/mot-de-passe-oublie` → **200**) :
+
+1. **RBAC `super_admin` + nomination d'administrateurs — FAIT** (point 6 de la section précédente).
+   Trois rôles (`utilisateur`, `admin`, `super_admin`) ; `super_admin` hérite **explicitement** d'`admin`.
+   Migrations `20261010000001_super_admin.sql` + `20261010000002_attribution_roles.sql` **appliquées**.
+   Données : `dossoucarrel@gmail.com` (« Miaou ») → `super_admin` ; `harcker137@gmail.com` → `admin`.
+   Route `POST /api/admin/roles`, 6ᵉ onglet « Rôles » monté **uniquement** pour un super-admin.
+   **Preuves** : `tsc` 0 erreur ; `npx tsx scripts/test-roles-admin.ts` **tout vert, parties A→G** (dont la
+   **garde des RPC** : un admin simple qui appelle `admin_changer_role` en direct est refusé en 42501, et
+   l'auto-promotion par `update profiles` est refusée par le déclencheur) ; sonde navigateur
+   `node scripts/probe-super-admin.mjs` **15/15, 0 erreur console** (6 onglets dont « Rôles » à 360/768/1440 px,
+   aucun débordement, cibles ≥ 44 px, focus, nommer/rétrograder/promouvoir vérifiés **en base ET au journal**,
+   refus admin simple / utilisateur / anonyme, garde anti-verrouillage) ; build de production vert ; 23/23 providers.
+   `MATRICE-ROLES.md` à jour (3 rôles, 10 permissions, matrice garde × route).
+
+2. **« Mot de passe oublié » FONCTIONNEL — FAIT.** La cause était côté Supabase, pas dans le code : SMTP
+   **totalement vide** et `uri_allow_list` **vide** (donc aucun e-mail ne partait et aucun lien n'était accepté),
+   avec `rate_limit_email_sent` au défaut de **2/heure**.
+   Corrigé via l'API de gestion (script `scripts/_supabase-auth-config.mjs`, relançable) : SMTP Brevo
+   (`smtp-relay.brevo.com:587`, expéditeur vérifié, nom « Plume d'Ombres »), redirections autorisées
+   (`localhost:3951`, `localhost:3000`, `plume-ombres.vercel.app`), plafond d'envoi relevé à **30/heure**.
+   **Preuves** : `node scripts/_test-smtp-brevo.mjs` → **6/6** (STARTTLS, authentification acceptée,
+   message mis en file par Brevo) et l'API Supabase accepte la demande de réinitialisation (HTTP 200).
+
+3. **Ordre des moteurs de traduction depuis l'admin — FAIT.** Le composant `OrdreChaine.tsx`, la route
+   `/api/admin/chaine` et les RPC `lire_ordre_chaine` / `definir_ordre_chaine` existaient déjà… mais le
+   composant **n'était monté nulle part** : la fonctionnalité était morte. Il est désormais dans l'onglet
+   **Système**, et un test interdit qu'il redevienne orphelin.
+
 ### À FAIRE — dans cet ordre
 
-1. **Moteur de traduction auto-hébergé — À TRANCHER** (ex-VM Oracle). Sans lui : pas de « texte privé », et l'essai gratuit (jusqu'à ~2 700 F de coût moteur par inscription) est un risque.
+1. **Moteur de traduction auto-hébergé — À TRANCHER** (ex-VM Oracle, abandonnée). Sans lui : pas de « texte
+   privé », et l'essai gratuit reste un risque (≈ 405 F / 600 000 caractères ≈ 1 livre).
+2. **Hébergement commercial : Vercel Hobby → Netlify Free** (`netlify.toml` + `DEPLOIEMENT-NETLIFY.md` écrits,
+   jamais appliqués). Encaisser sur Vercel Hobby = risque de suspension.
+3. **Domaine propre** (exigé par SPF/DKIM Brevo et pour la crédibilité d'un produit payant).
+4. **FedaPay (live)** — *chantier délégué, en cours* : bug de réconciliation (`metadata` →
+   `merchant_reference`/`custom_metadata`, sinon « Paiement inconnu » et crédits jamais livrés),
+   `FEDAPAY_WEBHOOK_SECRET` **vide** (les webhooks réels répondent 401), clés live et KYC marchand,
+   test d'un vrai paiement à 500 F. Clés live posées localement dans `.env.local` (jamais commité).
+5. **Formules annuelles visibles + pages juridiques** — *chantier délégué, en cours* :
+   `lecteur_annuel` (14 400 F) et `passionne_annuel` (33 600 F) sont achetables par URL mais absents de la
+   grille publique (`offresPubliquesDe` filtre `dureeJours < 360`).
+6. **Variables d'environnement de production** — *chantier délégué, en cours* : fichier à remplir
+   `C:/Users/dosso/dev/A-REMPLIR-CONFIGURATION-PLUME.md` (Supabase, Netlify, domaine/DNS, Brevo, FedaPay).
+7. **Nettoyage** : `dev/RAPPORT-DOUBLONS.md` fait foi. Restent la collision de migration
+   `20261002000003` (renommer `suppression_compte.sql` en `20261002000004`) et `components/importe/`.
+
+### PIÈGES CONNUS (appris à la dure cette session)
+
+- **`.env.local` est en CRLF Windows** : un chargeur qui découpe sur `'\n'` puis applique `/^(clé)=(.*)$/`
+  n'attrape **RIEN**, et le test continue en silence. Les scripts doivent découper les lignes sur une
+  expression qui tolère le retour chariot Windows (corrigé dans `test-roles-admin.ts`, qui **échoue
+  maintenant** si la base n'est pas testée).
+- **`node_modules` partagé** : les worktrees pointent vers `dark-romance-integration/node_modules`.
+  Un **lien symbolique MSYS** (`/c/...`) fait échouer Turbopack (« points out of the filesystem root ») ;
+  une **jonction NTFS** fonctionne, mais Turbopack exige en plus `turbopack.root` = dossier parent
+  (ajouté dans `next.config.ts`, **inactif en production**). Créer les jonctions :
+  `C:/Users/dosso/dev/tools/liens-node-modules.bat`.
+- **`ln -s` sans support natif RECOPIE le dossier** (des copies de 700 Mo lancées en tâche de fond).
+  Utiliser `mklink /J`.
+- **Enchaîner les `router.refresh()` sur `/admin`** finit par faire lever au routeur client de Next 16
+  `TypeError: Cannot read properties of null (reading 'enqueueModel')`, qui bascule la page dans son écran
+  d'erreur. Une action isolée passe ; c'est la répétition rapide qui casse. `GestionRoles` **n'utilise plus**
+  de rafraîchissement serveur (état local). **Reste à faire** : appliquer le même traitement à
+  `TableauComptes` (« Accorder »/« Retirer » un abonnement), dernier endroit où le motif subsiste.
+- **Sondes navigateur** : un **contexte navigateur par compte** (`browser.createBrowserContext()`), sinon
+  plusieurs sessions Supabase coexistent dans le même pot à cookies et le routeur client part en vrille —
+  artefact de sonde, pas défaut du produit.
+
+### À FAIRE — liste du 2026-10-06 (conservée pour mémoire ; voir la liste à jour ci-dessus)
+
 2. **Hébergement commercial : Vercel Hobby → Netlify Free.** `netlify.toml` + `DEPLOIEMENT-NETLIFY.md` sont déjà écrits, jamais appliqués. Encaisser sur Vercel Hobby = risque de suspension.
 3. **Domaine propre** — exigé par SPF/DKIM Brevo et pour la crédibilité d'un produit payant.
 4. **SMTP Supabase (Brevo)** : identifiants au coffre dans `.env.local` (`SMTP_*`, expéditeur `carreldossou7@gmail.com`) — restent à poser dans Supabase (Auth → Emails → SMTP) + allow-list des redirections + modèle d'e-mail. Débloque P1.4 pour de vrais utilisateurs.
