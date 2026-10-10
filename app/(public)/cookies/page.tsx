@@ -22,7 +22,7 @@ export default function PageCookies() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Politique de cookies"
-        intro="Version de travail. Le studio n’utilise ni traceur publicitaire, ni mesure d’audience tierce : uniquement ce qui est nécessaire à la connexion et au confort de lecture. Lisible sans compte."
+        intro="Dernière mise à jour : 10 octobre 2026. Le studio n’utilise ni traceur publicitaire, ni mesure d’audience tierce : uniquement ce qui est nécessaire à la connexion et au confort de lecture. Lisible sans compte."
       >
         <SommaireLegal actif="cookies" />
 
@@ -65,9 +65,13 @@ export default function PageCookies() {
             </li>
           </ul>
           <p className="text-encre-500 italic">
-            Si un outil de mesure d’audience était ajouté plus tard, il ferait
-            l’objet d’un bandeau de consentement dédié. [À REMPLIR : outil de
-            mesure d’audience retenu, le cas échéant.]
+            Aucun outil de mesure d’audience n’est retenu à ce jour. Si un tel
+            outil était ajouté plus tard, il ferait l’objet d’un bandeau de
+            consentement dédié avant tout dépôt. En l’état, seuls des cookies
+            strictement nécessaires étant utilisés, aucun bandeau de consentement
+            n’est requis : le visiteur est informé par la présente page,
+            conformément au régime béninois (code du numérique, article 406, et
+            formulaire APDP « site web »).
           </p>
         </div>
       </SectionPublique>

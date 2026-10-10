@@ -5,7 +5,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
-import BandeauGabarit from '@/components/public/BandeauGabarit';
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -14,10 +13,11 @@ export const metadata: Metadata = {
 };
 
 /**
- * Adresse de contact : PLACEHOLDER visible et unique. Le propriétaire doit
- * la remplacer par la boîte réelle — elle n'a pas été inventée.
+ * Adresse de contact officielle du studio (communiquée par l'éditeur).
+ * Elle est reprise dans les mentions légales et la politique de
+ * confidentialité, ainsi que dans les conditions générales.
  */
-const ADRESSE_CONTACT = '[À REMPLIR : adresse e-mail de contact du studio]';
+const ADRESSE_CONTACT = 'carreldossou7@gmail.com';
 
 const MOTIFS: { titre: string; texte: React.ReactNode }[] = [
   {
@@ -77,26 +77,41 @@ export default function PageContact() {
         titre="Écrire au studio"
         intro="Un projet indépendant, tenu par peu de mains : réponses dans un délai de quelques jours ouvrés, sans promesse de permanence téléphonique."
       >
-        <BandeauGabarit>
-          L’adresse de contact ci-dessous est un <strong>placeholder</strong> : le
-          propriétaire doit la remplacer par la boîte réelle du studio avant la
-          mise en ligne publique. Elle est également l’adresse à reprendre dans les
-          mentions légales et la politique de confidentialité.
-        </BandeauGabarit>
+        <div className="velours p-4 sm:p-5">
+          <p className="text-encre-300 text-[13px] leading-relaxed">
+            Adresse officielle du studio. Elle est également reprise dans les{' '}
+            <Link href="/mentions-legales" className="lien-discret underline">
+              mentions légales
+            </Link>{' '}
+            et la{' '}
+            <Link href="/confidentialite" className="lien-discret underline">
+              politique de confidentialité
+            </Link>
+            . Le studio n’exploite ni formulaire de contact automatisé ni
+            permanence téléphonique : les réponses se font par écrit, en quelques
+            jours ouvrés.
+          </p>
+        </div>
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="Adresse" titre="Par écrit">
         <div className="velours p-6">
           <p className="text-encre-500 text-sm">
-            Adresse à utiliser — <span className="text-amber-300">à créer</span> :
+            Point d’entrée unique pour toutes les demandes :
           </p>
-          <p className="font-display text-xl sm:text-2xl text-grenat-300 mt-3 break-all">
-            {ADRESSE_CONTACT}
+          <p className="font-display text-xl sm:text-2xl mt-3 break-all">
+            <a
+              href={`mailto:${ADRESSE_CONTACT}`}
+              className="text-grenat-300 lien-discret underline"
+            >
+              {ADRESSE_CONTACT}
+            </a>
           </p>
           <p className="text-encre-500 text-xs mt-4 leading-relaxed italic">
-            Le lien n’est volontairement pas cliquable tant que l’adresse n’est pas
-            réelle : mieux vaut une adresse visible mais provisoire qu’un envoi qui
-            échoue en silence.
+            Question, bug, exercice de vos droits sur vos données, signalement
+            d’un contenu ou réclamation : tout passe par cette adresse. Indiquez
+            si possible l’adresse e-mail de votre compte, pour que la demande
+            soit retrouvée plus vite.
           </p>
         </div>
 
