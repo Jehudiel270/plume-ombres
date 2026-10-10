@@ -1,16 +1,24 @@
-// Sommaire des pages légales : le même bloc en tête (et en pied) des trois
-// pages — conditions, confidentialité, mentions légales — pour qu'elles se
-// lisent comme un ensemble cohérent et qu'on passe de l'une à l'autre sans
-// repasser par le menu. Composant serveur, sans état : la page active est
-// passée en prop, la mise en évidence utilise aria-current.
+// Sommaire des pages légales : le même bloc en tête (et en pied) des pages
+// du cadre légal — conditions, confidentialité, remboursement, cookies,
+// mentions légales — pour qu'elles se lisent comme un ensemble cohérent et
+// qu'on passe de l'une à l'autre sans repasser par le menu. Composant
+// serveur, sans état : la page active est passée en prop, la mise en
+// évidence utilise aria-current.
 
 import Link from 'next/link';
 
-export type PageLegale = 'conditions' | 'confidentialite' | 'mentions-legales';
+export type PageLegale =
+  | 'conditions'
+  | 'confidentialite'
+  | 'remboursement'
+  | 'cookies'
+  | 'mentions-legales';
 
 const PAGES: { id: PageLegale; href: string; libelle: string }[] = [
   { id: 'conditions', href: '/conditions', libelle: 'Conditions générales' },
   { id: 'confidentialite', href: '/confidentialite', libelle: 'Confidentialité' },
+  { id: 'remboursement', href: '/remboursement', libelle: 'Remboursement' },
+  { id: 'cookies', href: '/cookies', libelle: 'Cookies' },
   { id: 'mentions-legales', href: '/mentions-legales', libelle: 'Mentions légales' },
 ];
 

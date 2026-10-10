@@ -96,9 +96,10 @@ export default function PageConfidentialite() {
           <p>
             Responsable du traitement :{' '}
             <strong className="text-encre-100">
-              [à compléter — nom ou raison sociale]
+              [À REMPLIR : nom ou raison sociale de l’éditeur]
             </strong>
-            , [adresse], [SIREN / numéro d’identification], joignable via la page{' '}
+            , [À REMPLIR : adresse complète de l’éditeur], [À REMPLIR : SIREN /
+            numéro d’identification], joignable via la page{' '}
             <Link href="/contact" className="lien-discret underline">
               Contact
             </Link>{' '}
@@ -107,6 +108,14 @@ export default function PageConfidentialite() {
               mentions légales
             </Link>
             ).
+          </p>
+          <p>
+            Contact pour la protection des données :{' '}
+            <strong className="text-amber-300">
+              [À REMPLIR : adresse e-mail dédiée aux demandes de données
+              personnelles]
+            </strong>
+            .
           </p>
           <p>
             Le studio est un outil personnel de traduction : les données traitées
@@ -137,7 +146,8 @@ export default function PageConfidentialite() {
             <li>
               <strong className="text-encre-100">Fichier d’origine</strong> : il
               n’est pas conservé durablement — le texte extrait est ce qui est
-              enregistré. [à confirmer selon le chantier stockage en cours]
+              enregistré. [À REMPLIR : conservation du fichier d’origine — à
+              confirmer après le chantier stockage]
             </li>
             <li>
               <strong className="text-encre-100">
@@ -156,8 +166,8 @@ export default function PageConfidentialite() {
           </ul>
           <p>
             Bases légales : exécution du contrat (compte, traduction, lecture) et
-            intérêt légitime (sécurité, prévention des abus). [base légale à
-            confirmer par un juriste]
+            intérêt légitime (sécurité, prévention des abus). [À REMPLIR : base
+            légale — à confirmer par un juriste]
           </p>
         </div>
       </SectionPublique>
@@ -212,8 +222,8 @@ export default function PageConfidentialite() {
             <li>
               <strong className="text-encre-100">Hébergement du site</strong> :
               Vercel Inc. (serveurs hors Union européenne selon la configuration
-              retenue — [à préciser]). Vercel n’a pas vocation à lire le contenu
-              stocké.
+              retenue — [À REMPLIR : région d’exécution Vercel en production]).
+              Vercel n’a pas vocation à lire le contenu stocké.
             </li>
             <li>
               <strong className="text-encre-100">
@@ -232,12 +242,16 @@ export default function PageConfidentialite() {
               <strong className="text-encre-100">Conservation</strong> : tant que
               votre compte existe. La suppression d’un livre efface ses chapitres,
               segments et traductions. La suppression du compte efface les données
-              associées — [durée exacte des sauvegardes techniques à préciser].
+              associées — [À REMPLIR : durée exacte des sauvegardes techniques].
             </li>
             <li>
               <strong className="text-encre-100">Cookies</strong> : uniquement le
               cookie de session nécessaire à l’authentification. Aucun traceur
-              publicitaire, aucune mesure d’audience tierce.
+              publicitaire, aucune mesure d’audience tierce. Détail sur la page{' '}
+              <Link href="/cookies" className="lien-discret underline">
+                Cookies
+              </Link>
+              .
             </li>
           </ul>
         </div>
@@ -268,8 +282,8 @@ export default function PageConfidentialite() {
         <p className="text-encre-500 text-xs mt-4 leading-relaxed italic">
           Les transferts vers des prestataires hors Union européenne doivent être
           encadrés par des garanties appropriées (clauses contractuelles types,
-          décision d’adéquation). [modalité et garanties à confirmer par un
-          juriste]
+          décision d’adéquation). [À REMPLIR : modalité et garanties de transfert
+          — à confirmer par un juriste]
         </p>
       </SectionPublique>
 
@@ -291,8 +305,9 @@ export default function PageConfidentialite() {
           </p>
           <p>
             Vous pouvez également introduire une réclamation auprès de l’autorité
-            de contrôle compétente ([CNIL en France / APD en Belgique — à préciser
-            selon le pays d’établissement de l’éditeur]).
+            de contrôle compétente [À REMPLIR : autorité de contrôle — CNIL
+            (France) / APD (Belgique) / autre, selon le pays d’établissement de
+            l’éditeur].
           </p>
         </div>
       </SectionPublique>
@@ -314,7 +329,8 @@ export default function PageConfidentialite() {
             L’âge minimum opposable et son contrôle relèvent d’un arbitrage
             éditorial et juridique (la majorité numérique est de 15 ans en France
             pour le consentement au traitement, mais le contenu justifie une
-            restriction plus stricte). [à valider]
+            restriction plus stricte). [À REMPLIR : âge minimum opposable — à
+            valider]
           </p>
         </div>
       </SectionPublique>

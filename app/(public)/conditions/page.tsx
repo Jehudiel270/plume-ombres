@@ -1,8 +1,12 @@
-// Conditions générales d'utilisation et de vente (C6) — remise à niveau vague 5.
+// Conditions générales d'utilisation et de vente (C6) — remise à niveau
+// vague 5, complétée par le lot « offres visibles ».
+//
 // Rédigé en français, structuré comme un vrai contrat, cohérent avec la
-// politique de confidentialité et les mentions légales. Chaque article sensible
-// (prix, rétractation, responsabilité, résiliation, litiges) doit être arbitré
-// par un juriste avant mise en ligne.
+// politique de confidentialité, la politique de remboursement et les
+// mentions légales. La partie VENTE (prix, Mobile Money, durée,
+// résiliation, rétractation) a été AJOUTÉE parce que des formules
+// payantes sont désormais affichées et achetables. Chaque article
+// sensible doit être arbitré par un juriste avant mise en ligne.
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -13,7 +17,7 @@ import SommaireLegal from '@/components/public/SommaireLegal';
 export const metadata: Metadata = {
   title: 'Conditions générales (CGU/CGV)',
   description:
-    'Conditions générales d’utilisation et de vente du studio Plume d’Ombres : compte, âge minimum, usages autorisés et interdits, droits sur les textes, services payants à venir, responsabilité et litiges.',
+    'Conditions générales d’utilisation et de vente du studio Plume d’Ombres : compte, âge minimum, usages, droits sur les textes, offres payantes, paiement Mobile Money, durée, résiliation, rétractation, responsabilité et litiges.',
 };
 
 const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
@@ -42,6 +46,14 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
         traduction automatique décrits dans la{' '}
         <Link href="/confidentialite" className="lien-discret underline">
           politique de confidentialité
+        </Link>
+        . <strong className="text-encre-100">Formule</strong> : une offre
+        d’abonnement payante du catalogue (par exemple Lecteur ou Passionné,
+        mensuelle ou annuelle).{' '}
+        <strong className="text-encre-100">Catalogue</strong> : la liste des
+        formules et de leurs prix, publiée sur la page{' '}
+        <Link href="/tarifs" className="lien-discret underline">
+          Tarifs
         </Link>
         .
       </>
@@ -129,29 +141,106 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
     ),
   },
   {
-    titre: '8. Services payants (à venir)',
+    titre: '8. Offres payantes, prix et catalogue',
     corps: (
       <>
         <p>
-          <span className="rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
-            bientôt disponible
-          </span>
+          À côté de l’offre gratuite, des <strong>formules payantes</strong> sont
+          proposées (notamment Lecteur et Passionné, en formule mensuelle ou
+          annuelle). Les formules réellement commercialisées et leurs prix en
+          francs CFA (XOF) sont affichés sur la page{' '}
+          <Link href="/tarifs" className="lien-discret underline">
+            Tarifs
+          </Link>
+          , qui reflète le catalogue. Le prix applicable est celui affiché au
+          moment de la commande.
         </p>
         <p className="mt-3">
-          Aucun paiement n’est accepté aujourd’hui : aucune offre payante n’est
-          ouverte, aucune carte bancaire n’est demandée, aucun prélèvement n’est
-          possible. Les modalités de l’offre payante (prix, durée, résiliation,
-          droit de rétractation, facturation) seront publiées et acceptées
-          séparément <em>avant</em> toute mise en vente. En Europe, un contenu
-          numérique fourni immédiatement peut faire perdre le droit de
-          rétractation si l’acheteur y consent expressément — ce point doit être
-          rédigé par un juriste.
+          Les formules annuelles couvrent douze (12) mois et offrent, par rapport
+          au paiement mensuel cumulé, une réduction indiquée sur la carte
+          correspondante. Les prix peuvent évoluer ; toute modification
+          n’affecte pas une période déjà payée.
         </p>
       </>
     ),
   },
   {
-    titre: '9. Disponibilité et évolutions',
+    titre: '9. Paiement (Mobile Money)',
+    corps: (
+      <>
+        <p>
+          Le règlement s’effectue par{' '}
+          <strong className="text-encre-100">Mobile Money</strong>, via un
+          prestataire agrégateur de paiement. Le débit est unique, du montant de
+          la formule choisie, au moment de la commande. Aucun numéro de carte
+          bancaire n’est demandé.
+        </p>
+        <p className="mt-3">
+          Une formule n’est considérée comme souscrite, et la période
+          correspondante ne commence, qu’après{' '}
+          <strong className="text-encre-100">confirmation du paiement</strong>.
+          Tant que le prestataire n’a pas confirmé l’opération, aucune somme n’est
+          due et aucun droit n’est ouvert. En cas d’échec, aucun montant n’est
+          prélevé et l’opération peut être reprise.
+        </p>
+        <p className="mt-3">
+          Prestataire de paiement mobile :{' '}
+          <strong className="text-amber-300">
+            [À REMPLIR : nom du prestataire/agrégateur et pays couverts]
+          </strong>
+          . Les opérateurs pris en charge sont précisés au moment du paiement.
+        </p>
+      </>
+    ),
+  },
+  {
+    titre: '10. Durée, reconduction et résiliation',
+    corps: (
+      <>
+        <p>
+          Une formule mensuelle couvre trente (30) jours ; une formule annuelle
+          couvre douze (12) mois. Le paiement se fait{' '}
+          <strong className="text-encre-100">à l’acte</strong> : l’abonnement
+          n’est <strong>pas</strong> reconduit automatiquement. À l’échéance de la
+          période payée, l’accès aux avantages de la formule s’arrête, sans
+          nouveau prélèvement, et le compte revient à l’offre gratuite.
+        </p>
+        <p className="mt-3">
+          Aucune résiliation n’est donc nécessaire pour éviter un renouvellement :
+          il suffit de ne pas repayer. Vous pouvez par ailleurs demander la
+          fermeture de votre compte à tout moment (article 14).
+        </p>
+      </>
+    ),
+  },
+  {
+    titre: '11. Droit de rétractation et remboursement',
+    corps: (
+      <>
+        <p>
+          Le service payant est un <strong>contenu numérique</strong> à accès
+          immédiat. Avant la commande, il vous est demandé de consentir
+          expressément à l’exécution immédiate et de reconnaître perdre ainsi le
+          droit de rétractation dès l’ouverture de l’accès. Les conditions
+          détaillées figurent sur la page{' '}
+          <Link href="/remboursement" className="lien-discret underline">
+            Remboursement
+          </Link>
+          .
+        </p>
+        <p className="mt-3">
+          Le droit national applicable au consommateur et le texte de référence
+          doivent être précisés par l’éditeur.{' '}
+          <strong className="text-amber-300">
+            [À REMPLIR : pays et droit applicable au consommateur — ex. Bénin /
+            zone CEDEAO / France.]
+          </strong>
+        </p>
+      </>
+    ),
+  },
+  {
+    titre: '12. Disponibilité et évolutions',
     corps: (
       <>
         Le service est fourni « en l’état », sans garantie de disponibilité
@@ -163,20 +252,29 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
     ),
   },
   {
-    titre: '10. Responsabilité',
+    titre: '13. Responsabilité',
     corps: (
       <>
-        L’éditeur ne peut être tenu responsable des conséquences d’un usage non
-        conforme (notamment d’un import sans droits), d’une interruption de
-        service, ni d’une utilisation de la traduction dans un cadre professionnel
-        ou commercial sans relecture. [Limitation de responsabilité à rédiger
-        précisément — plafonds, exclusions et conformité au droit de la
-        consommation.]
+        <p>
+          L’éditeur ne peut être tenu responsable des conséquences d’un usage non
+          conforme (notamment d’un import sans droits), d’une interruption de
+          service, ni d’une utilisation de la traduction dans un cadre
+          professionnel ou commercial sans relecture.
+        </p>
+        <p className="mt-3">
+          Pour les formules payantes, la responsabilité de l’éditeur est, dans la
+          mesure permise par le droit applicable, limitée au montant payé pour la
+          période en cours.{' '}
+          <strong className="text-amber-300">
+            [À REMPLIR : plafond de responsabilité et exclusions — à confirmer par
+            un juriste.]
+          </strong>
+        </p>
       </>
     ),
   },
   {
-    titre: '11. Suppression, résiliation',
+    titre: '14. Suppression, résiliation du compte',
     corps: (
       <>
         Vous pouvez supprimer un livre à tout moment depuis la bibliothèque, et
@@ -191,12 +289,16 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
     ),
   },
   {
-    titre: '12. Données personnelles',
+    titre: '15. Données personnelles',
     corps: (
       <>
         Le traitement des données est décrit dans la{' '}
         <Link href="/confidentialite" className="lien-discret underline">
           politique de confidentialité
+        </Link>{' '}
+        et la page{' '}
+        <Link href="/cookies" className="lien-discret underline">
+          Cookies
         </Link>
         . En résumé : vos livres sont privés, mais le texte est transmis au moteur
         de traduction actif (voir la section « Quel moteur voit votre texte »).
@@ -204,13 +306,16 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
     ),
   },
   {
-    titre: '13. Droit applicable et litiges',
+    titre: '16. Droit applicable et litiges',
     corps: (
       <>
         <p>
-          Les présentes conditions sont soumises au droit [français / belge — à
-          préciser]. En cas de litige, une solution amiable sera recherchée en
-          priorité via la page{' '}
+          Les présentes conditions sont soumises au droit applicable à l’éditeur.{' '}
+          <strong className="text-amber-300">
+            [À REMPLIR : pays du droit applicable — à préciser par l’éditeur.]
+          </strong>{' '}
+          En cas de litige, une solution amiable sera recherchée en priorité via la
+          page{' '}
           <Link href="/contact" className="lien-discret underline">
             Contact
           </Link>
@@ -218,16 +323,20 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
         </p>
         <p className="mt-3">
           Le consommateur peut recourir gratuitement à un médiateur de la
-          consommation [coordonnées du médiateur à indiquer obligatoirement avant
-          toute vente]. À défaut d’accord, les tribunaux compétents seront ceux du
-          ressort de l’éditeur, sans priver le consommateur des protections de sa
+          consommation.{' '}
+          <strong className="text-amber-300">
+            [À REMPLIR : coordonnées du médiateur de la consommation — à indiquer
+            obligatoirement avant toute vente.]
+          </strong>{' '}
+          À défaut d’accord, les tribunaux compétents seront ceux du ressort de
+          l’éditeur, sans priver le consommateur des protections de sa
           juridiction.
         </p>
       </>
     ),
   },
   {
-    titre: '14. Modifications des conditions',
+    titre: '17. Modifications des conditions',
     corps: (
       <>
         Toute modification substantielle est annoncée dans l’application avant son
@@ -246,7 +355,7 @@ export default function PageConditions() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Conditions générales d’utilisation et de vente"
-        intro="Version de travail du 2 octobre 2026. Elle s’applique à l’usage du studio ; la partie « vente » n’entrera en vigueur qu’à l’ouverture du paiement. Lisible sans compte."
+        intro="Version de travail. Elle s’applique à l’usage du studio et couvre désormais la vente des formules payantes (prix, Mobile Money, durée, résiliation, rétractation). Lisible sans compte."
       >
         <SommaireLegal actif="conditions" />
 

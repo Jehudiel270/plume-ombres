@@ -127,7 +127,8 @@ export default async function Accueil() {
         </div>
 
         <p className="text-encre-500 text-xs mt-4 italic">
-          Gratuit pendant le lancement — aucun moyen de paiement demandé.
+          L’offre gratuite reste ouverte — les formules payantes et leurs prix
+          sont détaillés sur la page <Link href="/tarifs" className="lien-discret underline">Tarifs</Link>.
         </p>
       </section>
 
@@ -206,8 +207,10 @@ export default async function Accueil() {
           </p>
           <ul className="mt-3 space-y-2 text-sm text-encre-500 leading-relaxed list-disc pl-5">
             <li>
-              <strong className="text-encre-300">Pas de paiement en ligne</strong> : l’offre
-              payante est annoncée mais pas ouverte.
+              <strong className="text-encre-300">Paiement en cours d’ouverture</strong> :
+              les formules payantes et leurs prix sont visibles sur la page{' '}
+              <Link href="/tarifs" className="lien-discret underline">Tarifs</Link>, mais
+              l’encaissement destiné au grand public reste à ouvrir.
             </li>
             <li>
               <strong className="text-encre-300">Pas d’OCR</strong> ni de PDF scanné, pas
@@ -225,16 +228,16 @@ export default async function Accueil() {
       <SectionPublique
         id="prix"
         surTitre="Prix"
-        titre="Gratuit aujourd’hui, premium bientôt"
-        intro="Pendant le lancement, tout est ouvert : importer, traduire, lire, exporter. Aucune carte bancaire."
+        titre="Une offre gratuite, des formules payantes affichées"
+        intro="Le studio est gratuit pour lire et traduire ; les formules payantes (volume et confort supérieurs) sont détaillées, prix compris, sur la page Tarifs."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="velours p-6 flex flex-col">
             <p className="sur-titre text-grenat-300">Offre de lancement</p>
-            <p className="font-display text-4xl text-encre-100 mt-3">0 €</p>
+            <p className="font-display text-4xl text-encre-100 mt-3">Gratuit</p>
             <p className="text-encre-500 text-xs mt-1">sans engagement</p>
             <ul className="mt-5 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
-              <li>Import illimité de vos fichiers (.txt, .md, .pdf texte, .epub)</li>
+              <li>Import de vos fichiers (.txt, .md, .pdf texte, .epub)</li>
               <li>Traduction, lecture complète et reprise de position</li>
               <li>Favoris, tri, filtres et tous les exports</li>
               <li>Un compte, et vous seul voyez vos livres</li>
@@ -250,26 +253,25 @@ export default async function Accueil() {
           <div className="velours p-6 flex flex-col relative overflow-hidden">
             <div className="absolute top-4 right-4">
               <span className="rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
-                bientôt disponible
+                à partir de 1 500 F / mois
               </span>
             </div>
-            <p className="sur-titre text-violet-rom-300">Premium — annoncé</p>
+            <p className="sur-titre text-violet-rom-300">Formules payantes</p>
             <p className="font-display text-3xl text-encre-100 mt-3">
-              Prix non encore fixé
+              Lecteur et Passionné
             </p>
             <p className="text-encre-500 text-xs mt-1">
-              placeholder — tarif à arrêter avant l’ouverture du paiement
+              au mois ou à l’année (2 mois offerts), paiement par Mobile Money
             </p>
-            <ul className="mt-5 space-y-2 text-sm text-encre-500 leading-relaxed list-disc pl-5 flex-1">
+            <ul className="mt-5 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
               <li>Quota de traduction élargi (plusieurs livres par mois)</li>
-              <li>Plusieurs livres traduits en parallèle</li>
+              <li>Plusieurs traductions menées en parallèle</li>
               <li>Qualité littéraire supérieure et file prioritaire</li>
-              <li>Export EPUB et glossaire de personnages</li>
+              <li>Glossaire de personnages pour les sagas</li>
             </ul>
-            <p className="text-encre-500 text-xs mt-6 italic">
-              Le paiement n’est pas encore en place. Aucune somme ne peut être prélevée
-              aujourd’hui.
-            </p>
+            <Link href="/tarifs" className="bouton-principal mt-6 justify-center">
+              Voir les tarifs et les prix
+            </Link>
           </div>
         </div>
       </SectionPublique>

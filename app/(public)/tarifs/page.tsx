@@ -1,123 +1,162 @@
-// Tarifs (C6). Page publique : l'offre gratuite du lancement, l'offre
-// premium annoncée mais NON ouverte, et le détail de ce qui est inclus.
-// Aucun prix ne doit laisser croire qu'un paiement est possible.
+// ============================================================
+// Tarifs (pages publiques) — la GRILLE PUBLIQUE des formules réellement
+// achetables, lue dans public.plans_abonnement (source de vérité).
+//
+// POURQUOI CETTE RÉÉCRITURE
+// L'ancienne page affichait un gabarit statique (« Gratuit pour de vrai,
+// premium plus tard », prix affiché comme non fixé) alors que la base
+// contient des formules ACHETABLES — dont deux ANNUELLES
+// (`lecteur_annuel` 14 400 F, `passionne_annuel` 33 600 F) qui étaient
+// achetables par URL directe mais absentes de la grille (la fonction
+// `offresPubliquesDe` filtrait `dureeJours < 360`). Incohérence produit :
+// un visiteur ne voyait pas ce qu'il pouvait acheter.
+//
+// ICI : la grille rend EXACTEMENT les formules achetables de la base,
+// chaque mensuelle portant sa variante annuelle (prix, durée 12 mois,
+// économie calculée) et un bouton menant au MÊME tunnel de paiement que
+// les autres (`/paiement/<code>`). La dérivation vit dans `grillePubliqueDepuis`
+// (lib/plans-catalogue.ts), prouvée par scripts/test-offres-publiques.ts.
+// ============================================================
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
 import BandeauGabarit from '@/components/public/BandeauGabarit';
+import AbonnementTarifs from '@/components/AbonnementTarifs';
+import {
+  grillePubliqueCourante,
+  grillePubliqueDepuis,
+  lireCatalogue,
+  type GrillePublique,
+} from '@/lib/plans-catalogue';
+import { modePaiementAffiche } from '@/lib/paiement/mode';
+import { creerClientServeur } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Tarifs',
   description:
-    'Plume d’Ombres est gratuit pendant le lancement : import, traduction, lecture et exports sans frais. L’offre Premium est annoncée mais son prix n’est pas encore fixé et le paiement n’est pas ouvert.',
+    'Les formules Plume d’Ombres et leurs prix en francs CFA : offre gratuite, abonnements Lecteur et Passionné (mensuels et annuels), paiement par Mobile Money.',
 };
 
-const GRATUIT = [
-  'Import de vos fichiers .txt, .md, .pdf (texte) et .epub',
-  'Découpage automatique en chapitres et segments',
-  'Traduction vers le français depuis cinq autres langues',
-  'Lecture complète avec réglages de confort (police, taille, thème)',
-  'Reprise de lecture, favoris, recherche dans le chapitre',
-  'Exports Markdown, Word (.docx) et PDF',
-];
+async function grille(): Promise<{ grille: GrillePublique; source: 'base' | 'repli' }> {
+  try {
+    const supabase = await creerClientServeur();
+    const catalogue = await lireCatalogue(supabase);
+    return { grille: grillePubliqueDepuis(catalogue), source: 'base' };
+  } catch {
+    // Base injoignable : on retombe sur le snapshot généré (même code,
+    // même tri) pour que la page publique reste lisible.
+    return { grille: grillePubliqueCourante(), source: 'repli' };
+  }
+}
 
-const PREMIUM = [
-  'Quota de traduction élargi (plusieurs livres par mois)',
-  'Plusieurs traductions menées en parallèle',
-  'Qualité littéraire supérieure (moteur payant, traitement des données expliqué)',
-  'Traduction en file prioritaire',
-  'Export EPUB, mode bilingue, marque-pages synchronisés',
-  'Glossaire de personnages pour les sagas',
-];
+export default async function PageTarifs() {
+  const { grille: g, source } = await grille();
+  const paiement = modePaiementAffiche();
+  const simulation = paiement.mode === 'simulation';
+  const sandbox = paiement.mode === 'sandbox';
 
-export default function PageTarifs() {
   return (
     <>
       <SectionPublique
+        id="tarifs-offres"
         niveau={1}
         surTitre="Tarifs"
-        titre="Gratuit pour de vrai, premium plus tard"
-        intro="Pendant le lancement, tout le studio est ouvert et gratuit. L’offre payante est dessinée mais pas branchée : aucun moyen de paiement n’est demandé, aucune somme ne peut être prélevée."
+        titre="Ce que vous pouvez souscrire aujourd’hui"
+        intro="Voici les formules réellement commercialisées, aux prix du catalogue. Importer, traduire, lire et exporter restent possibles avec l’offre gratuite : le paiement finance le volume et la qualité, jamais l’accès de base."
       >
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* --- Offre de lancement --- */}
-          <div className="velours p-6 flex flex-col">
-            <p className="sur-titre text-grenat-300">Offre de lancement</p>
-            <p className="font-display text-5xl text-encre-100 mt-3">0 €</p>
-            <p className="text-encre-500 text-xs mt-1">
-              sans engagement, sans carte bancaire
-            </p>
-            <ul className="mt-6 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
-              {GRATUIT.map((ligne) => (
-                <li key={ligne}>{ligne}</li>
-              ))}
-            </ul>
-            <Link
-              href="/connexion?mode=inscription"
-              className="bouton-principal mt-6 justify-center"
-            >
-              Créer mon compte
-            </Link>
-          </div>
+        <AbonnementTarifs
+          plans={g.offres}
+          planActuel=""
+          premium={false}
+          simulation={simulation}
+        />
 
-          {/* --- Premium annoncé --- */}
-          <div className="velours p-6 flex flex-col relative overflow-hidden">
-            <div className="absolute top-5 right-5">
-              <span className="rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
-                bientôt disponible
-              </span>
-            </div>
-            <p className="sur-titre text-violet-rom-300">Premium — annoncé</p>
-            <p className="font-display text-3xl text-encre-100 mt-3">
-              Prix non encore fixé
+        <div className="velours p-5 mt-6 text-sm text-encre-300 leading-relaxed">
+          {simulation ? (
+            <p>
+              <strong className="text-encre-100">Paiement en simulation.</strong>{' '}
+              Le tunnel d’achat est exerçable de bout en bout, sans débit réel :
+              aucun moyen de paiement ne peut être prélevé aujourd’hui.
             </p>
-            <p className="text-encre-500 text-xs mt-1">
-              placeholder — tarif à arrêter et à valider avant toute mise en vente
+          ) : sandbox ? (
+            <p>
+              <strong className="text-encre-100">Paiement par Mobile Money.</strong>{' '}
+              Le règlement s’effectue via FedaPay (agrégateur Mobile Money), en
+              environnement de test (sandbox) : aucun débit réel n’est effectué
+              tant que l’ouverture au public n’est pas annoncée.
             </p>
-            <ul className="mt-6 space-y-2 text-sm text-encre-500 leading-relaxed list-disc pl-5 flex-1">
-              {PREMIUM.map((ligne) => (
-                <li key={ligne}>{ligne}</li>
-              ))}
-            </ul>
-            <p className="text-encre-500 text-xs mt-6 italic">
-              Aucun abonnement n’est vendu aujourd’hui. Vous serez prévenu avant
-              l’ouverture, et rien ne changera sans votre accord.
+          ) : (
+            <p>
+              <strong className="text-encre-100">Paiement par Mobile Money.</strong>{' '}
+              Le règlement s’effectue via FedaPay (agrégateur Mobile Money). Le
+              prix affiché est celui du catalogue au moment de la commande ; les
+              modalités complètes figurent dans les conditions générales.
             </p>
-          </div>
+          )}
+          <p className="mt-3">
+            Droits sur le contenu numérique, durée, résiliation et{' '}
+            <Link href="/remboursement" className="lien-discret underline">
+              remboursement
+            </Link>{' '}
+            : voir les{' '}
+            <Link href="/conditions" className="lien-discret underline">
+              conditions générales
+            </Link>
+            . Vos données sont décrites dans la{' '}
+            <Link href="/confidentialite" className="lien-discret underline">
+              politique de confidentialité
+            </Link>{' '}
+            et la page{' '}
+            <Link href="/cookies" className="lien-discret underline">
+              cookies
+            </Link>
+            .
+          </p>
         </div>
       </SectionPublique>
 
       <SectionPublique
         gabarit="etroit"
         surTitre="Transparence"
-        titre="Ce qu’il faut savoir sur le gratuit"
+        titre="Des prix lisibles et un catalogue vérifiable"
       >
         <div className="velours p-6 space-y-4 text-sm text-encre-300 leading-relaxed">
           <p>
-            <strong className="text-encre-100">Aucune limite n’est appliquée aujourd’hui.</strong>{' '}
-            L’offre de lancement prévoit un plafond généreux — un livre complet par mois
-            (≈ 400 000 caractères) — mais ce plafond <em>n’est pas encore activé</em> dans
-            le studio. Il servira de garde-fou anti-abus le jour où le trafic le
-            justifiera.
+            <strong className="text-encre-100">Un seul catalogue fait foi.</strong>{' '}
+            Les prix, les durées et les quotas affichés ici proviennent de la base
+            du studio. Ce qui est visible est exactement ce qui est achetable :
+            aucune formule vendable n’est tenue cachée, aucune formule affichée
+            n’est hors d’atteinte.
           </p>
           <p>
-            <strong className="text-encre-100">Un livre ne restera jamais à moitié</strong>{' '}
-            par manque de quota : c’est la règle qui prime sur toute autre.
+            <strong className="text-encre-100">Un livre ne restera jamais à moitié.</strong>{' '}
+            Chaque segment de traduction est suivi : un échec est signalé et repris
+            plutôt que laissé en trou. C’est la règle qui prime sur toute autre.
           </p>
           <p>
-            <strong className="text-encre-100">Aucune fonctionnalité essentielle ne sera payante.</strong>{' '}
-            Importer, traduire, lire et exporter resteront accessibles. Le Premium doit
-            financer le <em>volume</em> et la <em>qualité supérieure</em>, jamais l’accès de
-            base.
+            <strong className="text-encre-100">Aucune fonctionnalité essentielle n’est payante.</strong>{' '}
+            Importer, traduire, lire et exporter restent accessibles. Les
+            abonnements financent le <em>volume</em> (plus de livres par mois) et la
+            <em> qualité supérieure</em>, jamais l’accès de base.
+          </p>
+          <p>
+            <strong className="text-encre-100">Payer à l’année coûte moins cher.</strong>{' '}
+            Les formules annuelles offrent deux mois par rapport au mensuel (soit
+            une économie de 20 %). Le détail est indiqué sur chaque carte.
           </p>
         </div>
 
         <div className="mt-4">
           <BandeauGabarit>
-            La grille ci-dessus est une <strong>rédaction de travail</strong>. Prix,
-            paliers et conditions de facturation doivent être arrêtés puis relus par un
-            juriste (et par un comptable) avant l’ouverture du paiement.
+            Les prix et les conditions de facturation restent à confirmer par le
+            propriétaire (et à relire par un juriste et un comptable) avant
+            l’ouverture du paiement au grand public.
+            {source === 'repli'
+              ? ' Catalogue affiché en repli : la base n’a pas pu être lue à l’instant du rendu.'
+              : ''}
           </BandeauGabarit>
         </div>
       </SectionPublique>

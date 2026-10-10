@@ -45,24 +45,28 @@ export default function PageMentionsLegales() {
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <ul className="space-y-2">
             <li>
-              <strong className="text-encre-100">Dénomination</strong> : [à
-              compléter — nom ou raison sociale]
+              <strong className="text-encre-100">Dénomination</strong> : [À
+              REMPLIR : nom ou raison sociale de l’éditeur]
             </li>
             <li>
-              <strong className="text-encre-100">Statut juridique</strong> : [à
-              compléter — micro-entreprise / société / association]
+              <strong className="text-encre-100">Statut juridique</strong> : [À
+              REMPLIR : micro-entreprise / société / association]
             </li>
             <li>
-              <strong className="text-encre-100">Adresse</strong> : [à compléter —
+              <strong className="text-encre-100">Adresse</strong> : [À REMPLIR :
               adresse complète]
             </li>
             <li>
-              <strong className="text-encre-100">Immatriculation</strong> : [à
-              compléter — SIREN / SIRET ou registre équivalent]
+              <strong className="text-encre-100">Immatriculation</strong> : [À
+              REMPLIR : SIREN / SIRET ou registre équivalent]
             </li>
             <li>
-              <strong className="text-encre-100">Numéro de TVA</strong> : [à
-              compléter le cas échéant]
+              <strong className="text-encre-100">Numéro de TVA</strong> : [À
+              REMPLIR : numéro de TVA le cas échéant]
+            </li>
+            <li>
+              <strong className="text-encre-100">Téléphone</strong> : [À REMPLIR :
+              numéro de téléphone joignable]
             </li>
             <li>
               <strong className="text-encre-100">Contact</strong> : voir la page{' '}
@@ -85,7 +89,7 @@ export default function PageMentionsLegales() {
       >
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed">
           <p>
-            [à compléter — nom et qualité du responsable de la publication]. Pour
+            [À REMPLIR : nom et qualité du responsable de la publication]. Pour
             toute question relative au contenu du site, passez par la page{' '}
             <Link href="/contact" className="lien-discret underline">
               Contact
@@ -101,8 +105,8 @@ export default function PageMentionsLegales() {
             <strong className="text-encre-100">Vercel Inc.</strong> — hébergement
             de l’application (rendu des pages et routes serveur). Coordonnées
             officielles à recopier depuis la page « legal » de Vercel au moment de
-            la mise en ligne. Région d’exécution : [à confirmer selon la
-            configuration de production].
+            la mise en ligne. Région d’exécution : [À REMPLIR : région d’exécution
+            Vercel en production].
           </p>
           <p>
             <strong className="text-encre-100">Supabase Inc.</strong> — base de

@@ -108,9 +108,11 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
     q: 'Combien ça coûte ?',
     r: (
       <>
-        <strong>Rien, pendant le lancement.</strong> L’offre Premium est annoncée,
-        mais ni son prix ni le paiement ne sont fixés : aucune somme ne peut être
-        prélevée aujourd’hui. Détail sur la page{' '}
+        <strong>Importer, traduire, lire et exporter restent gratuits.</strong> Des
+        formules payantes (Lecteur à partir de 1 500 F CFA par mois, Passionné, et
+        leurs versions annuelles avec 2 mois offerts) financent le volume et la
+        qualité supérieure. Les prix exacts, la durée et le paiement par Mobile
+        Money sont détaillés sur la page{' '}
         <Link href="/tarifs" className="lien-discret underline">
           Tarifs
         </Link>

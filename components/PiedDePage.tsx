@@ -24,6 +24,8 @@ const LE_STUDIO: Lien[] = [
 const CADRE_LEGAL: Lien[] = [
   { href: '/conditions', libelle: 'Conditions générales (CGU/CGV)' },
   { href: '/confidentialite', libelle: 'Politique de confidentialité' },
+  { href: '/remboursement', libelle: 'Remboursement' },
+  { href: '/cookies', libelle: 'Cookies' },
   { href: '/mentions-legales', libelle: 'Mentions légales' },
 ];
 
@@ -86,9 +88,11 @@ export default function PiedDePage() {
             d’affiliation avec les ayants droit des œuvres importées.
           </p>
           <p>
-            Offre payante{' '}
-            <span className="text-grenat-300">bientôt disponible</span> — le
-            studio est entièrement gratuit pendant le lancement.
+            Formules payantes affichées sur la{' '}
+            <Link href="/tarifs" className="lien-discret underline">
+              page Tarifs
+            </Link>{' '}
+            — le studio reste utilisable gratuitement pendant le lancement.
           </p>
         </div>
 
