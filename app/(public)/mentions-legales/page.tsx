@@ -66,19 +66,24 @@ export default function PageMentionsLegales() {
               </Link>
             </li>
           </ul>
-          <div className="rounded-md border border-amber-400/40 bg-amber-500/5 p-4 space-y-2">
-            <p className="text-amber-300 text-[13px] font-semibold">
-              Champs que seul l’éditeur peut renseigner :
-            </p>
-            <ul className="list-disc pl-5 space-y-1 text-[13px] leading-relaxed text-amber-300">
-              <li>Adresse postale de l’éditeur.</li>
-              <li>
-                Numéro d’identification (NPI / RCCM / IFU) ou registre équivalent.
-              </li>
-              <li>Numéro de TVA, le cas échéant.</li>
-              <li>Numéro de téléphone joignable (facultatif).</li>
-            </ul>
-          </div>
+          <ul className="space-y-2">
+            <li>
+              <strong className="text-encre-100">Adresse</strong> : Cotonou, Bénin.
+              L’adresse postale exacte est communiquée sur demande écrite, à
+              l’adresse de contact ci-dessus.
+            </li>
+            <li>
+              <strong className="text-encre-100">Immatriculation</strong> : aucune à
+              ce jour (éditeur individuel, personne physique). Le numéro RCCM et
+              l’identifiant fiscal unique (IFU) seront ajoutés si l’activité est
+              immatriculée. Le numéro personnel d’identification (NPI) n’est jamais
+              publié.
+            </li>
+            <li>
+              <strong className="text-encre-100">Téléphone</strong> : non communiqué
+              — le contact se fait par écrit.
+            </li>
+          </ul>
           <p className="text-encre-500 italic">
             Le nom commercial « Plume d’Ombres » désigne le studio en ligne ;
             l’éditeur est la personne physique qui l’exploite.

@@ -119,16 +119,14 @@ export default function PageConfidentialite() {
             Contact pour la protection des données :{' '}
             <strong className="text-encre-100">carreldossou7@gmail.com</strong>.
           </p>
-          <div className="rounded-md border border-amber-400/40 bg-amber-500/5 p-4">
-            <p className="text-amber-300 text-[13px] leading-relaxed">
-              Champs que seul l’éditeur peut renseigner : adresse postale et numéro
-              d’identification (NPI / RCCM / IFU) — voir les{' '}
-              <Link href="/mentions-legales" className="lien-discret underline">
-                mentions légales
-              </Link>
-              .
-            </p>
-          </div>
+          <p className="text-encre-500">
+            L’adresse postale exacte de l’éditeur est communiquée sur demande
+            écrite, à l’adresse de contact ci-dessus ; elle figure aussi dans les{' '}
+            <Link href="/mentions-legales" className="lien-discret underline">
+              mentions légales
+            </Link>
+            .
+          </p>
           <p>
             Le studio est un outil personnel de traduction : les données traitées le
             sont pour votre seul compte, jamais pour un usage communautaire.
