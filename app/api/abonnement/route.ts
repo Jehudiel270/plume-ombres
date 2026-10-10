@@ -18,6 +18,7 @@ import {
   estPlanPremium,
   packsCredits,
   planParCode,
+  planEnVigueur,
   plansAbonnementAffiches,
   quotaPourPlan,
   statutEffectif,
@@ -48,6 +49,10 @@ export async function GET(request: NextRequest) {
     planParCode(abonnement?.plan ?? null) ?? planParCode(CODE_PLAN_GRATUIT)!;
   const premium = statut === 'actif' && estPlanPremium(plan);
   const base = quotaMensuel();
+  // Le quota effectif suit l'offre réellement en vigueur : un abonnement
+  // échu (periode_fin <= now()) retombe sur le plafond de base.
+  const planQuota =
+    planParCode(planEnVigueur(abonnement)) ?? planParCode(CODE_PLAN_GRATUIT)!;
 
   // Crédits prépayés (pay-as-you-go) : solde + journal récent. Tolérant :
   // une base non migrée ne doit pas faire échouer tout l'état du compte.
@@ -75,7 +80,7 @@ export async function GET(request: NextRequest) {
     periodeDebut: abonnement?.periode_debut ?? null,
     periodeFin: abonnement?.periode_fin ?? null,
     moteur: plan.moteur,
-    quota: { base, effectif: quotaPourPlan(plan, base) },
+    quota: { base, effectif: quotaPourPlan(planQuota, base) },
     credits: {
       solde: soldeCredits,
       mouvements,

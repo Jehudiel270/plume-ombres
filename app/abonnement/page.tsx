@@ -16,6 +16,7 @@ import {
   packsCredits,
   planParCode,
   plansAbonnementAffiches,
+  planEnVigueur,
   quotaPourPlan,
   statutEffectif,
   type CodePlan,
@@ -73,7 +74,14 @@ export default async function PageAbonnement() {
     planParCode(abonnement?.plan ?? null) ?? planParCode(CODE_PLAN_GRATUIT)!;
   const premium = statut === 'actif' && estPlanPremium(plan);
   const base = quotaMensuel();
-  const quota = quotaPourPlan(plan, base);
+
+  // Défense en profondeur : le quota élargi d'un plan n'est accordé que
+  // si l'abonnement est RÉELLEMENT en vigueur (periode_fin > now()). Un
+  // abonnement échu retombe sur le plafond de base, jamais sur le quota
+  // Premium — miroir EXACT de public.limite_abonnement (SQL).
+  const planQuota =
+    planParCode(planEnVigueur(abonnement)) ?? planParCode(CODE_PLAN_GRATUIT)!;
+  const quota = quotaPourPlan(planQuota, base);
   const etatPaiement = modePaiementAffiche();
   const priveStrict = modePriveStrict();
 
