@@ -36,6 +36,7 @@ import {
   BORNES,
   CLEF_PREFERENCES,
   espacementEffectif,
+  POLICES_LECTURE,
   PREFERENCES_PAR_DEFAUT,
   type ColonnesLecture,
   type MargesLecture,
@@ -110,17 +111,22 @@ interface Option<T> {
 /**
  * Groupe de boutons exclusifs en `radiogroup` : une seule case de
  * tabulation (tabindex mobile), navigation par flèches/Home/End.
+ * `disposition` : « ligne » (groupes courts : thème, marges…) ou
+ * « grille » (listes longues — la police — où l'on veut des cibles
+ * tactiles larges et un retour à la ligne propre).
  */
 function GroupeRadio<T extends string | number>({
   legende,
   options,
   valeur,
   onChoix,
+  disposition = 'ligne',
 }: {
   legende: string;
   options: Array<Option<T>>;
   valeur: T;
   onChoix: (v: T) => void;
+  disposition?: 'ligne' | 'grille';
 }) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const indexActif = Math.max(
@@ -154,7 +160,15 @@ function GroupeRadio<T extends string | number>({
   }
 
   return (
-    <div role="radiogroup" aria-label={legende} className="flex gap-1.5">
+    <div
+      role="radiogroup"
+      aria-label={legende}
+      className={
+        disposition === 'grille'
+          ? 'grid grid-cols-2 gap-1.5'
+          : 'flex gap-1.5'
+      }
+    >
       {options.map((o, i) => (
         <button
           key={String(o.valeur)}
@@ -277,11 +291,16 @@ const THEMES: Array<Option<ThemeLecture>> = [
   { valeur: 'parchemin', libelle: 'Parchemin' },
 ];
 
-const POLICES: Array<Option<PoliceLecture>> = [
-  { valeur: 'lora', libelle: 'Lora', titre: 'Lora (romain) — police par défaut' },
-  { valeur: 'systeme', libelle: 'Système', titre: 'Police système (aucun téléchargement)' },
-  { valeur: 'monospace', libelle: 'Mono', titre: 'Monospace' },
-];
+/**
+ * Liste des polices proposées : SOURCE UNIQUE dans lib/lecture.ts
+ * (`POLICES_LECTURE`) — les trois d'origine puis les six familles
+ * ajoutées. On la projette sur le format `Option` du panneau.
+ */
+const POLICES: Array<Option<PoliceLecture>> = POLICES_LECTURE.map((p) => ({
+  valeur: p.valeur,
+  libelle: p.libelle,
+  titre: p.titre,
+}));
 
 const COLONNES: Array<Option<ColonnesLecture>> = [
   { valeur: 1, libelle: '1 colonne' },
@@ -436,6 +455,7 @@ export default function ReglagesLecture({
                 options={POLICES}
                 valeur={prefs.police}
                 onChoix={(police) => maj({ police })}
+                disposition="grille"
               />
             </div>
             <Glissiere

@@ -27,7 +27,25 @@
 // ============================================================
 
 export type ThemeLecture = 'nuit' | 'encre' | 'parchemin';
-export type PoliceLecture = 'lora' | 'systeme' | 'monospace';
+/**
+ * Polices du corps de texte du lecteur.
+ *
+ * Les trois valeurs d'ORIGINE (`lora`, `systeme`, `monospace`) sont
+ * conservées à l'identique (rétrocompatibilité des préférences
+ * enregistrées). Les six suivantes sont les familles auto-hébergées
+ * ajoutées au chantier typographie — leur corps du texte, et non un
+ * couple titre+corps (ce dernier vit dans lib/theme.ts).
+ */
+export type PoliceLecture =
+  | 'lora'
+  | 'systeme'
+  | 'monospace'
+  | 'ebGaramond'
+  | 'spectral'
+  | 'libreBaskerville'
+  | 'playfair'
+  | 'prata'
+  | 'atkinson';
 export type MargesLecture = 'compacte' | 'normale' | 'large';
 export type ColonnesLecture = 1 | 2;
 
@@ -86,13 +104,97 @@ export const BORNES = {
  * police, pour chaque police du lecteur. Sert à convertir la
  * mesure demandée (en caractères) en longueur CSS réelle.
  * Valeurs mesurées sur le texte affiché dans le lecteur : Literata
- * (police par défaut) ≈ 0,50 em, monospace ≈ 0,60 em.
+ * (police par défaut) ≈ 0,50 em, monospace ≈ 0,60 em. Les familles
+ * ajoutées reprennent la largeur moyenne observée à l'écran
+ * (garalde repliée de EB Garamond ≈ 0,47 em ; serif large de Libre
+ * Baskerville ≈ 0,53 em ; sans-serif d'Atkinson ≈ 0,53 em).
  */
 export const FACTEUR_CARACTERE: Record<PoliceLecture, number> = {
   lora: 0.5,
   systeme: 0.5,
   monospace: 0.6,
+  ebGaramond: 0.47,
+  spectral: 0.5,
+  libreBaskerville: 0.53,
+  playfair: 0.5,
+  prata: 0.52,
+  atkinson: 0.53,
 };
+
+/**
+ * TABLE DE PROJECTION CSS : chaque police du lecteur vers la pile
+ * `font-family` réellement posée sur `--pref-police`. Les familles
+ * auto-hébergées sont référencées par leur variable `next/font/local`
+ * (voir lib/polices.ts), suivie des replis système.
+ */
+export const POLICES_CSS: Record<PoliceLecture, string> = {
+  lora: 'var(--font-lora), Georgia, serif',
+  systeme: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+  monospace: 'ui-monospace, "Cascadia Mono", Consolas, monospace',
+  ebGaramond: 'var(--font-eb-garamond), Georgia, "Times New Roman", serif',
+  spectral: 'var(--font-spectral), Georgia, "Times New Roman", serif',
+  libreBaskerville:
+    'var(--font-libre-baskerville), Georgia, "Times New Roman", serif',
+  playfair: 'var(--font-playfair), Georgia, "Times New Roman", serif',
+  prata: 'var(--font-prata), Georgia, "Times New Roman", serif',
+  atkinson:
+    'var(--font-atkinson), "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+};
+
+/** Option de police proposée dans les réglages du lecteur. */
+export interface OptionPolice {
+  valeur: PoliceLecture;
+  /** Libellé court affiché sur le bouton. */
+  libelle: string;
+  /** Libellé long (infobulle) décrivant le caractère de la police. */
+  titre: string;
+}
+
+/**
+ * LISTE PROPOSÉE À L'UTILISATEUR (réglages du lecteur). Les trois
+ * entrées d'origine (Lora, Système, Mono) ouvrent la liste, puis les
+ * six familles ajoutées. L'ordre est celui du catalogue
+ * (lib/polices-familles.ts) : le test le vérifie.
+ */
+export const POLICES_LECTURE: readonly OptionPolice[] = [
+  { valeur: 'lora', libelle: 'Lora', titre: 'Lora (romain) — police par défaut' },
+  {
+    valeur: 'systeme',
+    libelle: 'Système',
+    titre: 'Police système (aucun téléchargement)',
+  },
+  { valeur: 'monospace', libelle: 'Mono', titre: 'Monospace' },
+  {
+    valeur: 'ebGaramond',
+    libelle: 'Garamond',
+    titre: 'EB Garamond — garalde humaniste, très confortable en lecture longue',
+  },
+  {
+    valeur: 'spectral',
+    libelle: 'Spectral',
+    titre: 'Spectral — serif d’écran à faible contraste',
+  },
+  {
+    valeur: 'libreBaskerville',
+    libelle: 'Baskerville',
+    titre: 'Libre Baskerville — serif transitionnel robuste',
+  },
+  {
+    valeur: 'playfair',
+    libelle: 'Playfair',
+    titre: 'Playfair Display — titres à fort contraste (caractère éditorial)',
+  },
+  {
+    valeur: 'prata',
+    libelle: 'Prata',
+    titre: 'Prata — didone élégant, réservé aux titres',
+  },
+  {
+    valeur: 'atkinson',
+    libelle: 'Atkinson',
+    titre: 'Atkinson Hyperlegible — sans-serif d’accessibilité (Braille Institute)',
+  },
+];
 
 /** Marges latérales de la surface de lecture, en CSS. */
 export const MARGE_LECTURE: Record<MargesLecture, string> = {
@@ -119,10 +221,23 @@ export const ESPACEMENT_MINI_SANS_RETRAIT = 0.45;
 export const CLEF_PREFERENCES = 'plume.dombres.prefs.v1';
 
 const THEMES_VALIDES: readonly ThemeLecture[] = ['nuit', 'encre', 'parchemin'];
-const POLICES_VALIDES: readonly PoliceLecture[] = [
+
+/**
+ * TABLEAU DE VALIDATION des polices du lecteur. Sert à `assainirPreferences`
+ * pour qu'une préférence inconnue (version antérieure, valeur corrompue…)
+ * retombe TOUJOURS sur le défaut, sans jamais casser. Les trois valeurs
+ * d'origine sont conservées ; les six familles ajoutées les suivent.
+ */
+export const POLICES_VALIDES: readonly PoliceLecture[] = [
   'lora',
   'systeme',
   'monospace',
+  'ebGaramond',
+  'spectral',
+  'libreBaskerville',
+  'playfair',
+  'prata',
+  'atkinson',
 ];
 
 function borner(
@@ -195,11 +310,6 @@ export function espacementEffectif(pref: PreferencesLecture): number {
 export function preferencesEnCss(
   pref: PreferencesLecture
 ): Record<string, string> {
-  const polices: Record<PoliceLecture, string> = {
-    lora: 'var(--font-lora), Georgia, serif',
-    systeme: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
-    monospace: 'ui-monospace, "Cascadia Mono", Consolas, monospace',
-  };
   const fonds: Record<ThemeLecture, string> = {
     nuit: 'var(--color-nuit-900)',
     encre: '#0d0b10',
@@ -210,7 +320,7 @@ export function preferencesEnCss(
   // `--pref-taille` ET à la police choisie).
   const multiples = pref.largeur * FACTEUR_CARACTERE[pref.police];
   return {
-    '--pref-police': polices[pref.police],
+    '--pref-police': POLICES_CSS[pref.police],
     '--pref-taille': `${pref.taille}px`,
     '--pref-interligne': String(pref.interligne),
     '--pref-largeur': `calc(var(--pref-taille) * ${multiples.toFixed(3)})`,

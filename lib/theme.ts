@@ -30,7 +30,17 @@ export type PaletteId =
   | 'auroreBoreale'
   | 'roseFane'
   | 'sepiaAncienne';
-export type TypoId = 'plume' | 'velin' | 'native';
+export type TypoId =
+  | 'plume'
+  | 'velin'
+  | 'native'
+  // Familles ajoutées au chantier typographie (paires titre + corps).
+  | 'ebGaramond'
+  | 'spectral'
+  | 'libreBaskerville'
+  | 'playfair'
+  | 'prata'
+  | 'atkinson';
 
 /** Paramètres passés au shader du fond d'ambiance (0..1 par canal). */
 export interface PaletteWebgl {
@@ -496,9 +506,66 @@ export const TYPOS: Record<TypoId, Typo> = {
     titre: 'Georgia, "Times New Roman", serif',
     corps: 'Georgia, "Times New Roman", serif',
   },
+  // ---------------- Ajouts (chantier typographie) ----------------
+  // Chaque entrée s'appuie sur une famille auto-hébergée de
+  // lib/polices.ts (variable --font-…) ; les couples titre+corps
+  // gardent une police de TITRE à caractère et un CORPS confortable.
+  ebGaramond: {
+    id: 'ebGaramond',
+    nom: 'Garamond',
+    description: 'EB Garamond — garalde humaniste, titres et corps.',
+    titre: 'var(--font-eb-garamond), Georgia, "Times New Roman", serif',
+    corps: 'var(--font-eb-garamond), Georgia, "Times New Roman", serif',
+  },
+  spectral: {
+    id: 'spectral',
+    nom: 'Spectral',
+    description: 'Spectral — serif d’écran à faible contraste.',
+    titre: 'var(--font-spectral), Georgia, "Times New Roman", serif',
+    corps: 'var(--font-spectral), Georgia, "Times New Roman", serif',
+  },
+  libreBaskerville: {
+    id: 'libreBaskerville',
+    nom: 'Baskerville',
+    description: 'Libre Baskerville — serif transitionnel robuste.',
+    titre: 'var(--font-libre-baskerville), Georgia, "Times New Roman", serif',
+    corps: 'var(--font-libre-baskerville), Georgia, "Times New Roman", serif',
+  },
+  playfair: {
+    id: 'playfair',
+    nom: 'Playfair',
+    description: 'Playfair Display aux titres, EB Garamond au corps.',
+    titre: 'var(--font-playfair), Georgia, "Times New Roman", serif',
+    corps: 'var(--font-eb-garamond), Georgia, "Times New Roman", serif',
+  },
+  prata: {
+    id: 'prata',
+    nom: 'Prata',
+    description: 'Prata aux titres (didone), Spectral au corps.',
+    titre: 'var(--font-prata), Georgia, "Times New Roman", serif',
+    corps: 'var(--font-spectral), Georgia, "Times New Roman", serif',
+  },
+  atkinson: {
+    id: 'atkinson',
+    nom: 'Atkinson',
+    description: 'Atkinson Hyperlegible — sans-serif d’accessibilité.',
+    titre: 'var(--font-atkinson), "Segoe UI", Arial, sans-serif',
+    corps: 'var(--font-atkinson), "Segoe UI", Arial, sans-serif',
+  },
 };
 
-export const ORDRE_TYPOS: TypoId[] = ['plume', 'velin', 'native'];
+export const ORDRE_TYPOS: TypoId[] = [
+  // Les 3 typographies d'origine (inchangées), puis les ajouts.
+  'plume',
+  'velin',
+  'native',
+  'ebGaramond',
+  'spectral',
+  'libreBaskerville',
+  'playfair',
+  'prata',
+  'atkinson',
+];
 export const TYPO_DEFAUT: TypoId = 'plume';
 
 export const CLEF_PALETTE = 'plume.dombres.palette.v1';
