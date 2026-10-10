@@ -185,10 +185,10 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
         </p>
         <p className="mt-3">
           Prestataire de paiement mobile :{' '}
-          <strong className="text-amber-300">
-            [À REMPLIR : nom du prestataire/agrégateur et pays couverts]
-          </strong>
-          . Les opérateurs pris en charge sont précisés au moment du paiement.
+          <strong className="text-encre-100">FedaPay</strong>, agrégateur de
+          paiement <strong className="text-encre-100">Mobile Money</strong>{' '}
+          couvrant la zone UEMOA (Bénin et pays voisins). Les opérateurs pris en
+          charge sont précisés au moment du paiement.
         </p>
       </>
     ),
@@ -229,12 +229,19 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
           .
         </p>
         <p className="mt-3">
-          Le droit national applicable au consommateur et le texte de référence
-          doivent être précisés par l’éditeur.{' '}
-          <strong className="text-amber-300">
-            [À REMPLIR : pays et droit applicable au consommateur — ex. Bénin /
-            zone CEDEAO / France.]
-          </strong>
+          Le droit applicable au consommateur est le{' '}
+          <strong className="text-encre-100">droit béninois</strong> — loi
+          n° 2007-21 portant protection des consommateurs — complété par l’
+          <strong className="text-encre-100">Acte additionnel CEDEAO
+          A/SA.1/01/10</strong> relatif à la protection des consommateurs dans
+          l’espace CEDEAO. Le droit de rétractation est de quinze (15) jours
+          ouvrables à compter de la conclusion du contrat à distance, porté à
+          quatre-vingt-dix (90) jours à défaut d’information préalable ; il est
+          perdu lorsque vous consentez expressément à l’exécution immédiate et
+          reconnaissez renoncer à ce droit. En dehors de ces cas, la politique du
+          studio est{' '}
+          <strong className="text-encre-100">l’absence de remboursement</strong>,
+          telle que décrite sur la page Remboursement.
         </p>
       </>
     ),
@@ -264,11 +271,11 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
         <p className="mt-3">
           Pour les formules payantes, la responsabilité de l’éditeur est, dans la
           mesure permise par le droit applicable, limitée au montant payé pour la
-          période en cours.{' '}
-          <strong className="text-amber-300">
-            [À REMPLIR : plafond de responsabilité et exclusions — à confirmer par
-            un juriste.]
-          </strong>
+          période en cours. Ces limitations s’entendent sans priver le
+          consommateur des garanties et protections impératives de la{' '}
+          <strong className="text-encre-100">loi béninoise n° 2007-21 portant
+          protection des consommateurs</strong> et de l’Acte additionnel CEDEAO
+          A/SA.1/01/10, auxquelles il ne peut être dérogé.
         </p>
       </>
     ),
@@ -310,27 +317,28 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
     corps: (
       <>
         <p>
-          Les présentes conditions sont soumises au droit applicable à l’éditeur.{' '}
-          <strong className="text-amber-300">
-            [À REMPLIR : pays du droit applicable — à préciser par l’éditeur.]
-          </strong>{' '}
-          En cas de litige, une solution amiable sera recherchée en priorité via la
-          page{' '}
+          Les présentes conditions sont soumises au{' '}
+          <strong className="text-encre-100">droit béninois</strong>, notamment à
+          la loi n° 2017-20 du 20 avril 2018 portant code du numérique (modifiée
+          par la loi n° 2020-35 du 6 janvier 2021), à la loi n° 2007-21 portant
+          protection des consommateurs et à l’Acte additionnel CEDEAO A/SA.1/01/10.
+          En cas de litige, une solution amiable sera recherchée en priorité via
+          la page{' '}
           <Link href="/contact" className="lien-discret underline">
             Contact
           </Link>
-          .
+          ; une réponse est apportée dans un délai indicatif de sept (7) jours
+          ouvrés.
         </p>
         <p className="mt-3">
-          Le consommateur peut recourir gratuitement à un médiateur de la
-          consommation.{' '}
-          <strong className="text-amber-300">
-            [À REMPLIR : coordonnées du médiateur de la consommation — à indiquer
-            obligatoirement avant toute vente.]
+          <strong className="text-encre-100">
+            Aucun médiateur de la consommation n’est désigné à ce jour.
           </strong>{' '}
-          À défaut d’accord, les tribunaux compétents seront ceux du ressort de
-          l’éditeur, sans priver le consommateur des protections de sa
-          juridiction.
+          À défaut de solution amiable, et sans priver le consommateur des
+          protections de sa juridiction, les juridictions compétentes du{' '}
+          <strong className="text-encre-100">Bénin</strong> sont seules saisies.
+          Pour les données personnelles, l’autorité de contrôle est l’
+          <strong className="text-encre-100">APDP</strong> (Bénin).
         </p>
       </>
     ),
@@ -355,16 +363,18 @@ export default function PageConditions() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Conditions générales d’utilisation et de vente"
-        intro="Version de travail. Elle s’applique à l’usage du studio et couvre désormais la vente des formules payantes (prix, Mobile Money, durée, résiliation, rétractation). Lisible sans compte."
+        intro="Dernière mise à jour : 10 octobre 2026. Elle s’applique à l’usage du studio et couvre la vente des formules payantes (prix, Mobile Money, durée, résiliation, rétractation). Lisible sans compte."
       >
         <SommaireLegal actif="conditions" />
 
         <div className="mt-4">
           <BandeauGabarit>
-            Ce document est un <strong>gabarit rédactionnel</strong>. Il doit être
-            relu et adapté par un juriste (<em>a fortiori</em> avant toute vente),
-            notamment sur les prix, le droit de rétractation, la garantie de
-            conformité, la médiation de la consommation et la loi applicable.
+            Ce document reste un <strong>gabarit à valider</strong>. Il doit
+            encore être relu et arbitré par un juriste (<em>a fortiori</em> avant
+            toute vente), en particulier la garantie de conformité, la clause de
+            non-remboursement, le droit de rétractation et la loi applicable. Les
+            éléments personnalisés (éditeur, hébergeurs, prestataire de paiement,
+            droit applicable) ont été complétés mais doivent être confirmés.
           </BandeauGabarit>
         </div>
       </SectionPublique>

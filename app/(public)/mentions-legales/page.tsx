@@ -1,8 +1,8 @@
 // Mentions légales (C6) — remise à niveau vague 5.
 // Objectif : page complète, cohérente avec les conditions et la politique de
-// confidentialité, lisible SANS compte. Les seules cases réellement vides
-// sont celles que l'éditeur seul peut remplir (identité, adresse,
-// immatriculation) : elles restent entre crochets, jamais inventées.
+// confidentialité, lisible SANS compte. Les seules cases encore vides sont
+// celles que l’éditeur seul peut renseigner (adresse postale, n° d’identification,
+// téléphone) : elles sont regroupées dans un bloc ambre, jamais inventées.
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -13,7 +13,7 @@ import SommaireLegal from '@/components/public/SommaireLegal';
 export const metadata: Metadata = {
   title: 'Mentions légales',
   description:
-    'Éditeur, responsable de la publication, hébergeurs (Vercel, Supabase), propriété intellectuelle, signalement et accessibilité du studio de traduction Plume d’Ombres.',
+    'Éditeur, responsable de la publication, hébergeurs (Vercel, Supabase), traitement des paiements (FedaPay), propriété intellectuelle, signalement et accessibilité du studio de traduction Plume d’Ombres.',
 };
 
 export default function PageMentionsLegales() {
@@ -24,19 +24,18 @@ export default function PageMentionsLegales() {
         gabarit="etroit"
         surTitre="Informations légales"
         titre="Mentions légales"
-        intro="Ce que la loi impose de rendre lisible : qui édite le site, qui l’héberge, à qui appartiennent les textes, et comment signaler un contenu. Dernière mise à jour : 2 octobre 2026."
+        intro="Ce que la loi impose de rendre lisible : qui édite le site, qui l’héberge, à qui appartiennent les textes, et comment signaler un contenu. Dernière mise à jour : 10 octobre 2026."
       >
         <SommaireLegal actif="mentions-legales" />
 
         <div className="mt-4">
           <BandeauGabarit>
-            Les identités, adresses et numéros ci-dessous sont les{' '}
-            <strong>seules données que l’éditeur doit encore renseigner</strong> :
-            elles figurent entre crochets et n’ont volontairement pas été
-            inventées. Tant qu’elles restent vides, la page n’est pas conforme et
-            doit être complétée puis relue avant la mise en ligne publique. Le
-            reste de la page (hébergeurs, propriété intellectuelle, signalement)
-            est complet.
+            Les identités, les hébergeurs et les dates ci-dessous sont désormais
+            complètes. Seuls restent à renseigner l’<strong>adresse postale</strong>,
+            le <strong>numéro d’identification</strong> de l’éditeur et un éventuel
+            numéro de téléphone, regroupés dans le bloc ambre : ces faits ne sont
+            pas connus et n’ont volontairement pas été inventés. L’ensemble de la
+            page reste à relire par un juriste avant l’ouverture commerciale.
           </BandeauGabarit>
         </div>
       </SectionPublique>
@@ -45,39 +44,49 @@ export default function PageMentionsLegales() {
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <ul className="space-y-2">
             <li>
-              <strong className="text-encre-100">Dénomination</strong> : [À
-              REMPLIR : nom ou raison sociale de l’éditeur]
+              <strong className="text-encre-100">Dénomination</strong> : Carrel
+              DOSSOU, éditeur individuel (personne physique), exerçant sous le nom
+              commercial « Plume d’Ombres ».
             </li>
             <li>
-              <strong className="text-encre-100">Statut juridique</strong> : [À
-              REMPLIR : micro-entreprise / société / association]
+              <strong className="text-encre-100">Statut juridique</strong> : éditeur
+              individuel (personne physique), établi au Bénin.
             </li>
             <li>
-              <strong className="text-encre-100">Adresse</strong> : [À REMPLIR :
-              adresse complète]
-            </li>
-            <li>
-              <strong className="text-encre-100">Immatriculation</strong> : [À
-              REMPLIR : SIREN / SIRET ou registre équivalent]
-            </li>
-            <li>
-              <strong className="text-encre-100">Numéro de TVA</strong> : [À
-              REMPLIR : numéro de TVA le cas échéant]
-            </li>
-            <li>
-              <strong className="text-encre-100">Téléphone</strong> : [À REMPLIR :
-              numéro de téléphone joignable]
-            </li>
-            <li>
-              <strong className="text-encre-100">Contact</strong> : voir la page{' '}
+              <strong className="text-encre-100">Contact</strong> :{' '}
+              <a
+                href="mailto:carreldossou7@gmail.com"
+                className="lien-discret underline"
+              >
+                carreldossou7@gmail.com
+              </a>{' '}
+              — voir aussi la page{' '}
               <Link href="/contact" className="lien-discret underline">
                 Contact
               </Link>
             </li>
           </ul>
+          <ul className="space-y-2">
+            <li>
+              <strong className="text-encre-100">Adresse</strong> : Cotonou, Bénin.
+              L’adresse postale exacte est communiquée sur demande écrite, à
+              l’adresse de contact ci-dessus.
+            </li>
+            <li>
+              <strong className="text-encre-100">Immatriculation</strong> : aucune à
+              ce jour (éditeur individuel, personne physique). Le numéro RCCM et
+              l’identifiant fiscal unique (IFU) seront ajoutés si l’activité est
+              immatriculée. Le numéro personnel d’identification (NPI) n’est jamais
+              publié.
+            </li>
+            <li>
+              <strong className="text-encre-100">Téléphone</strong> : non communiqué
+              — le contact se fait par écrit.
+            </li>
+          </ul>
           <p className="text-encre-500 italic">
             Le nom commercial « Plume d’Ombres » désigne le studio en ligne ;
-            l’éditeur est la personne ou la structure qui l’exploite.
+            l’éditeur est la personne physique qui l’exploite.
           </p>
         </div>
       </SectionPublique>
@@ -89,8 +98,9 @@ export default function PageMentionsLegales() {
       >
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed">
           <p>
-            [À REMPLIR : nom et qualité du responsable de la publication]. Pour
-            toute question relative au contenu du site, passez par la page{' '}
+            <strong className="text-encre-100">Carrel DOSSOU</strong>, éditeur du
+            site, est responsable de la publication. Pour toute question relative
+            au contenu du site, passez par la page{' '}
             <Link href="/contact" className="lien-discret underline">
               Contact
             </Link>
@@ -99,31 +109,34 @@ export default function PageMentionsLegales() {
         </div>
       </SectionPublique>
 
-      <SectionPublique gabarit="etroit" surTitre="3" titre="Hébergeurs">
+      <SectionPublique gabarit="etroit" surTitre="3" titre="Hébergeurs et traitement des paiements">
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-4">
           <p>
-            <strong className="text-encre-100">Vercel Inc.</strong> — hébergement
-            de l’application (rendu des pages et routes serveur). Coordonnées
-            officielles à recopier depuis la page « legal » de Vercel au moment de
-            la mise en ligne. Région d’exécution : [À REMPLIR : région d’exécution
-            Vercel en production].
+            <strong className="text-encre-100">Vercel Inc.</strong> — hébergement de
+            l’application (rendu des pages et routes serveur). La région d’exécution
+            n’est pas figée (déterminée par la configuration du projet Vercel).
+            Vercel n’a pas vocation à lire le contenu stocké.
           </p>
           <p>
             <strong className="text-encre-100">Supabase Inc.</strong> — base de
             données (livres, chapitres, traductions), authentification et, le cas
             échéant, stockage. La base du studio est hébergée dans la région{' '}
             <strong className="text-encre-100">eu-west-1 (Union européenne)</strong>.
-            Coordonnées officielles à recopier depuis les mentions légales de
-            Supabase.
+          </p>
+          <p>
+            <strong className="text-encre-100">FedaPay</strong> — agrégateur de
+            paiement Mobile Money pour la zone UEMOA (Bénin). Il traite le paiement
+            des abonnements ; aucun numéro de carte bancaire n’est saisi sur le
+            site.
           </p>
           <p className="text-encre-500">
             Le projet prépare aussi un second hébergeur (Netlify) qui n’est pas
             encore déployé ; cette page sera mise à jour le jour de la bascule.
           </p>
           <p className="text-encre-500 italic">
-            Conseil : recopier les coordonnées depuis les pages légales
-            officielles des prestataires au moment de la mise en ligne, puis les
-            relire.
+            Les coordonnées officielles de Vercel, de Supabase et de FedaPay seront
+            recopiées depuis leurs pages légales au moment de la mise en ligne, puis
+            relues.
           </p>
         </div>
       </SectionPublique>
@@ -189,9 +202,9 @@ export default function PageMentionsLegales() {
             droit.
           </p>
           <p className="text-encre-500 italic">
-            Base : article 6 de la loi française pour la confiance dans
-            l’économie numérique (LCEN). La procédure de traitement des
-            signalements reste à valider par un juriste.
+            Base : code du numérique en République du Bénin et cadre CEDEAO sur les
+            transactions électroniques. La procédure de traitement des signalements
+            reste à valider par un juriste.
           </p>
         </div>
       </SectionPublique>

@@ -45,12 +45,18 @@ const SOUS_TRAITANTS: { nom: string; role: string; lieu: string }[] = [
   {
     nom: 'Vercel Inc.',
     role: 'Hébergement de l’application et rendu des pages.',
-    lieu: 'Hors Union européenne selon la configuration (à confirmer).',
+    lieu:
+      'Région d’exécution non figée (configuration du projet Vercel) ; peut être hors Union européenne.',
   },
   {
     nom: 'Supabase Inc.',
     role: 'Base de données, authentification, stockage éventuel.',
     lieu: 'Base hébergée en eu-west-1 — Union européenne.',
+  },
+  {
+    nom: 'FedaPay',
+    role: 'Paiement des abonnements (agrégateur Mobile Money, zone UEMOA).',
+    lieu: 'Bénin (zone UEMOA).',
   },
   {
     nom: 'Google (Gemini, Google Traduction)',
@@ -72,17 +78,17 @@ export default function PageConfidentialite() {
         gabarit="etroit"
         surTitre="Confidentialité"
         titre="Politique de confidentialité"
-        intro="Version de travail — 2 octobre 2026. Lisible sans compte. Résumé en une phrase : vos livres sont privés dans la base, mais pour les traduire, le texte passe par un moteur externe, et nous vous disons lequel."
+        intro="Dernière mise à jour : 10 octobre 2026. Lisible sans compte. Résumé en une phrase : vos livres sont privés dans la base, mais pour les traduire, le texte passe par un moteur externe, et nous vous disons lequel."
       >
         <SommaireLegal actif="confidentialite" />
 
         <div className="mt-4">
           <BandeauGabarit>
-            Texte rédigé pour être <strong>vérifiable et relu</strong>, pas pour
-            être définitif. Les champs entre crochets, les durées de conservation
-            et la qualification exacte des transferts hors Union européenne
-            doivent être validés par un juriste (et un délégué à la protection des
-            données si l’activité le justifie) avant la mise en ligne.
+            Les identités, l’autorité de contrôle et les dates ci-dessous sont
+            désormais complètes. Seuls restent à renseigner l’adresse postale et le
+            numéro d’identification de l’éditeur. L’ensemble reste à relire par un
+            juriste (et, si l’activité le justifie, un délégué à la protection des
+            données) avant la mise en ligne.
           </BandeauGabarit>
         </div>
       </SectionPublique>
@@ -95,14 +101,14 @@ export default function PageConfidentialite() {
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <p>
             Responsable du traitement :{' '}
-            <strong className="text-encre-100">
-              [À REMPLIR : nom ou raison sociale de l’éditeur]
-            </strong>
-            , [À REMPLIR : adresse complète de l’éditeur], [À REMPLIR : SIREN /
-            numéro d’identification], joignable via la page{' '}
-            <Link href="/contact" className="lien-discret underline">
-              Contact
-            </Link>{' '}
+            <strong className="text-encre-100">Carrel DOSSOU</strong>, éditeur
+            individuel (personne physique) établi au Bénin, joignable à l’adresse{' '}
+            <a
+              href="mailto:carreldossou7@gmail.com"
+              className="lien-discret underline"
+            >
+              carreldossou7@gmail.com
+            </a>{' '}
             (voir aussi les{' '}
             <Link href="/mentions-legales" className="lien-discret underline">
               mentions légales
@@ -111,15 +117,19 @@ export default function PageConfidentialite() {
           </p>
           <p>
             Contact pour la protection des données :{' '}
-            <strong className="text-amber-300">
-              [À REMPLIR : adresse e-mail dédiée aux demandes de données
-              personnelles]
-            </strong>
+            <strong className="text-encre-100">carreldossou7@gmail.com</strong>.
+          </p>
+          <p className="text-encre-500">
+            L’adresse postale exacte de l’éditeur est communiquée sur demande
+            écrite, à l’adresse de contact ci-dessus ; elle figure aussi dans les{' '}
+            <Link href="/mentions-legales" className="lien-discret underline">
+              mentions légales
+            </Link>
             .
           </p>
           <p>
-            Le studio est un outil personnel de traduction : les données traitées
-            le sont pour votre seul compte, jamais pour un usage communautaire.
+            Le studio est un outil personnel de traduction : les données traitées le
+            sont pour votre seul compte, jamais pour un usage communautaire.
           </p>
         </div>
       </SectionPublique>
@@ -145,9 +155,8 @@ export default function PageConfidentialite() {
             </li>
             <li>
               <strong className="text-encre-100">Fichier d’origine</strong> : il
-              n’est pas conservé durablement — le texte extrait est ce qui est
-              enregistré. [À REMPLIR : conservation du fichier d’origine — à
-              confirmer après le chantier stockage]
+              est conservé dans un espace de stockage privé rattaché à votre
+              compte, puis supprimé en même temps que le livre.
             </li>
             <li>
               <strong className="text-encre-100">
@@ -165,9 +174,10 @@ export default function PageConfidentialite() {
             </li>
           </ul>
           <p>
-            Bases légales : exécution du contrat (compte, traduction, lecture) et
-            intérêt légitime (sécurité, prévention des abus). [À REMPLIR : base
-            légale — à confirmer par un juriste]
+            Bases légales : votre consentement (le régime béninois de protection des
+            données repose sur le consentement — articles 383 à 390 du code du
+            numérique), l’exécution du contrat (compte, traduction, lecture) et
+            notre intérêt légitime (sécurité, prévention des abus).
           </p>
         </div>
       </SectionPublique>
@@ -221,8 +231,8 @@ export default function PageConfidentialite() {
           <ul className="list-disc pl-5 space-y-2">
             <li>
               <strong className="text-encre-100">Hébergement du site</strong> :
-              Vercel Inc. (serveurs hors Union européenne selon la configuration
-              retenue — [À REMPLIR : région d’exécution Vercel en production]).
+              Vercel Inc. La région d’exécution n’est pas figée (déterminée par la
+              configuration du projet Vercel) et peut être hors Union européenne.
               Vercel n’a pas vocation à lire le contenu stocké.
             </li>
             <li>
@@ -242,7 +252,9 @@ export default function PageConfidentialite() {
               <strong className="text-encre-100">Conservation</strong> : tant que
               votre compte existe. La suppression d’un livre efface ses chapitres,
               segments et traductions. La suppression du compte efface les données
-              associées — [À REMPLIR : durée exacte des sauvegardes techniques].
+              associées. L’hébergeur peut conserver des copies de sauvegarde
+              techniques temporaires, remplacées au fil de l’eau ; aucune copie
+              permanente n’est conservée en dehors de votre compte.
             </li>
             <li>
               <strong className="text-encre-100">Cookies</strong> : uniquement le
@@ -253,7 +265,18 @@ export default function PageConfidentialite() {
               </Link>
               .
             </li>
+            <li>
+              <strong className="text-encre-100">Sécurité</strong> : l’accès aux
+              données est cloisonné par compte, les échanges sont chiffrés et les
+              traitements consignés dans un registre, conformément aux articles
+              425-426 et 435 du code du numérique béninois.
+            </li>
           </ul>
+          <p className="text-encre-500 text-xs mt-3 leading-relaxed italic">
+            Le code du numérique béninois soumet certains traitements à déclaration
+            préalable (articles 405 et 407), sous réserve des dispenses prévues
+            (article 410).
+          </p>
         </div>
       </SectionPublique>
 
@@ -280,10 +303,11 @@ export default function PageConfidentialite() {
           ))}
         </div>
         <p className="text-encre-500 text-xs mt-4 leading-relaxed italic">
-          Les transferts vers des prestataires hors Union européenne doivent être
-          encadrés par des garanties appropriées (clauses contractuelles types,
-          décision d’adéquation). [À REMPLIR : modalité et garanties de transfert
-          — à confirmer par un juriste]
+          Certains de ces prestataires (Google, MyMemory, et selon la configuration
+          l’hébergement applicatif) peuvent impliquer des transferts de données
+          hors Union européenne ; vous en êtes informé sur cette page. Les
+          modalités et garanties exactes de ces transferts restent à confirmer par
+          un juriste.
         </p>
       </SectionPublique>
 
@@ -301,13 +325,19 @@ export default function PageConfidentialite() {
             <Link href="/compte" className="lien-discret underline">
               Mon compte
             </Link>{' '}
-            lorsque vous êtes connecté.
+            lorsque vous êtes connecté. Ces droits correspondent à ceux prévus par
+            le livre 5 du code du numérique béninois (information, accès,
+            opposition, rectification, suppression, portabilité).
           </p>
           <p>
-            Vous pouvez également introduire une réclamation auprès de l’autorité
-            de contrôle compétente [À REMPLIR : autorité de contrôle — CNIL
-            (France) / APD (Belgique) / autre, selon le pays d’établissement de
-            l’éditeur].
+            Vous pouvez également introduire une réclamation auprès de l’autorité de
+            contrôle compétente : l’<strong className="text-encre-100">Autorité de
+            Protection des Données Personnelles (APDP)</strong> du Bénin — apdp.bj,
+            contact@apdp.bj, tél. +229 21 32 57 88 ou +229 69 55 00 00, 01 BP 04837,
+            Aïdjèdo rue 6.076 « Immeuble El MARZOUK Joël », Cotonou ; elle répond
+            sous un délai d’un mois. Si vous résidez dans l’Union européenne, vous
+            pouvez également saisir l’autorité nationale de protection des données
+            de votre pays de résidence.
           </p>
         </div>
       </SectionPublique>
@@ -326,11 +356,9 @@ export default function PageConfidentialite() {
             mineur.
           </p>
           <p className="text-encre-500 italic">
-            L’âge minimum opposable et son contrôle relèvent d’un arbitrage
-            éditorial et juridique (la majorité numérique est de 15 ans en France
-            pour le consentement au traitement, mais le contenu justifie une
-            restriction plus stricte). [À REMPLIR : âge minimum opposable — à
-            valider]
+            L’âge minimum opposable est fixé à 18 ans. Ce seuil, plus strict que la
+            majorité numérique de 15 ans retenue en France pour le consentement au
+            traitement des données, est imposé par la nature adulte du contenu.
           </p>
         </div>
       </SectionPublique>

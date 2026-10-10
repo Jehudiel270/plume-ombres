@@ -22,16 +22,18 @@ export default function PageRemboursement() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Politique de remboursement"
-        intro="Comment fonctionne le remboursement des formules payantes, et ce que devient le droit de rétractation sur un contenu numérique délivré immédiatement. Version de travail, lisible sans compte."
+        intro="Comment fonctionne le remboursement des formules payantes, et ce que devient le droit de rétractation sur un contenu numérique délivré immédiatement. Dernière mise à jour : 10 octobre 2026, lisible sans compte."
       >
         <SommaireLegal actif="remboursement" />
 
         <div className="mt-4">
           <BandeauGabarit>
-            Ce texte est une <strong>rédaction de travail</strong>. Il doit être
-            relu et adapté par un juriste, notamment sur le point délicat du{' '}
-            <em>droit de rétractation du contenu numérique</em> et sur le droit
-            national applicable au consommateur.
+            Ce texte est une <strong>rédaction de travail</strong>. La politique
+            de <strong>non-remboursement</strong> qu’il expose reste{' '}
+            <em>provisoire</em> : elle doit être relue et arbitrée par un juriste,
+            notamment sur le point délicat du <em>droit de rétractation du contenu
+            numérique</em>, une clause « aucun remboursement » pouvant, dans
+            certains cas, être écartée par le droit de la consommation.
           </BandeauGabarit>
         </div>
       </SectionPublique>
@@ -48,9 +50,10 @@ export default function PageRemboursement() {
           </p>
           <p>
             Parce que le service est fourni sans délai, et sous réserve du
-            consentement exprès décrit ci-dessous, la consommation du service peut
-            entraîner une renonciation au droit de rétractation de quatorze (14)
-            jours prévu pour les contrats à distance.
+            consentement exprès décrit ci-dessous, la consommation du service
+            entraîne une renonciation au droit de rétractation de quinze (15)
+            jours ouvrables prévu pour les contrats à distance en droit béninois
+            et dans l’espace CEDEAO.
           </p>
         </div>
       </SectionPublique>
@@ -72,42 +75,56 @@ export default function PageRemboursement() {
             pas été donné, l’accès immédiat n’est pas déclenché.
           </p>
           <p>
-            Le pays et le texte de référence encadrant ce consentement doivent
-            être précisés par l’éditeur.{' '}
-            <strong className="text-amber-300">
-              [À REMPLIR : pays et droit applicable au consommateur — ex. Bénin /
-              zone CEDEAO / France — ainsi que le texte de référence.]
-            </strong>
+            Le droit applicable au consommateur est le{' '}
+            <strong className="text-encre-100">droit béninois</strong> — loi
+            n° 2007-21 portant protection des consommateurs, complétée par
+            l’<strong className="text-encre-100">Acte additionnel CEDEAO
+            A/SA.1/01/10</strong>. Le délai de rétractation est de quinze (15)
+            jours ouvrables à compter de la conclusion du contrat à distance ; il
+            est porté à quatre-vingt-dix (90) jours lorsque l’information
+            préalable n’a pas été donnée. Il est perdu lorsque vous consentez
+            expressément à l’exécution immédiate et reconnaissez renoncer à ce
+            droit, ce qui est le cas à l’ouverture de l’accès.
           </p>
         </div>
       </SectionPublique>
 
-      <SectionPublique gabarit="etroit" surTitre="3" titre="Quand un remboursement est accordé">
+      <SectionPublique gabarit="etroit" surTitre="3" titre="Remboursement : principe de non-remboursement">
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <p>
-            En dehors du cas de rétractation, un remboursement est accordé de
-            bonne foi lorsque le service payé n’a pas été fourni. Notamment :
+            Le studio, tel qu’il fonctionne aujourd’hui, n’accorde{' '}
+            <strong className="text-encre-100">aucun remboursement</strong> : ni
+            pour un changement d’avis, ni pour le regret d’un achat, ni pour
+            l’usage effectif ou non du contenu, ni pour l’expiration d’une
+            période. L’accès étant ouvert immédiatement après confirmation du
+            paiement, le droit de rétractation est perdu par le consentement
+            exprès donné avant la commande (section 2).
+          </p>
+          <p>
+            Seules les{' '}
+            <strong className="text-encre-100">
+              erreurs manifestes de paiement
+            </strong>{' '}
+            sont corrigées, sur demande écrite. Il ne s’agit pas d’une politique
+            de remboursement commerciale, mais de la réparation d’un débit
+            erroné :
           </p>
           <ul className="list-disc pl-5 space-y-2">
             <li>
-              <strong className="text-encre-100">Paiement sans service</strong> :
-              vous avez été débité mais l’abonnement n’a pas été activé et le
-              restera pas.
-            </li>
-            <li>
               <strong className="text-encre-100">Double débit</strong> : le même
-              achat a été prélevé deux fois.
+              achat a été débité deux fois ; le montant en trop est restitué.
             </li>
             <li>
-              <strong className="text-encre-100">Défaut technique bloquant</strong>{' '}
-              : une panne du studio vous a empêché d’utiliser l’offre pendant une
-              part significative de sa durée, sans solution de contournement.
+              <strong className="text-encre-100">Débit sans activation</strong> :
+              vous avez été débité alors que la formule n’a jamais été activée ;
+              le montant est restitué, ou la formule est activée, au choix.
             </li>
           </ul>
-          <p>
-            Le simple regret, ou le changement d’avis après avoir utilisé le
-            service, n’ouvre pas automatiquement droit à remboursement une fois le
-            contenu consommé.
+          <p className="text-encre-500 italic">
+            Cette politique est provisoire : elle sera précisée ultérieurement et
+            doit être relue par un juriste, une clause « aucun remboursement »
+            pouvant, dans certains cas, être écartée par le droit de la
+            consommation.
           </p>
         </div>
       </SectionPublique>
@@ -120,13 +137,12 @@ export default function PageRemboursement() {
               Contact
             </Link>
             , en précisant la référence du paiement (elle figure dans l’historique
-            de votre compte), la date et le motif. La demande est traitée dans un
-            délai indicatif de{' '}
-            <strong className="text-amber-300">
-              [À REMPLIR : délai de traitement — ex. 14 jours ouvrés]
-            </strong>
-            . Le remboursement, lorsqu’il est accordé, est réexpédié par le même
-            canal Mobile Money que le paiement d’origine.
+            de votre compte), la date et le motif. Un accusé de réception est
+            apporté dans un délai indicatif de{' '}
+            <strong className="text-encre-100">sept (7) jours ouvrés</strong>.
+            Lorsqu’une erreur de paiement manifeste est confirmée, la correction
+            est réexpédiée par le même canal Mobile Money que le paiement
+            d’origine.
           </p>
           <p className="text-encre-500 italic">
             Le délai d’un remboursement Mobile Money peut dépendre de l’opérateur
@@ -138,12 +154,23 @@ export default function PageRemboursement() {
       <SectionPublique gabarit="etroit" surTitre="5" titre="Médiation et réclamation">
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <p>
-            En cas de désaccord persistant, le consommateur peut recourir à un
-            médiateur de la consommation.{' '}
-            <strong className="text-amber-300">
-              [À REMPLIR : coordonnées du médiateur de la consommation compétent —
-              à indiquer avant toute vente.]
-            </strong>
+            <strong className="text-encre-100">
+              Aucun médiateur de la consommation n’est désigné à ce jour.
+            </strong>{' '}
+            Votre réclamation est à adresser par écrit via la page{' '}
+            <Link href="/contact" className="lien-discret underline">
+              Contact
+            </Link>{' '}
+            (carreldossou7@gmail.com) ; un accusé de réception est apporté dans un
+            délai indicatif de sept (7) jours ouvrés.
+          </p>
+          <p>
+            À défaut de solution amiable, les juridictions compétentes du{' '}
+            <strong className="text-encre-100">Bénin</strong> sont seules saisies.
+            Pour les données personnelles, l’autorité de contrôle est l’
+            <strong className="text-encre-100">APDP</strong> (Bénin) — apdp.bj,
+            contact@apdp.bj, tél. +229 21 32 57 88 / +229 69 55 00 00, 01 BP 04837,
+            Aïdjèdo rue 6.076 « Immeuble El MARZOUK Joël », Cotonou.
           </p>
           <p>
             Les modalités générales d’achat, de durée et de résiliation figurent
