@@ -843,6 +843,23 @@ export function statutEffectif(
   return abonnement.statut;
 }
 
+/**
+ * Code du plan RÉELLEMENT EN VIGUEUR, ou null si l'abonnement n'est pas
+ * actif (expiré, résilié, en attente, échec…). À utiliser PARTOUT où une
+ * décision dépend de l'offre (quota effectif, avantages) : une offre
+ * échue ne doit JAMAIS accorder ses avantages, même si la ligne stockée
+ * porte encore `statut = 'actif'` (défense en profondeur ; le cron de
+ * réconciliation peut avoir du retard, la base peut être restaurée).
+ */
+export function planEnVigueur(
+  abonnement: Abonnement | null | undefined,
+  maintenant: Date = new Date()
+): CodePlan | null {
+  if (!abonnement) return null;
+  if (statutEffectif(abonnement, maintenant) !== 'actif') return null;
+  return abonnement.plan;
+}
+
 /** Abonnement neutre (plan gratuit) pour un compte sans historique. */
 export function abonnementGratuit(
   proprietaireId: string,
