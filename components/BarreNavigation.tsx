@@ -29,6 +29,7 @@ import {
 } from 'react';
 import { ChevronDown, CreditCard, LogOut, Menu, Palette, User } from 'lucide-react';
 import { creerClientNavigateur } from '@/lib/supabase/client';
+import ClocheNotifications from '@/components/ClocheNotifications';
 import {
   liensNavigationSupplementaires,
   normaliserRole,
@@ -435,6 +436,11 @@ export default function BarreNavigation({
         </nav>
 
         <div className="flex items-center gap-2 ml-auto lg:ml-0">
+          {/* Notifications — desktop, à côté de l'avatar */}
+          <span className="hidden lg:block">
+            <ClocheNotifications />
+          </span>
+
           {/* Menu utilisateur */}
           <div className="relative" ref={zoneRef}>
             <button
@@ -570,6 +576,8 @@ export default function BarreNavigation({
           }}
           className="lg:hidden border-t border-nuit-700/60 bg-nuit-950/95 px-4 py-3 flex flex-col gap-0.5 animate-fondu-monte max-h-[calc(100vh-4rem)] overflow-y-auto"
         >
+          <ClocheNotifications avecLibelle />
+          <div className="h-px bg-nuit-700 my-2" aria-hidden="true" />
           {LIENS_SITE.map((l) => {
             const actif = estActif(chemin, l.href);
             return (
