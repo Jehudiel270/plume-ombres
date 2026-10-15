@@ -22,17 +22,17 @@ export default function PageRemboursement() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Politique de remboursement"
-        intro="Comment fonctionne le remboursement des formules payantes, et ce que devient le droit de rétractation sur un contenu numérique délivré immédiatement. Dernière mise à jour : 10 octobre 2026, lisible sans compte."
+        intro="Comment fonctionne le remboursement des formules payantes, et ce que devient le droit de rétractation sur un contenu numérique délivré immédiatement. Dernière mise à jour : 15 octobre 2026, lisible sans compte."
       >
         <SommaireLegal actif="remboursement" />
 
         <div className="mt-4">
           <BandeauGabarit>
             Ce texte est une <strong>rédaction de travail</strong>. La politique
-            de <strong>non-remboursement</strong> qu’il expose reste{' '}
-            <em>provisoire</em> : elle doit être relue et arbitrée par un juriste,
+            de <strong>non-remboursement</strong> qu’il expose est celle du studio
+            en l’état, mais elle reste <em>à arbitrer</em> par un juriste,
             notamment sur le point délicat du <em>droit de rétractation du contenu
-            numérique</em>, une clause « aucun remboursement » pouvant, dans
+            numérique</em> : une clause « aucun remboursement » peut, dans
             certains cas, être écartée par le droit de la consommation.
           </BandeauGabarit>
         </div>
@@ -121,10 +121,10 @@ export default function PageRemboursement() {
             </li>
           </ul>
           <p className="text-encre-500 italic">
-            Cette politique est provisoire : elle sera précisée ultérieurement et
-            doit être relue par un juriste, une clause « aucun remboursement »
-            pouvant, dans certains cas, être écartée par le droit de la
-            consommation.
+            La politique du studio est, en l’état, l’absence de remboursement hors
+            erreurs de paiement. Elle reste à confirmer par un juriste : une clause
+            « aucun remboursement » peut, dans certains cas, être écartée par le
+            droit de la consommation.
           </p>
         </div>
       </SectionPublique>
@@ -154,6 +154,19 @@ export default function PageRemboursement() {
       <SectionPublique gabarit="etroit" surTitre="5" titre="Médiation et réclamation">
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <p>
+            Les formules sont vendues par l’éditeur{' '}
+            <strong className="text-encre-100">VICE LYNX</strong> (sigle VLYNX), nom
+            commercial de{' '}
+            <strong className="text-encre-100">DOSSOU Sègla Carrel Jéhudiel</strong>,
+            établissement (personne physique) dont le siège est situé Îlot CSB,
+            parcelle CSB, Maison Dègla Rodrigue DOSSOU, Atlantique, Ouidah, Pahou,
+            Zoungoudo, Bénin ; identité complète dans les{' '}
+            <Link href="/mentions-legales" className="lien-discret underline">
+              mentions légales
+            </Link>
+            .
+          </p>
+          <p>
             <strong className="text-encre-100">
               Aucun médiateur de la consommation n’est désigné à ce jour.
             </strong>{' '}
@@ -161,16 +174,17 @@ export default function PageRemboursement() {
             <Link href="/contact" className="lien-discret underline">
               Contact
             </Link>{' '}
-            (carreldossou7@gmail.com) ; un accusé de réception est apporté dans un
-            délai indicatif de sept (7) jours ouvrés.
+            (dossoucarrel@gmail.com, +229 01 53 17 23 61) ; un accusé de réception
+            est apporté dans un délai indicatif de sept (7) jours ouvrés.
           </p>
           <p>
             À défaut de solution amiable, les juridictions compétentes du{' '}
-            <strong className="text-encre-100">Bénin</strong> sont seules saisies.
-            Pour les données personnelles, l’autorité de contrôle est l’
-            <strong className="text-encre-100">APDP</strong> (Bénin) — apdp.bj,
-            contact@apdp.bj, tél. +229 21 32 57 88 / +229 69 55 00 00, 01 BP 04837,
-            Aïdjèdo rue 6.076 « Immeuble El MARZOUK Joël », Cotonou.
+            <strong className="text-encre-100">Bénin</strong> — et plus
+            précisément celles de <strong className="text-encre-100">Cotonou</strong>
+            {' '}— sont seules saisies. Pour les données personnelles, l’autorité de
+            contrôle est l’<strong className="text-encre-100">APDP</strong> (Bénin) —
+            apdp.bj, contact@apdp.bj, tél. +229 21 32 57 88 / +229 69 55 00 00,
+            01 BP 04837, Aïdjèdo rue 6.076 « Immeuble El MARZOUK Joël », Cotonou.
           </p>
           <p>
             Les modalités générales d’achat, de durée et de résiliation figurent

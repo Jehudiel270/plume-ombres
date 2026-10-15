@@ -16,12 +16,16 @@
 // économie calculée) et un bouton menant au MÊME tunnel de paiement que
 // les autres (`/paiement/<code>`). La dérivation vit dans `grillePubliqueDepuis`
 // (lib/plans-catalogue.ts), prouvée par scripts/test-offres-publiques.ts.
+//
+// BANDEAU PUBLIC RETIRÉ (lot juridique) : la page n'affiche plus l'encart ambre
+// de gabarit — les prix montrés sont ceux du catalogue en vigueur, engagés par
+// les conditions générales. Seul subsiste, en clair et conditionnel,
+// l'avertissement technique quand la grille provient du snapshot de repli.
 // ============================================================
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
-import BandeauGabarit from '@/components/public/BandeauGabarit';
 import AbonnementTarifs from '@/components/AbonnementTarifs';
 import {
   grillePubliqueCourante,
@@ -164,6 +168,16 @@ export default async function PageTarifs() {
             n’est hors d’atteinte.
           </p>
           <p>
+            <strong className="text-encre-100">Le prix affiché est engagé.</strong>{' '}
+            Le montant dû est celui du catalogue au moment de la commande, sans
+            frais caché ni reconduction automatique : le paiement se fait à l’acte.
+            Les modalités de vente figurent dans les{' '}
+            <Link href="/conditions" className="lien-discret underline">
+              conditions générales
+            </Link>
+            .
+          </p>
+          <p>
             <strong className="text-encre-100">Un livre ne restera jamais à moitié.</strong>{' '}
             Chaque segment de traduction est suivi : un échec est signalé et repris
             plutôt que laissé en trou. C’est la règle qui prime sur toute autre.
@@ -179,17 +193,12 @@ export default async function PageTarifs() {
             Les formules annuelles offrent deux mois par rapport au mensuel (soit
             une économie de 20 %). Le détail est indiqué sur chaque carte.
           </p>
-        </div>
-
-        <div className="mt-4">
-          <BandeauGabarit>
-            Les prix et les conditions de facturation restent à confirmer par le
-            propriétaire (et à relire par un juriste et un comptable) avant
-            l’ouverture du paiement au grand public.
-            {source === 'repli'
-              ? ' Catalogue affiché en repli : la base n’a pas pu être lue à l’instant du rendu.'
-              : ''}
-          </BandeauGabarit>
+          {source === 'repli' && (
+            <p className="text-encre-500 text-xs italic leading-relaxed">
+              Catalogue affiché depuis le dernier instantané vérifié : la base du
+              studio n’a pas pu être lue à l’instant du rendu.
+            </p>
+          )}
         </div>
       </SectionPublique>
     </>

@@ -1,6 +1,8 @@
 // Politique de cookies (C6) — page publique de travail. Décrit, sans
 // jargon, les seuls cookies et stockages locaux réellement utilisés par le
 // studio. Lisible SANS compte, cohérente avec la politique de confidentialité.
+// L'éditeur (VICE LYNX) est identifié sur la page Mentions légales : cette page
+// n'en donne pas un second jeu de coordonnées, elle y renvoie.
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -11,7 +13,7 @@ import SommaireLegal from '@/components/public/SommaireLegal';
 export const metadata: Metadata = {
   title: 'Cookies',
   description:
-    'Quels cookies et stockages locaux Plume d’Ombres utilise : le cookie de session nécessaire à l’authentification, les préférences de lecture gardées dans le navigateur, et l’absence de traceur publicitaire.',
+    'Quels cookies et stockages locaux Plume d’Ombres (VICE LYNX) utilise : le cookie de session nécessaire à l’authentification, les préférences de lecture gardées dans le navigateur, et l’absence de traceur publicitaire.',
 };
 
 export default function PageCookies() {
@@ -22,7 +24,7 @@ export default function PageCookies() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Politique de cookies"
-        intro="Dernière mise à jour : 10 octobre 2026. Le studio n’utilise ni traceur publicitaire, ni mesure d’audience tierce : uniquement ce qui est nécessaire à la connexion et au confort de lecture. Lisible sans compte."
+        intro="Dernière mise à jour : 15 octobre 2026. Le studio n’utilise ni traceur publicitaire, ni mesure d’audience tierce : uniquement ce qui est nécessaire à la connexion et au confort de lecture. Lisible sans compte."
       >
         <SommaireLegal actif="cookies" />
 
@@ -38,6 +40,14 @@ export default function PageCookies() {
 
       <SectionPublique gabarit="etroit" surTitre="1" titre="Ce que nous utilisons">
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
+          <p>
+            Responsable : VICE LYNX, exploitant du studio Plume d’Ombres — identité
+            et coordonnées complètes dans les{' '}
+            <Link href="/mentions-legales" className="lien-discret underline">
+              mentions légales
+            </Link>
+            .
+          </p>
           <ul className="list-disc pl-5 space-y-2">
             <li>
               <strong className="text-encre-100">

@@ -22,14 +22,37 @@ export const metadata: Metadata = {
 
 const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
   {
-    titre: '1. Objet',
+    titre: '1. Objet et éditeur',
     corps: (
       <>
-        Les présentes conditions encadrent l’accès et l’usage de Plume d’Ombres,
-        studio personnel de traduction littéraire accessible en ligne, qui permet
-        d’importer un texte, de le faire traduire automatiquement et de le lire ou
-        de l’exporter. La version applicable est celle publiée au jour de la
-        connexion.
+        <p>
+          Les présentes conditions encadrent l’accès et l’usage de Plume d’Ombres,
+          studio personnel de traduction littéraire accessible en ligne, qui permet
+          d’importer un texte, de le faire traduire automatiquement et de le lire ou
+          de l’exporter. La version applicable est celle publiée au jour de la
+          connexion.
+        </p>
+        <p className="mt-3">
+          Le service est édité par <strong className="text-encre-100">VICE LYNX</strong>{' '}
+          (sigle VLYNX), nom commercial de{' '}
+          <strong className="text-encre-100">DOSSOU Sègla Carrel Jéhudiel</strong>,
+          établissement (personne physique) — entreprise individuelle — dont le
+          siège est situé Îlot CSB, parcelle CSB, Maison Dègla Rodrigue DOSSOU,
+          Atlantique, Ouidah, Pahou, Zoungoudo, Bénin. Contact :{' '}
+          <a href="mailto:dossoucarrel@gmail.com" className="lien-discret underline">
+            dossoucarrel@gmail.com
+          </a>{' '}
+          — téléphone :{' '}
+          <a href="tel:+2290153172361" className="lien-discret underline">
+            +229 01 53 17 23 61
+          </a>
+          . Immatriculation RCCM RB/ABC/26 A 147397 (greffe du tribunal de commerce
+          de Cotonou), IFU 0202683356150. Identité et coordonnées complètes dans les{' '}
+          <Link href="/mentions-legales" className="lien-discret underline">
+            mentions légales
+          </Link>
+          .
+        </p>
       </>
     ),
   },
@@ -335,10 +358,11 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
             Aucun médiateur de la consommation n’est désigné à ce jour.
           </strong>{' '}
           À défaut de solution amiable, et sans priver le consommateur des
-          protections de sa juridiction, les juridictions compétentes du{' '}
-          <strong className="text-encre-100">Bénin</strong> sont seules saisies.
-          Pour les données personnelles, l’autorité de contrôle est l’
-          <strong className="text-encre-100">APDP</strong> (Bénin).
+          protections de sa juridiction, les{' '}
+          <strong className="text-encre-100">tribunaux compétents de Cotonou
+          (Bénin)</strong> sont seuls saisis. Pour les données personnelles,
+          l’autorité de contrôle est l’<strong className="text-encre-100">APDP</strong>{' '}
+          (Autorité de Protection des Données Personnelles du Bénin).
         </p>
       </>
     ),
@@ -363,18 +387,18 @@ export default function PageConditions() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Conditions générales d’utilisation et de vente"
-        intro="Dernière mise à jour : 10 octobre 2026. Elle s’applique à l’usage du studio et couvre la vente des formules payantes (prix, Mobile Money, durée, résiliation, rétractation). Lisible sans compte."
+        intro="Dernière mise à jour : 15 octobre 2026. Elle s’applique à l’usage du studio et couvre la vente des formules payantes (prix, Mobile Money, durée, résiliation, rétractation). Lisible sans compte."
       >
         <SommaireLegal actif="conditions" />
 
         <div className="mt-4">
           <BandeauGabarit>
-            Ce document reste un <strong>gabarit à valider</strong>. Il doit
-            encore être relu et arbitré par un juriste (<em>a fortiori</em> avant
+            Les éléments d’identification (éditeur VICE LYNX, hébergeurs,
+            prestataire de paiement, droit applicable, juridiction) sont complétés :
+            aucun champ n’est laissé en blanc. Ce document reste une rédaction de
+            travail à relire et à arbitrer par un juriste (<em>a fortiori</em> avant
             toute vente), en particulier la garantie de conformité, la clause de
-            non-remboursement, le droit de rétractation et la loi applicable. Les
-            éléments personnalisés (éditeur, hébergeurs, prestataire de paiement,
-            droit applicable) ont été complétés mais doivent être confirmés.
+            non-remboursement et le droit de rétractation.
           </BandeauGabarit>
         </div>
       </SectionPublique>

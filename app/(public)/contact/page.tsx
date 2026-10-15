@@ -1,5 +1,6 @@
-// Contact (C6). Pas de formulaire branché : aucun envoi ne doit être
-// simulé. On donne donc une adresse (provisoire, marquée comme telle) et
+// Contact (C6, complété par les coordonnées réelles de l'éditeur VICE LYNX).
+// Pas de formulaire branché : aucun envoi ne doit être simulé. On donne donc
+// l'adresse de contact officielle, le siège et le téléphone de l'exploitant, et
 // on oriente vers la FAQ pour ce qui y est déjà répondu.
 
 import type { Metadata } from 'next';
@@ -9,15 +10,21 @@ import SectionPublique from '@/components/public/SectionPublique';
 export const metadata: Metadata = {
   title: 'Contact',
   description:
-    'Écrire au studio Plume d’Ombres : question, bug, demande d’effacement de données ou signalement d’un contenu.',
+    'Écrire à VICE LYNX, exploitant du studio Plume d’Ombres : question, bug, demande d’effacement de données ou signalement d’un contenu. Adresse, siège et téléphone.',
 };
 
 /**
- * Adresse de contact officielle du studio (communiquée par l'éditeur).
- * Elle est reprise dans les mentions légales et la politique de
- * confidentialité, ainsi que dans les conditions générales.
+ * Coordonnées officielles de l'éditeur (VICE LYNX), communiquées par
+ * l'exploitant. Elles sont reprises, à l'identique, dans les mentions légales,
+ * la politique de confidentialité, les conditions générales et la politique de
+ * remboursement : toute modification ici doit être répercutée là-bas, sans quoi
+ * les pages se contrediraient.
  */
-const ADRESSE_CONTACT = 'carreldossou7@gmail.com';
+const ADRESSE_CONTACT = 'dossoucarrel@gmail.com';
+const TELEPHONE_CONTACT = '+229 01 53 17 23 61';
+const TELEPHONE_LIEN = 'tel:+2290153172361';
+const SIEGE_CONTACT =
+  'Îlot CSB, parcelle CSB, Maison Dègla Rodrigue DOSSOU, Atlantique, Ouidah, Pahou, Zoungoudo, Bénin';
 
 const MOTIFS: { titre: string; texte: React.ReactNode }[] = [
   {
@@ -75,11 +82,12 @@ export default function PageContact() {
         niveau={1}
         surTitre="Contact"
         titre="Écrire au studio"
-        intro="Un projet indépendant, tenu par peu de mains : réponses dans un délai de quelques jours ouvrés, sans promesse de permanence téléphonique."
+        intro="Studio Plume d’Ombres, édité par VICE LYNX. Un projet indépendant, tenu par peu de mains : réponses dans un délai de quelques jours ouvrés. Le téléphone est un numéro de contact, pas une permanence d’assistance."
       >
         <div className="velours p-4 sm:p-5">
           <p className="text-encre-300 text-[13px] leading-relaxed">
-            Adresse officielle du studio. Elle est également reprise dans les{' '}
+            Coordonnées officielles de l’éditeur. Elles sont également reprises dans
+            les{' '}
             <Link href="/mentions-legales" className="lien-discret underline">
               mentions légales
             </Link>{' '}
@@ -87,9 +95,10 @@ export default function PageContact() {
             <Link href="/confidentialite" className="lien-discret underline">
               politique de confidentialité
             </Link>
-            . Le studio n’exploite ni formulaire de contact automatisé ni
-            permanence téléphonique : les réponses se font par écrit, en quelques
-            jours ouvrés.
+            . Le studio n’exploite pas de formulaire de contact automatisé : les
+            demandes se font par écrit, en quelques jours ouvrés. Passer par l’écrit
+            laisse une trace écrite de la demande, ce qui est préférable pour une
+            réclamation ou une demande de suppression.
           </p>
         </div>
       </SectionPublique>
@@ -113,6 +122,31 @@ export default function PageContact() {
             si possible l’adresse e-mail de votre compte, pour que la demande
             soit retrouvée plus vite.
           </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 mt-4">
+          <div className="velours p-5">
+            <p className="sur-titre text-encre-300">Par courrier</p>
+            <p className="text-encre-300 text-sm mt-3 leading-relaxed">
+              VICE LYNX — Plume d’Ombres
+              <br />
+              {SIEGE_CONTACT}
+            </p>
+          </div>
+          <div className="velours p-5">
+            <p className="sur-titre text-encre-300">Par téléphone</p>
+            <p className="text-encre-300 text-sm mt-3 leading-relaxed">
+              <a href={TELEPHONE_LIEN} className="lien-discret underline">
+                {TELEPHONE_CONTACT}
+              </a>
+            </p>
+            <p className="text-encre-500 text-xs mt-2 leading-relaxed italic">
+              Numéro publié au titre des mentions légales. Aucun horaire de
+              permanence n’est garanti : pour une demande qui doit être tracée
+              (droits sur les données, réclamation, remboursement), préférez
+              l’écrit.
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 mt-4">
