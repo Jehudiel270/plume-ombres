@@ -30,6 +30,7 @@ import {
   type GrillePublique,
 } from '@/lib/plans-catalogue';
 import { modePaiementAffiche } from '@/lib/paiement/mode';
+import { libelleCaracteres } from '@/lib/abonnement';
 import { creerClientServeur } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -117,6 +118,43 @@ export default async function PageTarifs() {
           </p>
         </div>
       </SectionPublique>
+
+      {g.packs.length > 0 && (
+        <SectionPublique
+          gabarit="etroit"
+          surTitre="Sans abonnement"
+          titre="Compléter vos caractères"
+          intro="Un pack prépayé ajoute des caractères à votre compte, sans engagement ni reconduction. Utile quand votre solde restant tombe juste en dessous de la taille du livre que vous voulez traduire : vous complétez le manque au lieu de perdre ce qui vous reste."
+        >
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none p-0 m-0">
+            {g.packs.map((pack) => (
+              <li key={pack.code} className="flex">
+                <article className="velours p-5 flex flex-col w-full">
+                  <h3 className="font-display text-lg text-encre-100">{pack.nom}</h3>
+                  <p className="text-sm text-encre-300 leading-relaxed mt-2">{pack.resume}</p>
+                  <p className="font-display text-xl text-encre-100 mt-3">
+                    {pack.prixXof.toLocaleString('fr-FR')} F CFA
+                  </p>
+                  <p className="text-encre-300 text-sm mt-2 font-semibold">
+                    {libelleCaracteres(pack.caracteres)}
+                  </p>
+                  <Link
+                    href={`/paiement/${pack.code}`}
+                    className="bouton-fantome mt-6 w-full justify-center"
+                    aria-label={`Acheter le ${pack.nom} — ${libelleCaracteres(pack.caracteres)} pour ${pack.prixXof.toLocaleString('fr-FR')} F CFA`}
+                  >
+                    Acheter ce pack
+                  </Link>
+                </article>
+              </li>
+            ))}
+          </ul>
+          <p className="text-encre-500 text-xs mt-4 leading-relaxed">
+            Les packs s’ajoutent à votre quota et restent acquis jusqu’à
+            utilisation : ils ne sont pas perdus à la fin du mois.
+          </p>
+        </SectionPublique>
+      )}
 
       {g.horsLigne.length > 0 && (
         <SectionPublique

@@ -1,0 +1,22 @@
+-- ============================================================
+-- Autorisation de LECTURE de public.packs_credits (anon + authenticated).
+--
+-- PROBLÈME CORRIGÉ
+-- La table public.packs_credits porte bien une politique RLS de lecture
+-- (`packs_credits_select_all`, rôle public) mais le GRANT de table
+-- n'avait jamais été posé. Toute lecture anonyme échouait donc avec :
+--     {"code":"42501","message":"permission denied for table packs_credits"}
+--     HTTP 401
+--
+-- Conséquence produit : les 4 packs de crédits — pourtant ACHETABLES
+-- (public.packs_credits.actif = true) — étaient absents de la page
+-- publique /tarifs, et le tunnel /paiement/credits_* restait
+-- inaccessible à un visiteur sans session. La page promettait pourtant
+-- « aucune formule vendable n'est tenue cachée ».
+--
+-- Correctif MINIMAL et ADDITIF : lecture seule. Aucune écriture :
+-- l'achat passe exclusivement par la RPC SECURITY DEFINER
+-- public.crediter_pack.
+-- ============================================================
+
+GRANT SELECT ON public.packs_credits TO anon, authenticated;

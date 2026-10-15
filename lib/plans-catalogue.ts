@@ -428,8 +428,64 @@ export interface OffreHorsLigneGrille {
 export interface GrillePublique {
   /** Les cartes affichées sur /tarifs : gratuit + abonnements ACHETABLES. */
   offres: OffrePubliqueGrille[];
+  /**
+   * Les PACKS DE CRÉDITS prépayés, achetables eux aussi. Ils étaient
+   * auparavant absents de la grille alors qu'ils sont vendables — ce qui
+   * contredisait la promesse affichée « aucune formule vendable n'est
+   * tenue cachée ». Ils servent de soupape quand le solde de caractères
+   * restant est juste en dessous de la taille d'un livre.
+   */
+  packs: PackPublicGrille[];
   /** Les offres non achetables en ligne (montrées ailleurs, jamais ici). */
   horsLigne: OffreHorsLigneGrille[];
+}
+
+/** Un pack de crédits prépayés affichable (aucune périodicité). */
+export interface PackPublicGrille {
+  code: string;
+  nom: string;
+  resume: string;
+  /** Caractères apportés par le pack (jamais 0). */
+  caracteres: number;
+  prixXof: number;
+  avantages: readonly string[];
+}
+
+/**
+ * Les packs de crédits ACHETABLES, triés par prix croissant.
+ *
+ * Deux sources possibles : la table `public.packs_credits` (source de
+ * vérité en ligne) et le catalogue de repli (les packs y vivent dans
+ * `plans`, marqués `categorie: 'pack'` avec `caracteres > 0`). On prend
+ * les deux, dédoublonnés par code, pour que la grille reste correcte
+ * même si une seule des deux sources répond.
+ */
+export function packsPublicsDe(
+  catalogue: CatalogueCatalogue
+): PackPublicGrille[] {
+  const candidats = [
+    ...catalogue.packs,
+    ...tousLesPlans(catalogue.plans).filter((p) => estPackCredits(p)),
+  ];
+  const vus = new Set<string>();
+  const packs: PackPublicGrille[] = [];
+  for (const p of candidats) {
+    if (vus.has(p.code)) continue;
+    if (p.actif === false) continue;
+    if (!estAchetableEnLigne(p.code, catalogue)) continue;
+    const caracteres = p.caracteres ?? 0;
+    if (caracteres <= 0) continue;
+    vus.add(p.code);
+    packs.push({
+      code: p.code,
+      nom: p.nom,
+      resume: p.resume,
+      caracteres,
+      prixXof: p.prixXof,
+      avantages: p.avantages,
+    });
+  }
+  return packs.sort((a, b) => a.prixXof - b.prixXof);
 }
 
 /** Note éditoriale associée à chaque famille d'offre hors ligne. */
@@ -505,7 +561,7 @@ export function grillePubliqueDepuis(
     })
   );
 
-  return { offres, horsLigne };
+  return { offres, packs: packsPublicsDe(catalogue), horsLigne };
 }
 
 /**
