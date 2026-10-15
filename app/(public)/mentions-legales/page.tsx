@@ -1,8 +1,12 @@
-// Mentions légales (C6) — remise à niveau vague 5.
+// Mentions légales (C6) — remise à niveau vague 5, complétée par les données
+// d'entreprise réelles (VICE LYNX / VLYNX).
 // Objectif : page complète, cohérente avec les conditions et la politique de
-// confidentialité, lisible SANS compte. Les seules cases encore vides sont
-// celles que l’éditeur seul peut renseigner (adresse postale, n° d’identification,
-// téléphone) : elles sont regroupées dans un bloc ambre, jamais inventées.
+// confidentialité, lisible SANS compte. Plus aucune mention en blanc : identité
+// de l'exploitant, siège, immatriculation (RCCM, IFU), téléphone et régime
+// fiscal sont publiés. Les identifiants non exigés par la loi (numéro personnel
+// d'identification, immatriculation sociale, pièces d'entreprise) ne sont jamais
+// publiés. Les coordonnées complètes des hébergeurs et du prestataire de
+// paiement sont recopiées depuis leurs pages légales.
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -13,7 +17,7 @@ import SommaireLegal from '@/components/public/SommaireLegal';
 export const metadata: Metadata = {
   title: 'Mentions légales',
   description:
-    'Éditeur, responsable de la publication, hébergeurs (Vercel, Supabase), traitement des paiements (FedaPay), propriété intellectuelle, signalement et accessibilité du studio de traduction Plume d’Ombres.',
+    'Éditeur (VICE LYNX), responsable de la publication, hébergeurs (Vercel, Supabase), traitement des paiements (FedaPay), propriété intellectuelle, signalement et accessibilité du studio de traduction Plume d’Ombres.',
 };
 
 export default function PageMentionsLegales() {
@@ -24,18 +28,17 @@ export default function PageMentionsLegales() {
         gabarit="etroit"
         surTitre="Informations légales"
         titre="Mentions légales"
-        intro="Ce que la loi impose de rendre lisible : qui édite le site, qui l’héberge, à qui appartiennent les textes, et comment signaler un contenu. Dernière mise à jour : 10 octobre 2026."
+        intro="Ce que la loi impose de rendre lisible : qui édite le site, qui l’héberge, à qui appartiennent les textes, et comment signaler un contenu. Dernière mise à jour : 15 octobre 2026."
       >
         <SommaireLegal actif="mentions-legales" />
 
         <div className="mt-4">
           <BandeauGabarit>
-            Les identités, les hébergeurs et les dates ci-dessous sont désormais
-            complètes. Seuls restent à renseigner l’<strong>adresse postale</strong>,
-            le <strong>numéro d’identification</strong> de l’éditeur et un éventuel
-            numéro de téléphone, regroupés dans le bloc ambre : ces faits ne sont
-            pas connus et n’ont volontairement pas été inventés. L’ensemble de la
-            page reste à relire par un juriste avant l’ouverture commerciale.
+            Les identités, le siège, l’immatriculation et les coordonnées
+            ci-dessous sont ceux de l’exploitant du studio : aucune mention n’y est
+            laissée en blanc. L’ensemble de la page reste à relire par un juriste
+            avant l’ouverture commerciale. Les identifiants non exigés par la loi
+            ne sont pas publiés.
           </BandeauGabarit>
         </div>
       </SectionPublique>
@@ -44,49 +47,58 @@ export default function PageMentionsLegales() {
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <ul className="space-y-2">
             <li>
-              <strong className="text-encre-100">Dénomination</strong> : Carrel
-              DOSSOU, éditeur individuel (personne physique), exerçant sous le nom
-              commercial « Plume d’Ombres ».
+              <strong className="text-encre-100">Dénomination</strong> : VICE LYNX
+              (sigle VLYNX), nom commercial de l’exploitant. Le studio en ligne
+              porte l’enseigne « Plume d’Ombres ».
             </li>
             <li>
-              <strong className="text-encre-100">Statut juridique</strong> : éditeur
-              individuel (personne physique), établi au Bénin.
+              <strong className="text-encre-100">Exploitant</strong> : DOSSOU Sègla
+              Carrel Jéhudiel.
             </li>
+            <li>
+              <strong className="text-encre-100">Forme juridique</strong> :
+              établissement (personne physique) — entreprise individuelle établie au
+              Bénin.
+            </li>
+            <li>
+              <strong className="text-encre-100">Siège</strong> : Îlot CSB,
+              parcelle CSB, Maison Dègla Rodrigue DOSSOU, Atlantique, Ouidah, Pahou,
+              Zoungoudo, Bénin.
+            </li>
+          </ul>
+          <ul className="space-y-2">
             <li>
               <strong className="text-encre-100">Contact</strong> :{' '}
               <a
-                href="mailto:carreldossou7@gmail.com"
+                href="mailto:dossoucarrel@gmail.com"
                 className="lien-discret underline"
               >
-                carreldossou7@gmail.com
+                dossoucarrel@gmail.com
+              </a>{' '}
+              — téléphone :{' '}
+              <a href="tel:+2290153172361" className="lien-discret underline">
+                +229 01 53 17 23 61
               </a>{' '}
               — voir aussi la page{' '}
               <Link href="/contact" className="lien-discret underline">
                 Contact
               </Link>
             </li>
-          </ul>
-          <ul className="space-y-2">
             <li>
-              <strong className="text-encre-100">Adresse</strong> : Cotonou, Bénin.
-              L’adresse postale exacte est communiquée sur demande écrite, à
-              l’adresse de contact ci-dessus.
+              <strong className="text-encre-100">Immatriculation</strong> : RCCM
+              RB/ABC/26 A 147397 du 13 octobre 2026 (greffe du tribunal de commerce
+              de Cotonou) ; identifiant fiscal unique (IFU) 0202683356150.
             </li>
             <li>
-              <strong className="text-encre-100">Immatriculation</strong> : aucune à
-              ce jour (éditeur individuel, personne physique). Le numéro RCCM et
-              l’identifiant fiscal unique (IFU) seront ajoutés si l’activité est
-              immatriculée. Le numéro personnel d’identification (NPI) n’est jamais
-              publié.
-            </li>
-            <li>
-              <strong className="text-encre-100">Téléphone</strong> : non communiqué
-              — le contact se fait par écrit.
+              <strong className="text-encre-100">Régime fiscal</strong> : micro et
+              petites entreprises — centre des impôts CIPE Ouidah.
             </li>
           </ul>
           <p className="text-encre-500 italic">
-            Le nom commercial « Plume d’Ombres » désigne le studio en ligne ;
-            l’éditeur est la personne physique qui l’exploite.
+            Les identifiants et pièces non exigés par la loi ne sont pas publiés :
+            seuls figurent ici les éléments dont la mention est due. Le nom
+            commercial « Plume d’Ombres » désigne le studio en ligne ; l’éditeur est
+            la personne physique qui l’exploite.
           </p>
         </div>
       </SectionPublique>
@@ -98,9 +110,10 @@ export default function PageMentionsLegales() {
       >
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed">
           <p>
-            <strong className="text-encre-100">Carrel DOSSOU</strong>, éditeur du
-            site, est responsable de la publication. Pour toute question relative
-            au contenu du site, passez par la page{' '}
+            <strong className="text-encre-100">DOSSOU Sègla Carrel Jéhudiel</strong>,
+            exploitant du nom commercial VICE LYNX, est responsable de la
+            publication. Pour toute question relative au contenu du site, passez par
+            la page{' '}
             <Link href="/contact" className="lien-discret underline">
               Contact
             </Link>

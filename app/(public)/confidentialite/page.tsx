@@ -78,17 +78,18 @@ export default function PageConfidentialite() {
         gabarit="etroit"
         surTitre="Confidentialité"
         titre="Politique de confidentialité"
-        intro="Dernière mise à jour : 10 octobre 2026. Lisible sans compte. Résumé en une phrase : vos livres sont privés dans la base, mais pour les traduire, le texte passe par un moteur externe, et nous vous disons lequel."
+        intro="Dernière mise à jour : 15 octobre 2026. Lisible sans compte. Résumé en une phrase : vos livres sont privés dans la base, mais pour les traduire, le texte passe par un moteur externe, et nous vous disons lequel."
       >
         <SommaireLegal actif="confidentialite" />
 
         <div className="mt-4">
           <BandeauGabarit>
-            Les identités, l’autorité de contrôle et les dates ci-dessous sont
-            désormais complètes. Seuls restent à renseigner l’adresse postale et le
-            numéro d’identification de l’éditeur. L’ensemble reste à relire par un
-            juriste (et, si l’activité le justifie, un délégué à la protection des
-            données) avant la mise en ligne.
+            L’identité du responsable de traitement (VICE LYNX), son siège, ses
+            coordonnées, l’autorité de contrôle et les dates ci-dessous sont
+            complètes : aucun champ n’est laissé en blanc. L’ensemble reste à relire
+            par un juriste (et, si l’activité le justifie, un délégué à la
+            protection des données) avant la mise en ligne, en particulier les
+            durées de conservation et les transferts hors Union européenne.
           </BandeauGabarit>
         </div>
       </SectionPublique>
@@ -100,14 +101,22 @@ export default function PageConfidentialite() {
       >
         <div className="velours p-6 text-sm text-encre-300 leading-relaxed space-y-3">
           <p>
-            Responsable du traitement :{' '}
-            <strong className="text-encre-100">Carrel DOSSOU</strong>, éditeur
-            individuel (personne physique) établi au Bénin, joignable à l’adresse{' '}
+            Responsable du traitement : <strong className="text-encre-100">VICE
+            LYNX</strong> (sigle VLYNX), nom commercial de{' '}
+            <strong className="text-encre-100">DOSSOU Sègla Carrel Jéhudiel</strong>,
+            établissement (personne physique) — entreprise individuelle — établi au
+            Bénin, dont le siège est situé Îlot CSB, parcelle CSB, Maison Dègla
+            Rodrigue DOSSOU, Atlantique, Ouidah, Pahou, Zoungoudo, Bénin. Il est
+            joignable à l’adresse{' '}
             <a
-              href="mailto:carreldossou7@gmail.com"
+              href="mailto:dossoucarrel@gmail.com"
               className="lien-discret underline"
             >
-              carreldossou7@gmail.com
+              dossoucarrel@gmail.com
+            </a>{' '}
+            et au{' '}
+            <a href="tel:+2290153172361" className="lien-discret underline">
+              +229 01 53 17 23 61
             </a>{' '}
             (voir aussi les{' '}
             <Link href="/mentions-legales" className="lien-discret underline">
@@ -117,11 +126,14 @@ export default function PageConfidentialite() {
           </p>
           <p>
             Contact pour la protection des données :{' '}
-            <strong className="text-encre-100">carreldossou7@gmail.com</strong>.
+            <strong className="text-encre-100">dossoucarrel@gmail.com</strong>. Aucun
+            délégué à la protection des données n’est désigné : le volume et la
+            nature des traitements ne le rendent pas obligatoire à ce stade.
           </p>
           <p className="text-encre-500">
-            L’adresse postale exacte de l’éditeur est communiquée sur demande
-            écrite, à l’adresse de contact ci-dessus ; elle figure aussi dans les{' '}
+            Toute demande relative à vos données se fait par écrit, à l’adresse de
+            contact ci-dessus. Le siège de l’éditeur, où le responsable de
+            traitement peut être joint, est celui indiqué ci-dessus et dans les{' '}
             <Link href="/mentions-legales" className="lien-discret underline">
               mentions légales
             </Link>
@@ -275,7 +287,9 @@ export default function PageConfidentialite() {
           <p className="text-encre-500 text-xs mt-3 leading-relaxed italic">
             Le code du numérique béninois soumet certains traitements à déclaration
             préalable (articles 405 et 407), sous réserve des dispenses prévues
-            (article 410).
+            (article 410). La formalité correspondante auprès de l’APDP (Autorité de
+            Protection des Données Personnelles du Bénin) reste à accomplir avant
+            l’ouverture commerciale ; le registre des traitements est tenu.
           </p>
         </div>
       </SectionPublique>
