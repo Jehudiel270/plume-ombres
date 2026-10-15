@@ -6,6 +6,25 @@ import {
 import EspaceLivre from '@/components/EspaceLivre';
 import AvertissementsLivre from '@/components/AvertissementsLivre';
 import BarreNavigation from '@/components/BarreNavigation';
+import ComplementCreditsBandeau from '@/components/ComplementCredits';
+import {
+  CODE_PLAN_GRATUIT,
+  packsCredits,
+  planEnVigueur,
+  planParCode,
+  quotaPourPlan,
+} from '@/lib/abonnement';
+import { calculerComplement } from '@/lib/credits-manquants';
+import {
+  MagasinAbonnementSupabase,
+  MagasinCreditsSupabase,
+} from '@/lib/paiement/magasin';
+import {
+  MagasinQuotaSupabase,
+  periodeMois,
+  quotaMensuel,
+} from '@/lib/quota';
+import type { ClientRpc } from '@/lib/rate-limit';
 import {
   cleRepere,
   detecterReperes,
@@ -95,6 +114,33 @@ export default async function PageLivre({
     ? detecterReperes(corpus).filter((p) => !dejaPresents.has(cleRepere(p.libelle)))
     : [];
 
+  // ---------- Solde restant + complément de crédits (prorata) ----------
+  // Solde restant = quota du mois non consommé + crédits prépayés. On le
+  // lit AVANT toute traduction pour proposer, si le solde tombe JUSTE SOUS
+  // la taille du livre, le pack le plus juste au prorata (lib/credits-manquants.ts).
+  // Tout est TOLÉRANT : une table absente ou un RPC en panne ne doit
+  // jamais casser l'ouverture d'un livre (solde considéré nul).
+  const magasinAbonnement = new MagasinAbonnementSupabase(supabase);
+  const magasinCredits = new MagasinCreditsSupabase(supabase);
+  const [abonnement, soldeCredits] = await Promise.all([
+    magasinAbonnement.lire(utilisateur.id).catch(() => null),
+    magasinCredits.lireSolde(utilisateur.id).catch(() => 0),
+  ]);
+
+  const planQuota =
+    planParCode(planEnVigueur(abonnement)) ?? planParCode(CODE_PLAN_GRATUIT)!;
+  const limiteQuota = quotaPourPlan(planQuota, quotaMensuel());
+  const clientRpc: ClientRpc = { rpc: (nom, args) => supabase.rpc(nom, args) };
+  const utiliseQuota = await new MagasinQuotaSupabase(clientRpc)
+    .lire(utilisateur.id, periodeMois().cle)
+    .catch(() => 0);
+
+  const complement = calculerComplement(
+    totalCaracteres,
+    { quotaRestant: Math.max(limiteQuota - utiliseQuota, 0), credits: soldeCredits },
+    packsCredits()
+  );
+
   return (
     <>
       <BarreNavigation email={utilisateur.email ?? ''} pseudo={pseudo} />
@@ -107,6 +153,9 @@ export default async function PageLivre({
           propositions={propositions}
           estProprietaire={estProprietaire}
         />
+        {/* AVANT de lancer la traduction : taille du livre, déficit et,
+            s'il y a lieu, le complément de crédits au prorata. */}
+        <ComplementCreditsBandeau complement={complement} />
         <EspaceLivre
           livreInitial={livre as Livre}
           chapitresInitiaux={chapitresLegers as Chapitre[]}
