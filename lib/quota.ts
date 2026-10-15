@@ -108,6 +108,35 @@ export async function lireUsageQuota(
   return { utilise, limite, periode: { debut: periode.debut, fin: periode.fin } };
 }
 
+/** Usage + ce qui RESTE sur la période (jamais négatif). */
+export interface QuotaRestant extends UsageQuota {
+  /** Caractères encore disponibles sur la période : limite - utilisé. */
+  restant: number;
+}
+
+/**
+ * Ce qui RESTE à un compte sur la période en cours. C'est la valeur que
+ * doit afficher l'UI (et l'API) : la limite seule ne dit rien à
+ * l'utilisateur. Une seule formule, partagée page + route API.
+ */
+export function restantDe(usage: UsageQuota): QuotaRestant {
+  const utilise = Number.isFinite(usage.utilise) ? Math.max(usage.utilise, 0) : 0;
+  return { ...usage, utilise, restant: Math.max(usage.limite - utilise, 0) };
+}
+
+/** Raccourci : lit l'usage puis calcule le restant. */
+export async function lireQuotaRestant(
+  magasin: MagasinQuota,
+  proprietaireId: string,
+  maintenant: Date = new Date(),
+  limite: number = quotaMensuel()
+): Promise<QuotaRestant> {
+  return restantDe(
+    await lireUsageQuota(magasin, proprietaireId, maintenant, limite)
+  );
+}
+
+
 /**
  * Réserve `caracteres` sur le quota du compte. Atomique : si la
  * réservation échoue, aucun caractère n'est décompté.

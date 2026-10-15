@@ -25,7 +25,7 @@ import {
   type CodePlan,
 } from '@/lib/abonnement';
 import { lireCatalogue } from '@/lib/plans-catalogue';
-import { quotaMensuel } from '@/lib/quota';
+import { lireQuotaRestant, quotaMensuel, MagasinQuotaSupabase, type QuotaRestant } from '@/lib/quota';
 import { fournisseurActif } from '@/lib/paiement/fournisseur';
 import { MagasinAbonnementSupabase, MagasinCreditsSupabase, lireMouvementsCredits } from '@/lib/paiement/magasin';
 import { utilisateurRequete } from '@/lib/paiement/serveur';
@@ -62,6 +62,27 @@ export async function GET(request: NextRequest) {
     lireMouvementsCredits(supabase, user.id).catch(() => []),
   ]);
 
+  // QUOTA RÉEL : la limite effective de l'offre en vigueur, PLUS ce qui
+  // a été consommé et ce qui reste sur la période. Sans cela l'appelant
+  // ne pouvait afficher que le plafond (valeur figée, jamais à jour).
+  const limiteEffective = quotaPourPlan(planQuota, base);
+  let usage: QuotaRestant | null = null;
+  try {
+    usage = await lireQuotaRestant(
+      new MagasinQuotaSupabase(supabase),
+      user.id,
+      new Date(),
+      limiteEffective
+    );
+  } catch (erreur) {
+    // Base non migrée / panne : on n'invente aucune consommation, la
+    // limite reste servie telle quelle.
+    console.warn(
+      '[abonnement] usage de quota illisible :',
+      erreur instanceof Error ? erreur.message : erreur
+    );
+  }
+
   // Fournisseur actif (description, sans secret). Tolérant à l'absence
   // de configuration : on renvoie alors null.
   let paiement: { id: string; nom: string; mode: string } | null = null;
@@ -80,7 +101,16 @@ export async function GET(request: NextRequest) {
     periodeDebut: abonnement?.periode_debut ?? null,
     periodeFin: abonnement?.periode_fin ?? null,
     moteur: plan.moteur,
-    quota: { base, effectif: quotaPourPlan(planQuota, base) },
+    quota: {
+      base,
+      effectif: limiteEffective,
+      // Ce qui RESTE (null si l'usage est illisible) : l'UI l'affiche
+      // tel quel, sans recalcul local.
+      utilise: usage?.utilise ?? null,
+      restant: usage?.restant ?? null,
+      limite: usage?.limite ?? limiteEffective,
+      periode: usage?.periode ?? null,
+    },
     credits: {
       solde: soldeCredits,
       mouvements,

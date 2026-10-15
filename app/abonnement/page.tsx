@@ -9,10 +9,10 @@ import AbonnementStatut from '@/components/AbonnementStatut';
 import AbonnementTarifs from '@/components/AbonnementTarifs';
 import AbonnementCredits from '@/components/AbonnementCredits';
 import AbonnementHistorique from '@/components/AbonnementHistorique';
+import JaugeQuota from '@/components/JaugeQuota';
 import {
   CODE_PLAN_GRATUIT,
   estPlanPremium,
-  libelleCaracteres,
   packsCredits,
   planParCode,
   plansAbonnementAffiches,
@@ -21,7 +21,7 @@ import {
   statutEffectif,
   type CodePlan,
 } from '@/lib/abonnement';
-import { quotaMensuel } from '@/lib/quota';
+import { quotaMensuel, periodeMois, lireQuotaRestant, MagasinQuotaSupabase } from '@/lib/quota';
 import { modePriveStrict } from '@/lib/providers';
 import {
   MagasinAbonnementSupabase,
@@ -82,8 +82,20 @@ export default async function PageAbonnement() {
   const planQuota =
     planParCode(planEnVigueur(abonnement)) ?? planParCode(CODE_PLAN_GRATUIT)!;
   const quota = quotaPourPlan(planQuota, base);
+  // Usage RÉEL du mois (caractères soumis à traduction) : sans cette
+  // lecture, la page n'affichait que le plafond — un chiffre qui ne
+  // bouge jamais, donc muet sur ce qu'il reste réellement au compte.
+  // Tolérant : une base pas encore migrée n'empêche pas l'affichage.
+  const usageQuota = await lireQuotaRestant(
+    new MagasinQuotaSupabase(supabase),
+    utilisateur.id,
+    new Date(),
+    quota
+  ).catch(() => null);
   const etatPaiement = modePaiementAffiche();
   const priveStrict = modePriveStrict();
+  // Repli si l'usage est illisible : la période du mois civil en cours.
+  const moisCourant = periodeMois();
 
   return (
     <>
@@ -132,26 +144,21 @@ export default async function PageAbonnement() {
             />
           </div>
           <dl className="mt-5 grid gap-3 sm:grid-cols-3 text-sm">
-            <div>
-              <dt className="text-encre-500">Quota mensuel de traduction</dt>
-              <dd className="text-encre-100">
-                {quota.toLocaleString('fr-FR')} caractères
-                {premium && (
-                  <span className="text-encre-500"> (plafond Premium élargi)</span>
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-encre-500">Crédits prépayés</dt>
-              <dd className="text-encre-100" aria-live="polite">
-                {libelleCaracteres(solde)}
-                {solde > 0 ? (
-                  <span className="text-encre-500"> — sans expiration</span>
-                ) : (
-                  <span className="text-encre-500"> — aucun</span>
-                )}
-              </dd>
-            </div>
+            {/* Quota + crédits : rendus par le SERVEUR (valeur exacte dès
+                le premier pixel) puis rafraîchis par JaugeQuota à chaque
+                traduction facturée. */}
+            <JaugeQuota
+              initial={{
+                utilise: usageQuota?.utilise ?? 0,
+                limite: usageQuota?.limite ?? quota,
+                restant: usageQuota?.restant ?? quota,
+                soldeCredits: solde,
+                periode: usageQuota?.periode ?? {
+                  debut: moisCourant.debut,
+                  fin: moisCourant.fin,
+                },
+              }}
+            />
             <div>
               <dt className="text-encre-500">Confidentialité de la traduction</dt>
               <dd className="text-encre-100">
@@ -161,6 +168,13 @@ export default async function PageAbonnement() {
               </dd>
             </div>
           </dl>
+          {premium && (
+            <p className="text-encre-500 text-xs mt-3">
+              Offre Premium en vigueur : plafond mensuel élargi à{' '}
+              {quota.toLocaleString('fr-FR')} caractères, remis à zéro le
+              1<sup>er</sup> de chaque mois.
+            </p>
+          )}
         </section>
 
         {/* Crédits prépayés : solde + packs (pay-as-you-go) */}

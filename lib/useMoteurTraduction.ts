@@ -443,6 +443,12 @@ async function traduireAvecEssais(
         const donnees = (await reponse.json()) as {
           traduit?: string;
           fournisseur?: string;
+          /** Quota RÉEL après réservation (renvoyé par /api/translate). */
+          quota?: {
+            utilise?: number;
+            limite?: number;
+            periode?: { debut: string; fin: string };
+          };
         };
         if (typeof donnees.traduit === 'string') {
           // Segment renvoyé vide par le moteur : on refuse le faux succès
@@ -450,6 +456,17 @@ async function traduireAvecEssais(
           // déclenche une nouvelle tentative, puis un statut `erreur`.
           if (donnees.traduit.trim() === '') {
             throw new Error('Traduction vide renvoyée par le moteur.');
+          }
+          // Quota décompté à l'instant : on prévient les compteurs
+          // affichés (components/JaugeQuota.tsx) pour qu'ils RELISENT
+          // l'état réel. Sans cet événement, la jauge resterait sur la
+          // valeur du rendu serveur jusqu'à un rechargement manuel.
+          if (donnees.quota && typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('plume:quota-consomme', {
+                detail: donnees.quota,
+              })
+            );
           }
           return {
             ok: true,

@@ -11,6 +11,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
+import { lireQuotaRestant, quotaMensuel, MagasinQuotaSupabase } from '@/lib/quota';
+import { libelleCaracteres } from '@/lib/abonnement';
 import BarreNavigation from '@/components/BarreNavigation';
 import CarteIdentite from '@/components/profil/CarteIdentite';
 import ReglagesApparence from '@/components/profil/ReglagesApparence';
@@ -101,6 +103,16 @@ export default async function PageCompte() {
   const favorisVisibles = lignes
     .map((l) => parId.get(l.livre_id))
     .filter((l): l is Livre => Boolean(l));
+
+  // Quota mensuel RÉEL : cette page affirmait « aucun plafond de
+  // traduction n'est appliqué » alors que public.usage_mensuel est bien
+  // décompté et que le plafond est refusé au-delà (402 QUOTA_DEPASSE).
+  const usageQuota = await lireQuotaRestant(
+    new MagasinQuotaSupabase(supabase),
+    utilisateur.id,
+    new Date(),
+    quotaMensuel()
+  ).catch(() => null);
 
   return (
     <>
@@ -193,10 +205,32 @@ export default async function PageCompte() {
               </span>
             </div>
             <p className="text-encre-300 text-sm mt-4 leading-relaxed">
-              Aucun plafond de traduction n’est appliqué pour l’instant. L’offre de
-              lancement prévoit un garde-fou (un livre complet par mois, jamais
-              interrompu au milieu) : il n’est pas encore activé et vous serez
-              prévenu avant qu’il ne le soit.
+              {usageQuota ? (
+                <>
+                  Il vous reste{' '}
+                  <strong className="text-encre-100">
+                    {libelleCaracteres(usageQuota.restant)}
+                  </strong>{' '}
+                  sur les {usageQuota.limite.toLocaleString('fr-FR')} de ce
+                  mois ({usageQuota.utilise.toLocaleString('fr-FR')}{' '}
+                  consommés). Le compteur est remis à zéro le 1
+                  <sup>er</sup> de chaque mois, et vos crédits prépayés
+                  prennent le relais sans jamais interrompre un livre.{' '}
+                  <Link href="/abonnement" className="lien-discret underline">
+                    Voir le détail sur ma page d’abonnement
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>
+                  Votre compteur de traduction n’a pas pu être lu à
+                  l’instant.{' '}
+                  <Link href="/abonnement" className="lien-discret underline">
+                    Ouvrir ma page d’abonnement
+                  </Link>
+                  .
+                </>
+              )}
             </p>
             <div className="flex flex-wrap items-center gap-3 mt-5">
               <span className="rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
