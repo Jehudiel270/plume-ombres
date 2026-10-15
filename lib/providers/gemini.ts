@@ -46,10 +46,16 @@ export function modeleGemini(): string {
 /**
  * Modèles essayés DANS L'ORDRE pour un même appel Gemini :
  * le modèle configuré d'abord, puis des alias de secours réputés
- * disponibles. Filet de sécurité borné (pas de boucle) contre les
- * 404 « modèle fermé aux nouveaux comptes » et les 503 de surcharge.
+ * disponibles (vérifiés réellement, cf. scripts/preuve-traduction-aujourdhui.mts).
+ * Filet de sécurité borné (pas de boucle) contre les 404 « modèle
+ * fermé aux nouveaux comptes », les 503/429 de surcharge ET les
+ * requêtes qui « pendent » sans jamais répondre.
  */
-const MODELES_SECOURS = ['gemini-flash-lite-latest'];
+const MODELES_SECOURS = [
+  'gemini-flash-lite-latest',
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash-lite',
+];
 
 export function modelesGemini(): string[] {
   const prefere = modeleGemini();
@@ -59,6 +65,26 @@ export function modelesGemini(): string[] {
 /** Statuts qui justifient d'essayer le modèle de secours suivant. */
 function modeleIndisponible(statut: number): boolean {
   return statut === 404 || statut === 429 || statut === 503;
+}
+
+/** Variable d'env du délai PAR MODÈLE (ms). */
+export const VAR_DELAI_MODELE = 'GEMINI_MODEL_TIMEOUT_MS';
+const DELAI_MODELE_DEFAUT_MS = 8000;
+
+/**
+ * Délai propre à CHAQUE modèle (ms).
+ *
+ * Indispensable : un alias saturé peut accepter la connexion puis
+ * rester SILENCIEUX (503 « high demand » qui pend). Sans délai par
+ * modèle, une seule requête figée consommait tout le budget de la
+ * chaîne de secours (TRANSLATOR_FALLBACK_TIMEOUT_MS) et faisait
+ * perdre Gemini entièrement — alors qu'un alias de secours répond
+ * en ~1,5 s. Le budget par défaut (8 s) laisse la place aux modèles
+ * suivants dans le budget global de 20 s.
+ */
+export function delaiModeleMs(): number {
+  const n = Number(process.env[VAR_DELAI_MODELE]);
+  return Number.isFinite(n) && n > 0 ? n : DELAI_MODELE_DEFAUT_MS;
 }
 
 export class FournisseurGemini implements FournisseurTraduction {
@@ -120,25 +146,49 @@ export class FournisseurGemini implements FournisseurTraduction {
     });
 
     // Bascule AU NIVEAU DU MODÈLE : un alias fermé aux nouveaux comptes
-    // (404) ou saturé (503/429) ne doit pas faire perdre l'appel — on
-    // essaie le modèle de secours suivant avant d'abandonner Gemini.
+    // (404), saturé (503/429) OU SILENCIEUX (requête qui pend sans
+    // jamais répondre) ne doit pas faire perdre l'appel — on essaie le
+    // modèle suivant avant d'abandonner Gemini. Chaque modèle dispose
+    // de son PROPRE délai (delaiModeleMs) : un alias figé ne consomme
+    // donc plus tout le budget de la chaîne de secours.
     const modeles = modelesGemini();
     let derniereErreur = '';
     for (let i = 0; i < modeles.length; i++) {
-      const reponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modeles[i]}:generateContent?key=${cle}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: options.signal,
-          body: corpsRequete,
-        }
+      const dernier = i === modeles.length - 1;
+      let reponse: Response;
+      const minuterie = new AbortController();
+      const id = setTimeout(
+        () => minuterie.abort(new DOMException('Modèle Gemini trop lent.', 'TimeoutError')),
+        delaiModeleMs()
       );
+      const signalModele = options.signal
+        ? AbortSignal.any([options.signal, minuterie.signal])
+        : minuterie.signal;
+      try {
+        reponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modeles[i]}:generateContent?key=${cle}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: signalModele,
+            body: corpsRequete,
+          }
+        );
+      } catch (e) {
+        // Annulation demandée par l'appelant : on ne la masque jamais.
+        if (options.signal?.aborted) throw e;
+        const cause = e instanceof Error ? e.message : String(e);
+        derniereErreur = `Gemini n’a pas répondu (${modeles[i]}) : ${cause}`;
+        if (!dernier) continue;
+        throw new Error(derniereErreur);
+      } finally {
+        clearTimeout(id);
+      }
 
       if (!reponse.ok) {
         const corps = (await reponse.text()).slice(0, 300);
         derniereErreur = `Gemini a répondu ${reponse.status} (${modeles[i]}) : ${corps}`;
-        if (modeleIndisponible(reponse.status) && i < modeles.length - 1) {
+        if (modeleIndisponible(reponse.status) && !dernier) {
           continue;
         }
         throw new Error(derniereErreur);
@@ -147,7 +197,9 @@ export class FournisseurGemini implements FournisseurTraduction {
       const donnees = (await reponse.json()) as ReponseGemini;
       const traduit = donnees.candidates?.[0]?.content?.parts?.[0]?.text?.trimEnd();
       if (typeof traduit !== 'string' || traduit.length === 0) {
-        throw new Error('Gemini a renvoyé une réponse vide.');
+        derniereErreur = `Gemini a renvoyé une réponse vide (${modeles[i]}).`;
+        if (!dernier) continue;
+        throw new Error(derniereErreur);
       }
       return traduit;
     }
