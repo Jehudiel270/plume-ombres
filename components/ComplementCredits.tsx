@@ -40,7 +40,13 @@ export default function ComplementCreditsBandeau({ complement }: Props) {
 
   const pack: PlanAbonnement = complement.pack;
   const estimation = libelleEstimationRomans(complement.packCaracteres);
-  const afficherRemise = complement.remiseXof > 0;
+  // HONNÊTETÉ DE FACTURATION : le tunnel /paiement/<code> encaisse
+  // aujourd'hui le PRIX PLEIN du pack. On n'affiche donc pas le montant
+  // au prorata tant que le tunnel ne sait pas l'encaisser — afficher un
+  // prix qu'on ne facture pas serait un mensonge. Le calcul au prorata
+  // reste testé (lib/credits-manquants.ts) et sera réactivé en même
+  // temps que la prise en charge du montant dans le tunnel.
+  const afficherRemise = false && complement.remiseXof > 0;
 
   return (
     <section
@@ -112,8 +118,8 @@ export default function ComplementCreditsBandeau({ complement }: Props) {
       </div>
 
       <p className="text-nano text-encre-500 mt-3 leading-snug">
-        Montant calculé sur la part qui vous manque, arrondi au multiple de 50 F CFA.
-        Les crédits s’ajoutent à votre solde et n’expirent pas.
+        Vous payez le prix affiché du pack ; les caractères s’ajoutent à votre
+        solde et n’expirent pas.
       </p>
     </section>
   );
