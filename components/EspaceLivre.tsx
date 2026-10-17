@@ -37,7 +37,13 @@ import {
   useLecture,
 } from '@/lib/useLecture';
 import { CLEF_PROGRESSION } from '@/lib/progression';
-import { avancerTravail, creerTravail } from '@/lib/travaux-traduction';
+import {
+  DUREE_BAIL_NAVIGATEUR_MS,
+  creerTravail,
+  identifiantExecutant,
+  prendreBail,
+  renouvelerBail,
+} from '@/lib/travaux-traduction';
 import Sommaire from '@/components/lecteur/Sommaire';
 import BarreActions from '@/components/lecteur/BarreActions';
 import CommandesTraduction from '@/components/lecteur/CommandesTraduction';
@@ -91,21 +97,38 @@ export default function EspaceLivre({
   /**
    * Travail serveur du livre (persistance). Créé au lancement de
    * « Tout traduire » : si l'onglet est fermé, l'exécutant planifié
-   * reprend le relais après expiration du battement.
+   * reprend le relais dès que le bail a expiré.
    */
   const [travailId, setTravailId] = useState<string | null>(null);
 
-  // Signe de vie tant que le navigateur travaille : l'exécutant serveur
-  // ne prend la main que si ce battement s'arrête (onglet fermé, crash).
+  /**
+   * Identifiant de CET onglet comme exécutant : c'est lui qui figure
+   * dans le bail (`executeur`). Un par montage, donc stable d'un
+   * renouvellement à l'autre.
+   */
+  const [executeurOnglet] = useState(() => identifiantExecutant('onglet'));
+
+  // Bail : tant que l'onglet travaille, il RENOUVELLE son bail toutes
+  // les 20 s — l'exécutant serveur ne prend la main que si ce
+  // renouvellement cesse (onglet fermé, crash). Si le renouvellement
+  // échoue (bail délogé), on cesse de battre : la traduction dans le
+  // navigateur continue, elle n'attend personne.
   useEffect(() => {
     if (!actif || !travailId) return;
     const id = setInterval(() => {
-      void avancerTravail(supabaseRef.current, travailId, {
-        battement: true,
-      }).catch(() => undefined);
+      void renouvelerBail(
+        supabaseRef.current,
+        travailId,
+        executeurOnglet,
+        DUREE_BAIL_NAVIGATEUR_MS
+      )
+        .then((tenu) => {
+          if (!tenu) clearInterval(id);
+        })
+        .catch(() => undefined);
     }, 20_000);
     return () => clearInterval(id);
-  }, [actif, travailId]);
+  }, [actif, travailId, executeurOnglet]);
 
   // ---------- Progression de lecture + stats (100 % local) ----------
   const {
@@ -478,23 +501,34 @@ export default function EspaceLivre({
     if (restants.length === 0) return;
     setLecture('traduit');
 
-    // Travail PERSISTANT : créé avant de lancer. Si l'onglet est fermé,
-    // le battement s'arrête et l'exécutant serveur planifié reprend les
-    // segments restants, sans que l'utilisateur relance quoi que ce soit.
-    // Un échec ici ne bloque JAMAIS la traduction dans le navigateur.
+    // Travail PERSISTANT + BAIL, créés avant de lancer. L'onglet PREND le
+    // bail en priorité (préemption : l'utilisateur passe avant l'exécutant
+    // serveur, qui perdra son bail au prochain renouvellement et
+    // abandonnera son lot). Si l'onglet est fermé, le bail expire et
+    // l'exécutant planifié reprend les segments restants, sans que
+    // l'utilisateur relance quoi que ce soit.
+    // Un échec ici ne bloque JAMAIS la traduction dans le navigateur : le
+    // livre perd seulement son exécutant serveur de secours.
     try {
       const travail = await creerTravail(supabaseRef.current, {
         livreId: livre.id,
         statutInitial: 'en_cours',
       });
-      setTravailId(travail.id);
+      const tenu = await prendreBail(supabaseRef.current, travail.id, {
+        executeur: executeurOnglet,
+        dureeMs: DUREE_BAIL_NAVIGATEUR_MS,
+        forcer: true,
+      });
+      // Bail non pris (réseau, RLS, travail clos) : on ne bat pas sur un
+      // bail qu'on ne tient pas. La traduction continue quand même.
+      setTravailId(tenu ? travail.id : null);
     } catch {
       setTravailId(null);
     }
 
     await lancer(supabaseRef.current, restants, livre, majChapitre);
     rafraichirCompteurs();
-  }, [livre, lancer, majChapitre, rafraichirCompteurs]);
+  }, [livre, executeurOnglet, lancer, majChapitre, rafraichirCompteurs]);
 
   // ---------- Reprise AUTOMATIQUE au montage ----------
   // Un livre qui garde des segments `en_attente`, `erreur` ou bloqués en

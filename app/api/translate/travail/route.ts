@@ -2,9 +2,16 @@
 // app/api/translate/travail/route.ts — Exécutant de traduction serveur.
 //
 // Une requête = UN passage : prendre le travail actif le plus ancien,
-// traduire un lot (40 segments / 20 000 caractères), enregistrer les
-// résultats, tenir les compteurs et le battement, puis clore le travail
-// s'il ne reste plus rien (avec une reprise des segments en erreur).
+// en PRENDRE LE BAIL, traduire un lot (40 segments / 20 000 caractères),
+// vérifier le bail AVANT d'enregistrer, tenir les compteurs, puis clore
+// le travail s'il ne reste plus rien (avec une reprise des segments en
+// erreur).
+//
+// BAIL : l'identifiant `serveur:<uuid>` est unique à ce passage. Si le
+// bail est perdu en cours de route (le navigateur l'a préempté, un autre
+// passage l'a repris), le lot en cours est ABANDONNÉ SANS ÉCRITURE :
+// aucun résultat partiel, aucun compteur avancé. Le travail reste à son
+// nouveau titulaire.
 //
 // C'est ce qui rend la traduction PERSISTANTE : le moteur du navigateur
 // s'arrête à la fermeture de l'onglet, pas ce worker — déclenché chaque
@@ -19,18 +26,28 @@
 // produits (ni notification, ni message d'erreur).
 // ============================================================
 
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { traiterLotSegments } from '@/lib/traduction/lot';
-import type { EchecSegmentLot, SegmentLot } from '@/lib/traduction/lot';
+import type {
+  EchecSegmentLot,
+  ResultatLotSegments,
+  SegmentLot,
+} from '@/lib/traduction/lot';
 import { chargerPairesGlossaire } from '@/lib/glossaire';
 import { creerNotification } from '@/lib/notifications';
 import { paginer } from '@/lib/pagination';
 import {
-  assainirTravail,
+  DUREE_BAIL_SERVEUR_MS,
+  ErreurBailPerdu,
   avancerTravail,
+  ecrireSousBail,
+  exigerBail,
+  lireTravailParId,
+  prendreBail,
   prochainTravail,
+  relacherBail,
   type StatutTravail,
   type TravailTraduction,
 } from '@/lib/travaux-traduction';
@@ -295,36 +312,53 @@ async function enregistrerLot(
 /**
  * Traduit un lot et l'enregistre. Réutilise `traiterLotSegments`
  * (lib/traduction/lot.ts) : le worker ne réimplémente RIEN du moteur.
+ *
+ * Ordre imposé par le bail : la traduction se fait EN MÉMOIRE, puis le
+ * bail est revérifié juste avant la première écriture (`ecrireSousBail`).
+ * Bail perdu → `ErreurBailPerdu`, aucune écriture, aucun compteur : le
+ * lot est abandonné, pas à moitié enregistré.
  */
 async function traiterEtEnregistrer(
   supabase: SupabaseClient,
+  travail: TravailTraduction,
+  executeur: string,
   livre: LivreTravail,
   segments: SegmentTravail[],
   glossaire: { source: string; traduction: string }[]
 ): Promise<{ faits: number; echoues: number }> {
   const aTraduire = segments.filter((s) => (s.source ?? '').trim() !== '');
-  const faits = await cloturerSegmentsVides(supabase, segments);
-  if (aTraduire.length === 0) return { faits, echoues: 0 };
 
-  const lot: SegmentLot[] = aTraduire.map((segment) => ({
-    id: String(segment.id),
-    texte: segment.source,
-  }));
+  let resultat: ResultatLotSegments = { resultats: [], echecs: [] };
+  if (aTraduire.length > 0) {
+    const lot: SegmentLot[] = aTraduire.map((segment) => ({
+      id: String(segment.id),
+      texte: segment.source,
+    }));
 
-  const resultat = await traiterLotSegments(lot, {
-    source: livre.langue_source,
-    cible: livre.langue_cible,
-    ...(glossaire.length > 0 ? { glossaire } : {}),
-    concurrence: CONCURRENCE,
-  });
+    resultat = await traiterLotSegments(lot, {
+      source: livre.langue_source,
+      cible: livre.langue_cible,
+      ...(glossaire.length > 0 ? { glossaire } : {}),
+      concurrence: CONCURRENCE,
+    });
+  }
 
-  const bilan = await enregistrerLot(
+  return ecrireSousBail(
     supabase,
-    aTraduire,
-    resultat.resultats,
-    resultat.echecs
+    travail.id,
+    executeur,
+    DUREE_BAIL_SERVEUR_MS,
+    async () => {
+      const faits = await cloturerSegmentsVides(supabase, segments);
+      const bilan = await enregistrerLot(
+        supabase,
+        aTraduire,
+        resultat.resultats,
+        resultat.echecs
+      );
+      return { faits: faits + bilan.faits, echoues: bilan.echoues };
+    }
   );
-  return { faits: faits + bilan.faits, echoues: bilan.echoues };
 }
 
 /**
@@ -441,31 +475,16 @@ async function notifierFin(
 }
 
 // ------------------------------------------------------------
-// Prise du travail (verrou optimiste)
+// Prise du travail (bail exclusif)
 // ------------------------------------------------------------
 
 /**
- * Réserve le travail pour ce passage. Conditionnel sur l'état observé :
- * si un autre passage l'a déjà pris (statut ou battement différents), on
- * ne fait rien — deux exécutants ne traitent jamais le même livre.
+ * Identifiant de CE passage. Unique : deux passages simultanés (cron +
+ * déclenchement manuel) ne peuvent pas se croire titulaires du même
+ * bail, et les journaux disent lequel a abandonné.
  */
-async function prendreTravail(
-  supabase: SupabaseClient,
-  candidat: TravailTraduction
-): Promise<TravailTraduction | null> {
-  let requete = supabase
-    .from('travaux_traduction')
-    .update({ statut: 'en_cours', battement_le: new Date().toISOString() })
-    .eq('id', candidat.id)
-    .eq('statut', candidat.statut);
-
-  if (candidat.statut === 'en_cours' && candidat.battement_le) {
-    requete = requete.eq('battement_le', candidat.battement_le);
-  }
-
-  const { data, error } = await requete.select('*').maybeSingle();
-  if (error) throw error;
-  return assainirTravail(data);
+function identifiantPassage(): string {
+  return `serveur:${randomUUID()}`;
 }
 
 // ------------------------------------------------------------
@@ -474,12 +493,14 @@ async function prendreTravail(
 
 async function executer(
   supabase: SupabaseClient,
-  travail: TravailTraduction
+  travail: TravailTraduction,
+  executeur: string
 ): Promise<NextResponse> {
   const debut = Date.now();
   const livre = await chargerLivre(supabase, travail.livre_id);
   if (!livre) {
     await avancerTravail(supabase, travail.id, { statut: 'erreur' });
+    await relacherBail(supabase, travail.id, executeur).catch(() => undefined);
     return reponse({ statut: 'erreur', id: travail.id, motif: 'livre introuvable' });
   }
 
@@ -495,95 +516,144 @@ async function executer(
       erreurs: 0,
       battement: true,
     });
+    await relacherBail(supabase, travail.id, executeur).catch(() => undefined);
     await notifierFin(supabase, livre, 'erreur', 0, 0);
     return reponse({ statut: 'erreur', id: travail.id, motif: 'livre vide' });
   }
 
-  await reprendreSegmentsOrphelins(supabase, chapitreIds);
-  const glossaire = await chargerPairesGlossaire(supabase, livre.id);
-
-  const enAttente = await compterSegments(supabase, chapitreIds, ['en_attente']);
-  const enErreur = await compterSegments(supabase, chapitreIds, ['erreur']);
-
-  // Total figé au premier passage : il ne bouge plus, la progression est
-  // donc monotone même si des segments sont ajoutés plus tard.
-  const total = travail.total > 0 ? travail.total : enAttente + enErreur;
-
   let bilan = { faits: 0, echoues: 0 };
 
-  // 1) Lot principal (segments jamais traduits d'abord, erreurs ensuite).
-  const lot = await constituerLot(supabase, chapitreIds, ['en_attente', 'erreur'], ordre);
-  if (lot.length > 0) {
-    const resultat = await traiterEtEnregistrer(supabase, livre, lot, glossaire);
-    bilan = {
-      faits: bilan.faits + resultat.faits,
-      echoues: bilan.echoues + resultat.echoues,
-    };
-  }
+  try {
+    // Bail revérifié AVANT la première écriture (la reprise des
+    // orphelins en est une) : si un autre exécutant l'a pris entre la
+    // prise et ici, ce passage n'écrit strictement rien.
+    await exigerBail(supabase, travail.id, executeur, DUREE_BAIL_SERVEUR_MS);
 
-  // 2) Reprise des erreurs EN FIN de travail : plus rien en attente mais
-  // il reste des échecs → une dernière passe, sans action de l'utilisateur.
-  let restants = await compterSegments(supabase, chapitreIds, ['en_attente', 'erreur']);
-  if (restants > 0 && Date.now() - debut < BUDGET_MS) {
-    const resteEnAttente = await compterSegments(supabase, chapitreIds, ['en_attente']);
-    if (resteEnAttente === 0) {
-      const reprise = await constituerLot(supabase, chapitreIds, ['erreur'], ordre);
-      if (reprise.length > 0) {
-        const resultat = await traiterEtEnregistrer(supabase, livre, reprise, glossaire);
-        bilan = {
-          faits: bilan.faits + resultat.faits,
-          echoues: bilan.echoues + resultat.echoues,
-        };
-        restants = await compterSegments(supabase, chapitreIds, [
-          'en_attente',
-          'erreur',
-        ]);
+    await reprendreSegmentsOrphelins(supabase, chapitreIds);
+    const glossaire = await chargerPairesGlossaire(supabase, livre.id);
+
+    const enAttente = await compterSegments(supabase, chapitreIds, ['en_attente']);
+    const enErreur = await compterSegments(supabase, chapitreIds, ['erreur']);
+
+    // Total figé au premier passage : il ne bouge plus, la progression est
+    // donc monotone même si des segments sont ajoutés plus tard.
+    const total = travail.total > 0 ? travail.total : enAttente + enErreur;
+
+    // 1) Lot principal (segments jamais traduits d'abord, erreurs ensuite).
+    const lot = await constituerLot(supabase, chapitreIds, ['en_attente', 'erreur'], ordre);
+    if (lot.length > 0) {
+      const resultat = await traiterEtEnregistrer(
+        supabase,
+        travail,
+        executeur,
+        livre,
+        lot,
+        glossaire
+      );
+      bilan = {
+        faits: bilan.faits + resultat.faits,
+        echoues: bilan.echoues + resultat.echoues,
+      };
+    }
+
+    // 2) Reprise des erreurs EN FIN de travail : plus rien en attente mais
+    // il reste des échecs → une dernière passe, sans action de l'utilisateur.
+    let restants = await compterSegments(supabase, chapitreIds, ['en_attente', 'erreur']);
+    if (restants > 0 && Date.now() - debut < BUDGET_MS) {
+      const resteEnAttente = await compterSegments(supabase, chapitreIds, ['en_attente']);
+      if (resteEnAttente === 0) {
+        const reprise = await constituerLot(supabase, chapitreIds, ['erreur'], ordre);
+        if (reprise.length > 0) {
+          const resultat = await traiterEtEnregistrer(
+            supabase,
+            travail,
+            executeur,
+            livre,
+            reprise,
+            glossaire
+          );
+          bilan = {
+            faits: bilan.faits + resultat.faits,
+            echoues: bilan.echoues + resultat.echoues,
+          };
+          restants = await compterSegments(supabase, chapitreIds, [
+            'en_attente',
+            'erreur',
+          ]);
+        }
       }
     }
-  }
 
-  // Compteurs recalculés depuis la base : jamais de dérive cumulative.
-  const erreursRestantes = await compterSegments(supabase, chapitreIds, ['erreur']);
-  const traites = Math.max(0, total - restants);
+    // Compteurs et assemblage des chapitres sont aussi des écritures :
+    // le bail doit encore être tenu.
+    await exigerBail(supabase, travail.id, executeur, DUREE_BAIL_SERVEUR_MS);
 
-  // 3) Travail terminé : plus aucun segment en attente ni en erreur.
-  if (restants === 0) {
-    await assemblerChapitres(supabase, await chargerChapitres(supabase, livre.id));
-    const transition = await marquerLivreTraduit(supabase, livre);
-    if (transition) livre.statut = 'traduit';
+    // Compteurs recalculés depuis la base : jamais de dérive cumulative.
+    const erreursRestantes = await compterSegments(supabase, chapitreIds, ['erreur']);
+    const traites = Math.max(0, total - restants);
+
+    // 3) Travail terminé : plus aucun segment en attente ni en erreur.
+    if (restants === 0) {
+      await assemblerChapitres(supabase, await chargerChapitres(supabase, livre.id));
+      const transition = await marquerLivreTraduit(supabase, livre);
+      if (transition) livre.statut = 'traduit';
+      await avancerTravail(supabase, travail.id, {
+        statut: 'termine',
+        traites,
+        total,
+        erreurs: 0,
+        battement: true,
+      });
+      await relacherBail(supabase, travail.id, executeur).catch(() => undefined);
+      await notifierFin(supabase, livre, 'termine', total, 0);
+      return reponse({
+        statut: 'termine',
+        id: travail.id,
+        livre_id: livre.id,
+        total,
+        traites,
+        erreurs: 0,
+        lots: bilan,
+      });
+    }
+
+    // 4) Abandon franc : il ne reste QUE des erreurs et cette passe n'a
+    // rien sauvé (moteur indisponible, segments définitivement refusés).
+    if (erreursRestantes > 0 && erreursRestantes === restants && bilan.faits === 0) {
+      await assemblerChapitres(supabase, await chargerChapitres(supabase, livre.id));
+      await avancerTravail(supabase, travail.id, {
+        statut: 'erreur',
+        traites,
+        total,
+        erreurs: erreursRestantes,
+        battement: true,
+      });
+      await relacherBail(supabase, travail.id, executeur).catch(() => undefined);
+      await notifierFin(supabase, livre, 'erreur', total, erreursRestantes);
+      return reponse({
+        statut: 'erreur',
+        id: travail.id,
+        livre_id: livre.id,
+        total,
+        traites,
+        erreurs: erreursRestantes,
+        lots: bilan,
+      });
+    }
+
+    // 5) Il reste du travail : le passage suivant prendra la suite. Le
+    // bail est RENDU (battement effacé) pour que le prochain cron reparte
+    // sans attendre son expiration.
     await avancerTravail(supabase, travail.id, {
-      statut: 'termine',
-      traites,
-      total,
-      erreurs: 0,
-      battement: true,
-    });
-    await notifierFin(supabase, livre, 'termine', total, 0);
-    return reponse({
-      statut: 'termine',
-      id: travail.id,
-      livre_id: livre.id,
-      total,
-      traites,
-      erreurs: 0,
-      lots: bilan,
-    });
-  }
-
-  // 4) Abandon franc : il ne reste QUE des erreurs et cette passe n'a
-  // rien sauvé (moteur indisponible, segments définitivement refusés).
-  if (erreursRestantes > 0 && erreursRestantes === restants && bilan.faits === 0) {
-    await assemblerChapitres(supabase, await chargerChapitres(supabase, livre.id));
-    await avancerTravail(supabase, travail.id, {
-      statut: 'erreur',
+      statut: 'en_cours',
       traites,
       total,
       erreurs: erreursRestantes,
       battement: true,
     });
-    await notifierFin(supabase, livre, 'erreur', total, erreursRestantes);
+    await relacherBail(supabase, travail.id, executeur).catch(() => undefined);
     return reponse({
-      statut: 'erreur',
+      statut: 'en_cours',
       id: travail.id,
       livre_id: livre.id,
       total,
@@ -591,25 +661,21 @@ async function executer(
       erreurs: erreursRestantes,
       lots: bilan,
     });
+  } catch (erreur) {
+    if (erreur instanceof ErreurBailPerdu) {
+      // Le lot est ABANDONNÉ, sans écriture ni compteur : le travail
+      // appartient à son nouveau titulaire. On ne le remet pas dans la
+      // file et on ne libère pas un bail qu'on ne tient plus.
+      console.warn('[travail] bail perdu, lot abandonné :', travail.id);
+      return reponse({
+        statut: 'bail_perdu',
+        id: travail.id,
+        livre_id: livre.id,
+        lots: bilan,
+      });
+    }
+    throw erreur;
   }
-
-  // 5) Il reste du travail : le passage suivant prendra la suite.
-  await avancerTravail(supabase, travail.id, {
-    statut: 'en_cours',
-    traites,
-    total,
-    erreurs: erreursRestantes,
-    battement: true,
-  });
-  return reponse({
-    statut: 'en_cours',
-    id: travail.id,
-    livre_id: livre.id,
-    total,
-    traites,
-    erreurs: erreursRestantes,
-    lots: bilan,
-  });
 }
 
 // ------------------------------------------------------------
@@ -635,6 +701,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  const executeur = identifiantPassage();
   let travail: TravailTraduction | null = null;
   try {
     const candidat = await prochainTravail(supabase);
@@ -642,21 +709,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return reponse({ statut: 'inactif' });
     }
 
-    travail = await prendreTravail(supabase, candidat);
-    if (!travail) {
-      // Un autre passage a pris ce travail entre la lecture et la mise à
-      // jour : c'est normal (cron + déclenchement manuel).
+    // BAIL exclusif : un seul passage peut obtenir cette ligne. Le
+    // perdant repart sans rien écrire (cron + déclenchement manuel, ou
+    // deux instances de la fonction).
+    const pris = await prendreBail(supabase, candidat.id, {
+      executeur,
+      dureeMs: DUREE_BAIL_SERVEUR_MS,
+    });
+    if (!pris) {
       return reponse({ statut: 'deja_pris', id: candidat.id });
     }
 
-    return await executer(supabase, travail);
+    // Relu après la prise : les compteurs peuvent avoir bougé depuis
+    // prochainTravail (autre passage, navigateur).
+    travail = (await lireTravailParId(supabase, candidat.id)) ?? candidat;
+    return await executer(supabase, travail, executeur);
   } catch (erreur) {
-    // Panne transitoire : le travail est RENDU à la file, aucun segment
-    // n'est perdu, le passage suivant repart.
+    // Panne transitoire : le bail est RELÂCHÉ et le travail rendu à la
+    // file, aucun segment n'est perdu, le passage suivant repart.
     if (travail) {
       await avancerTravail(supabase, travail.id, { statut: 'en_attente' }).catch(
         () => undefined
       );
+      await relacherBail(supabase, travail.id, executeur).catch(() => undefined);
     }
     console.warn('[travail] passage interrompu :', messageErreur(erreur));
     return reponse({ statut: 'erreur', erreur: messageErreur(erreur) }, 500);

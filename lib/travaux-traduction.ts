@@ -15,6 +15,13 @@
 // Aucune dépendance à `next` : uniquement supabase-js, pour rester
 // importable depuis une fonction Netlify, un script tsx et un
 // composant client.
+//
+// EXCLUSIVITÉ D'EXÉCUTION — le BAIL (voir prendreBail/renouvelerBail).
+// Le battement seul ne suffisait pas : c'est un signe de vie, pas une
+// propriété. Un bail explicite (executeur + bail_expire_le) désigne UN
+// titulaire à la fois ; l'attribution est un UPDATE conditionnel
+// atomique (CAS) tranché par PostgreSQL, donc deux exécutants
+// concurrents ne peuvent pas gagner tous les deux.
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -37,6 +44,21 @@ export const STATUTS_ACTIFS: readonly StatutTravail[] = ['en_attente', 'en_cours
  */
 export const SEUIL_BATTEMENT_MS = 2 * 60 * 1000; // 2 min
 
+/**
+ * Durée d'un bail pris par l'EXÉCUTANT SERVEUR. Doit couvrir la durée
+ * d'un lot (le bail est renouvelé avant chaque lot) avec de la marge :
+ * un bail trop court expirerait en pleine traduction et un autre
+ * exécutant prendrait le relais pour rien.
+ */
+export const DUREE_BAIL_SERVEUR_MS = 2 * 60 * 1000; // 2 min
+
+/**
+ * Durée d'un bail pris par le NAVIGATEUR. Renouvelé toutes les 20 s :
+ * trois battements manqués (onglet fermé, onglet gelé) avant reprise
+ * par l'exécutant serveur.
+ */
+export const DUREE_BAIL_NAVIGATEUR_MS = 60 * 1000; // 1 min
+
 /** Une ligne de public.travaux_traduction. */
 export interface TravailTraduction {
   id: string;
@@ -52,6 +74,10 @@ export interface TravailTraduction {
   cree_le: string;
   maj_le: string;
   battement_le: string | null;
+  /** Titulaire du bail d'exécution ; `null` = travail libre. */
+  executeur: string | null;
+  /** Fin de validité du bail ; `null` = travail libre. */
+  bail_expire_le: string | null;
 }
 
 /** Avancement lisible (0-100, borné). */
@@ -115,6 +141,9 @@ export function assainirTravail(brut: unknown): TravailTraduction | null {
     cree_le: typeof ligne.cree_le === 'string' ? ligne.cree_le : '',
     maj_le: typeof ligne.maj_le === 'string' ? ligne.maj_le : '',
     battement_le: typeof ligne.battement_le === 'string' ? ligne.battement_le : null,
+    executeur: typeof ligne.executeur === 'string' && ligne.executeur ? ligne.executeur : null,
+    bail_expire_le:
+      typeof ligne.bail_expire_le === 'string' ? ligne.bail_expire_le : null,
   };
 }
 
@@ -323,6 +352,203 @@ export async function annulerTravail(
   return avancerTravail(supabase, travailId, { statut: 'annule' });
 }
 
+// ------------------------------------------------------------
+// BAIL D'EXÉCUTION — un seul titulaire à la fois
+// ------------------------------------------------------------
+//
+// `executeur` désigne le titulaire ; `bail_expire_le` sa fenêtre de
+// validité. Les trois opérations sont des UPDATE CONDITIONNELS : c'est
+// PostgreSQL qui tranche, pas l'ordre des appels TS. Un exécutant ne
+// peut donc écrire un lot que s'il est encore titulaire.
+
+/**
+ * Identifiant unique par passage d'exécutant. Le préfixe rend les
+ * journaux lisibles : `serveur:` (route cron) / `onglet:` (navigateur).
+ */
+export function identifiantExecutant(prefixe: string): string {
+  const cryptoApi = globalThis.crypto;
+  const aleatoire =
+    cryptoApi && typeof cryptoApi.randomUUID === 'function'
+      ? cryptoApi.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefixe}:${aleatoire}`;
+}
+
+/** Durée de bail validée (positive, finie). */
+function dureeBailValide(dureeMs: number): number {
+  if (!Number.isFinite(dureeMs) || dureeMs <= 0) {
+    throw new Error('Durée de bail invalide.');
+  }
+  return Math.floor(dureeMs);
+}
+
+/** Exécutant privé de son bail : il doit abandonner SANS écrire. */
+export class ErreurBailPerdu extends Error {
+  constructor(travailId: string) {
+    super(`Bail perdu sur le travail ${travailId}.`);
+    this.name = 'ErreurBailPerdu';
+  }
+}
+
+export interface OptionsPriseBail {
+  /** Identifiant du candidat (`identifiantExecutant('serveur')`). */
+  executeur: string;
+  /** Durée du bail ; à renouveler avant qu'elle n'expire. */
+  dureeMs: number;
+  /**
+   * Écrase un bail détenu par un AUTRE exécutant. Réservé au navigateur :
+   * quand l'utilisateur clique « Tout traduire », il passe avant
+   * l'exécutant serveur, qui perdra son bail au prochain renouvellement
+   * et abandonnera son lot.
+   */
+  forcer?: boolean;
+}
+
+/**
+ * Prend le bail d'un travail. `true` seulement si l'appel a RÉELLEMENT
+ * obtenu le bail.
+ *
+ * CAS : un seul UPDATE conditionnel (`bail_expire_le IS NULL OR
+ * bail_expire_le < maintenant`) qui n'aboutit que si le bail est libre
+ * ou échu. Deux appels concurrents : PostgreSQL reverrouve la ligne et
+ * réévalue la condition après le premier gagnant, donc un seul obtient
+ * une ligne en retour.
+ *
+ * Effets : pose `statut = 'en_cours'` et le battement (compatibilité
+ * avec les travaux antérieurs au bail), sans toucher aux compteurs.
+ */
+export async function prendreBail(
+  supabase: SupabaseClient,
+  travailId: string,
+  options: OptionsPriseBail
+): Promise<boolean> {
+  const id = (travailId ?? '').trim();
+  const executeur = (options.executeur ?? '').trim();
+  if (!id) throw new Error('Bail sans travail.');
+  if (!executeur) throw new Error('Bail sans exécutant.');
+  const duree = dureeBailValide(options.dureeMs);
+
+  const maintenant = new Date();
+  const maintenantIso = maintenant.toISOString();
+  const expiration = new Date(maintenant.getTime() + duree).toISOString();
+
+  let requete = supabase
+    .from('travaux_traduction')
+    .update({
+      executeur,
+      bail_expire_le: expiration,
+      battement_le: maintenantIso,
+      statut: 'en_cours',
+    })
+    .eq('id', id)
+    // Un travail clos n'est jamais repris, même avec un bail libre.
+    .in('statut', [...STATUTS_ACTIFS]);
+
+  if (options.forcer !== true) {
+    // Clause du CAS : bail libre (NULL) ou échu.
+    requete = requete.or(
+      `bail_expire_le.is.null,bail_expire_le.lt.${maintenantIso}`
+    );
+  }
+
+  const { data, error } = await requete.select('*').maybeSingle();
+  if (error) throw error;
+
+  const pris = assainirTravail(data);
+  return pris !== null && pris.executeur === executeur;
+}
+
+/**
+ * Prolonge le bail — SEULEMENT si `executeur` en est toujours le
+ * titulaire. `false` = délogé : l'appelant doit cesser d'écrire.
+ */
+export async function renouvelerBail(
+  supabase: SupabaseClient,
+  travailId: string,
+  executeur: string,
+  dureeMs: number
+): Promise<boolean> {
+  const id = (travailId ?? '').trim();
+  const titulaire = (executeur ?? '').trim();
+  if (!id) throw new Error('Bail sans travail.');
+  if (!titulaire) throw new Error('Bail sans exécutant.');
+  const duree = dureeBailValide(dureeMs);
+
+  const maintenant = new Date();
+  const { data, error } = await supabase
+    .from('travaux_traduction')
+    .update({
+      bail_expire_le: new Date(maintenant.getTime() + duree).toISOString(),
+      battement_le: maintenant.toISOString(),
+    })
+    .eq('id', id)
+    .eq('executeur', titulaire)
+    .in('statut', [...STATUTS_ACTIFS])
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
+/**
+ * Lève `ErreurBailPerdu` si le bail n'est plus tenu. À appeler AVANT
+ * toute écriture issue d'un lot : perdre le bail juste après une
+ * écriture laisserait un résultat partiel que le nouveau titulaire
+ * écraserait ou doublerait.
+ */
+export async function exigerBail(
+  supabase: SupabaseClient,
+  travailId: string,
+  executeur: string,
+  dureeMs: number
+): Promise<void> {
+  if (!(await renouvelerBail(supabase, travailId, executeur, dureeMs))) {
+    throw new ErreurBailPerdu(travailId);
+  }
+}
+
+/**
+ * Renouvelle le bail puis exécute `ecrire` — le tout ou rien côté
+ * appelant : si le bail est perdu, `ecrire` n'est JAMAIS appelé.
+ */
+export async function ecrireSousBail<T>(
+  supabase: SupabaseClient,
+  travailId: string,
+  executeur: string,
+  dureeMs: number,
+  ecrire: () => Promise<T>
+): Promise<T> {
+  await exigerBail(supabase, travailId, executeur, dureeMs);
+  return ecrire();
+}
+
+/**
+ * Libère le bail — uniquement si `executeur` en est le titulaire
+ * (sinon aucune ligne n'est touchée : on ne vole pas le bail d'autrui).
+ * Le battement est effacé : le travail redevient immédiatement
+ * proposable au passage suivant.
+ */
+export async function relacherBail(
+  supabase: SupabaseClient,
+  travailId: string,
+  executeur: string
+): Promise<boolean> {
+  const id = (travailId ?? '').trim();
+  const titulaire = (executeur ?? '').trim();
+  if (!id) throw new Error('Bail sans travail.');
+  if (!titulaire) throw new Error('Bail sans exécutant.');
+
+  const { data, error } = await supabase
+    .from('travaux_traduction')
+    .update({ executeur: null, bail_expire_le: null, battement_le: null })
+    .eq('id', id)
+    .eq('executeur', titulaire)
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
 export interface OptionsProchainTravail {
   /** Âge du battement au-delà duquel un `en_cours` est repris. */
   seuilBattementMs?: number;
@@ -336,59 +562,107 @@ function dateMs(iso: string): number {
 
 /**
  * Travail à faire MAINTENANT pour l'exécutant : le plus ancien travail
- * LIBRE, c'est-à-dire :
- *  - un `en_attente` (personne ne l'a pris) ;
- *  - un `en_cours` SANS battement, ou dont le battement est PÉRIMÉ
- *    (exécutant tué, déploiement, timeout) — c'est la promesse « la
- *    traduction continue si je ferme le navigateur ».
+ * LIBRE, c'est-à-dire, dans l'ordre du bail :
+ *  - un travail dont le bail est NULL (personne ne le tient) ;
+ *  - un travail dont le bail est ÉCHU (titulaire mort ou onglet fermé).
  *
- * Un `en_cours` au battement FRAIS appartient à un exécutant vivant : il
- * est ignoré, sinon l'onglet et le serveur traduiraient le même livre en
- * parallèle.
+ * Un travail au bail VALIDE appartient à son titulaire : il est ignoré
+ * même si son battement est frais — c'est la règle qui empêche deux
+ * exécutants de traduire le même livre.
  *
- * Le filtrage est fait EN BASE (trois lectures, une ligne chacune) et non
+ * Compatibilité : les travaux créés avant le bail (`bail_expire_le`
+ * NULL) restent gouvernés par le BATTEMENT — un `en_cours` sans
+ * battement, ou au battement périmé, est repris.
+ *
+ * Le filtrage est fait EN BASE (cinq lectures, une ligne chacune) et non
  * par un balayage côté client : un balayage borné (`.limit(20)` puis tri
- * en mémoire) laissait les travaux situés derrière une file de battements
- * frais invisibles pour toujours.
+ * en mémoire) laissait les travaux situés derrière une file de baux
+ * valides invisibles pour toujours.
  */
 export async function prochainTravail(
   supabase: SupabaseClient,
   options: OptionsProchainTravail = {}
 ): Promise<TravailTraduction | null> {
   const seuil = options.seuilBattementMs ?? SEUIL_BATTEMENT_MS;
-  const limite = new Date(Date.now() - Math.max(0, seuil)).toISOString();
+  const maintenant = new Date();
+  const maintenantIso = maintenant.toISOString();
+  const limiteBattement = new Date(
+    maintenant.getTime() - Math.max(0, seuil)
+  ).toISOString();
 
-  const [attente, sansBattement, perimes] = await Promise.all([
+  const [
+    attenteLibre,
+    attenteBailEchu,
+    sansBattement,
+    battementPerime,
+    bailEchu,
+  ] = await Promise.all([
+    // 1) en_attente, aucun bail.
     supabase
       .from('travaux_traduction')
       .select('*')
       .eq('statut', 'en_attente')
+      .is('bail_expire_le', null)
       .order('cree_le', { ascending: true })
       .limit(1)
       .maybeSingle(),
+    // 2) en_attente dont le bail est échu (titulaire disparu).
+    supabase
+      .from('travaux_traduction')
+      .select('*')
+      .eq('statut', 'en_attente')
+      .lt('bail_expire_le', maintenantIso)
+      .order('cree_le', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    // 3) en_cours sans bail ni battement (travail hérité).
     supabase
       .from('travaux_traduction')
       .select('*')
       .eq('statut', 'en_cours')
+      .is('bail_expire_le', null)
       .is('battement_le', null)
       .order('cree_le', { ascending: true })
       .limit(1)
       .maybeSingle(),
+    // 4) en_cours sans bail, battement périmé (exécutant tué).
     supabase
       .from('travaux_traduction')
       .select('*')
       .eq('statut', 'en_cours')
-      .lt('battement_le', limite)
+      .is('bail_expire_le', null)
+      .lt('battement_le', limiteBattement)
+      .order('cree_le', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    // 5) en_cours dont le bail est échu (titulaire mort, onglet fermé).
+    supabase
+      .from('travaux_traduction')
+      .select('*')
+      .eq('statut', 'en_cours')
+      .lt('bail_expire_le', maintenantIso)
       .order('cree_le', { ascending: true })
       .limit(1)
       .maybeSingle(),
   ]);
 
-  for (const reponse of [attente, sansBattement, perimes]) {
+  for (const reponse of [
+    attenteLibre,
+    attenteBailEchu,
+    sansBattement,
+    battementPerime,
+    bailEchu,
+  ]) {
     if (reponse.error) throw reponse.error;
   }
 
-  const candidats = [attente.data, sansBattement.data, perimes.data]
+  const candidats = [
+    attenteLibre.data,
+    attenteBailEchu.data,
+    sansBattement.data,
+    battementPerime.data,
+    bailEchu.data,
+  ]
     .map(assainirTravail)
     .filter((travail): travail is TravailTraduction => travail !== null);
 
