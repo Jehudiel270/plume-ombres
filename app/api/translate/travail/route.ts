@@ -116,7 +116,7 @@ function messageErreur(erreur: unknown): string {
 function messageEchec(echec: EchecSegmentLot): string {
   if (echec.raison === 'long') return 'Segment trop long pour la traduction.';
   if (echec.raison === 'limite') return 'Échec après plusieurs essais.';
-  if (echec.raison === 'quota') return 'Quota de traduction épuisé.';
+  if (echec.raison === 'indisponible') return 'Moteur momentanément indisponible.';
   return 'Échec de la traduction.';
 }
 

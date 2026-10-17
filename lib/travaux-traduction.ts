@@ -147,6 +147,13 @@ export interface OptionsCreationTravail {
    * OBLIGATOIRE côté serveur (service role n'a pas de session).
    */
   proprietaireId?: string;
+  /**
+   * `en_cours` quand c'est le NAVIGATEUR qui travaille tout de suite :
+   * le battement est posé à la création, donc l'exécutant serveur ne
+   * prend pas la main tant que l'onglet donne signe de vie. À laisser
+   * à `en_attente` pour confier le travail directement au serveur.
+   */
+  statutInitial?: 'en_attente' | 'en_cours';
 }
 
 /**
@@ -171,6 +178,10 @@ export async function creerTravail(
     livre_id: livreId,
     total: entierPositif(options.total),
   };
+  if (options.statutInitial === 'en_cours') {
+    ligne.statut = 'en_cours';
+    ligne.battement_le = new Date().toISOString();
+  }
   const proprietaireId = options.proprietaireId?.trim();
   if (proprietaireId) ligne.proprietaire_id = proprietaireId;
 

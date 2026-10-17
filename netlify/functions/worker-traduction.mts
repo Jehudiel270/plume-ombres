@@ -18,6 +18,12 @@
 /** Marge sous la limite d'exécution synchrone de la route (60 s). */
 const DELAI_MAX_MS = 55_000;
 
+/**
+ * Planification Netlify : chaque minute. Déclarée ici (source de vérité
+ * Netlify) ET dans netlify.toml ; les deux pointent sur la même valeur.
+ */
+export const config = { schedule: '*/1 * * * *' };
+
 function baseSite(): string {
   const brut =
     process.env.PLUME_BASE_URL?.trim() ||

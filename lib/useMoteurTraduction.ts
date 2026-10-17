@@ -105,6 +105,37 @@ export async function reprendreSegmentsEnCours(
 }
 
 /**
+ * Passe le livre à `traduit` quand TOUS ses chapitres le sont.
+ *
+ * C'est ce changement d'état — et lui seul — qui déclenche la
+ * notification « Traduction terminée » côté base
+ * (trigger `public.notifier_traduction_terminee`). Sans cet appel, les
+ * chapitres pouvaient être complets alors que `livres.statut` restait
+ * `pret` : la cloche ne recevait jamais rien.
+ *
+ * Idempotent : la mise à jour n'est faite que sur une transition.
+ */
+export async function cloreLivreSiComplet(
+  supabase: SupabaseClient,
+  livreId: string
+): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('chapitres')
+    .select('id', { count: 'exact', head: true })
+    .eq('livre_id', livreId)
+    .neq('statut', 'traduit');
+  if (error) return false;
+  if ((count ?? 0) > 0) return false;
+
+  const { error: erreurMaj } = await supabase
+    .from('livres')
+    .update({ statut: 'traduit' })
+    .eq('id', livreId)
+    .neq('statut', 'traduit');
+  return !erreurMaj;
+}
+
+/**
  * Reprise au montage, à l'échelle du LIVRE : requalifie les segments
  * `en_cours` périmés de tous les chapitres, puis renvoie les chapitres
  * qui ont encore du travail (`en_attente` / `erreur`). Une seule passe
@@ -758,6 +789,13 @@ export function useMoteurTraduction() {
 
           if (chapitreAnnule) break;
           contextePasse.moteurs = new Map<string, number>();
+        }
+
+        // Livre entièrement traduit → statut `traduit` en base : c'est la
+        // transition qui déclenche la notification « Traduction terminée »
+        // (trigger SQL), donc la cloche cesse d'être vide.
+        if (!controleur.signal.aborted) {
+          await cloreLivreSiComplet(supabase, livre.id).catch(() => false);
         }
       } finally {
         setActif(false);

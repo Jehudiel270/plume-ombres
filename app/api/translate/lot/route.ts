@@ -140,18 +140,43 @@ export async function POST(request: NextRequest) {
 
   // --- Traduction : 8 segments en parallèle, échecs isolés. ---
   let liberes = 0;
-  const resultat = await traiterLotSegments(analyse.segments, {
-    source: analyse.source,
-    cible: analyse.cible,
-    glossaire: analyse.glossaire,
-    concurrence: 8,
-    libererCaracteres: reserve
-      ? async (caracteres) => {
-          await libererQuota(magasin, session.userId!, caracteres);
-          liberes += caracteres;
-        }
-      : undefined,
-  });
+  let resultat: Awaited<ReturnType<typeof traiterLotSegments>>;
+  try {
+    resultat = await traiterLotSegments(analyse.segments, {
+      source: analyse.source,
+      cible: analyse.cible,
+      glossaire: analyse.glossaire,
+      concurrence: 8,
+      libererCaracteres: reserve
+        ? async (caracteres) => {
+            await libererQuota(magasin, session.userId!, caracteres);
+            liberes += caracteres;
+          }
+        : undefined,
+    });
+  } catch (erreur) {
+    // Panne inattendue du lot : on rend TOUT le quota réservé plutôt que
+    // de laisser une réservation fantôme, et on répond de façon lisible
+    // (le client retentera ; rien n'est écrit côté segments).
+    if (reserve) {
+      await libererQuota(
+        magasin,
+        session.userId!,
+        analyse.caracteresRetenus - liberes
+      ).catch(() => undefined);
+    }
+    console.warn(
+      '[translate/lot] lot interrompu :',
+      erreur instanceof Error ? erreur.message : erreur
+    );
+    return NextResponse.json(
+      {
+        erreur: 'Traduction momentanément indisponible. Réessayez dans un instant.',
+        code: 'LOT_INDISPONIBLE',
+      },
+      { status: 503, headers: entetesDebit }
+    );
+  }
 
   // L'usage affiché tient compte des libérations faites pendant le lot
   // (une seule RPC de libération, cf. lib/traduction/lot.ts).

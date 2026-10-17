@@ -37,6 +37,7 @@ import {
   useLecture,
 } from '@/lib/useLecture';
 import { CLEF_PROGRESSION } from '@/lib/progression';
+import { avancerTravail, creerTravail } from '@/lib/travaux-traduction';
 import Sommaire from '@/components/lecteur/Sommaire';
 import BarreActions from '@/components/lecteur/BarreActions';
 import CommandesTraduction from '@/components/lecteur/CommandesTraduction';
@@ -86,6 +87,25 @@ export default function EspaceLivre({
 
   const { actif, progression, lancer, annuler, reprendre } =
     useMoteurTraduction();
+
+  /**
+   * Travail serveur du livre (persistance). Créé au lancement de
+   * « Tout traduire » : si l'onglet est fermé, l'exécutant planifié
+   * reprend le relais après expiration du battement.
+   */
+  const [travailId, setTravailId] = useState<string | null>(null);
+
+  // Signe de vie tant que le navigateur travaille : l'exécutant serveur
+  // ne prend la main que si ce battement s'arrête (onglet fermé, crash).
+  useEffect(() => {
+    if (!actif || !travailId) return;
+    const id = setInterval(() => {
+      void avancerTravail(supabaseRef.current, travailId, {
+        battement: true,
+      }).catch(() => undefined);
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [actif, travailId]);
 
   // ---------- Progression de lecture + stats (100 % local) ----------
   const {
@@ -457,12 +477,21 @@ export default function EspaceLivre({
     );
     if (restants.length === 0) return;
     setLecture('traduit');
-    // Persistance serveur (facultative) : le module `lib/travaux-traduction.ts`
-    // est livré par le lot « persistance » de la même vague. Il est ABSENT de
-    // cette branche, donc aucun import n'est émis (un import mort casserait le
-    // build). Quand il arrivera, c'est ICI qu'appeler `creerTravail({ livreId,
-    // chapitres })` AVANT `lancer`, pour que le travail survive à la fermeture
-    // de l'onglet.
+
+    // Travail PERSISTANT : créé avant de lancer. Si l'onglet est fermé,
+    // le battement s'arrête et l'exécutant serveur planifié reprend les
+    // segments restants, sans que l'utilisateur relance quoi que ce soit.
+    // Un échec ici ne bloque JAMAIS la traduction dans le navigateur.
+    try {
+      const travail = await creerTravail(supabaseRef.current, {
+        livreId: livre.id,
+        statutInitial: 'en_cours',
+      });
+      setTravailId(travail.id);
+    } catch {
+      setTravailId(null);
+    }
+
     await lancer(supabaseRef.current, restants, livre, majChapitre);
     rafraichirCompteurs();
   }, [livre, lancer, majChapitre, rafraichirCompteurs]);
