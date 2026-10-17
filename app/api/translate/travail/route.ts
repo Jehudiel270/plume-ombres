@@ -688,7 +688,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return reponse({ erreur: 'Exécutant non configuré (CRON_SECRET).' }, 503);
   }
 
-  const fourni = request.headers.get('x-plume-travail') ?? '';
+  // Deux formes de secret acceptées :
+  //  • `x-plume-travail: <secret>` — notre horloge (Netlify hier, pg_cron demain) ;
+  //  • `Authorization: Bearer <secret>` — Vercel Cron, qui l'envoie ainsi.
+  const porteur = request.headers.get('authorization') ?? '';
+  const fourni =
+    request.headers.get('x-plume-travail') ??
+    (porteur.startsWith('Bearer ') ? porteur.slice('Bearer '.length) : '');
   if (!jetonValide(fourni, secret)) {
     return reponse({ erreur: 'Non autorisé.' }, 401);
   }
@@ -737,3 +743,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return reponse({ statut: 'erreur', erreur: messageErreur(erreur) }, 500);
   }
 }
+
+/**
+ * Vercel Cron appelle la route en GET (avec `Authorization: Bearer
+ * CRON_SECRET`). Le traitement est identique à POST : un seul passage.
+ */
+export const GET = POST;

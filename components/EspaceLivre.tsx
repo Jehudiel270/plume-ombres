@@ -52,6 +52,18 @@ import { usePreferencesLecture } from '@/components/lecteur/ReglagesLecture';
 import { useExports } from '@/components/lecteur/useExports';
 import type { ChapitreLeger, Compteurs } from '@/components/lecteur/partages';
 
+/** Clé de mémorisation du débit de traduction mesuré (caractères/seconde). */
+const CLE_DEBIT_TRADUCTION = 'plume:debit-traduction';
+
+/**
+ * Débit de repli tant qu'aucun passage n'a été mesuré : 900 car/s, valeur
+ * prudente entre les 208 car/s observés sur des micro-segments et les
+ * 2 130 car/s observés sur des paragraphes réels. Dès le premier passage,
+ * la valeur RÉELLE mesurée remplace celle-ci.
+ */
+const DEBIT_TRADUCTION_DEFAUT = 900;
+
+
 export default function EspaceLivre({
   livreInitial,
   chapitresInitiaux,
@@ -79,6 +91,54 @@ export default function EspaceLivre({
     caracteres: number;
   } | null>(null);
   const [messageLangue, setMessageLangue] = useState<string | null>(null);
+
+  // ---------- Débit réel et estimation de durée ----------
+  // Le moteur publie le débit mesuré à la fin de chaque passage
+  // (`plume:debit-traduction`). On le mémorise puis on l'utilise pour
+  // annoncer une durée AVANT de lancer. Sans mesure, on part d'un débit
+  // prudent constaté sur de vrais livres, et on le dit.
+  const [debitMesure, setDebitMesure] = useState<number | null>(() => {
+    // Lecture unique au montage : le rendu serveur n'affiche aucune
+    // estimation (aTraduire est encore null), donc aucun écart d'hydratation.
+    if (typeof window === 'undefined') return null;
+    try {
+      const brut = window.localStorage.getItem(CLE_DEBIT_TRADUCTION);
+      const valeur = brut ? Number(brut) : Number.NaN;
+      return Number.isFinite(valeur) && valeur > 0 ? valeur : null;
+    } catch {
+      return null;
+    }
+  });
+  useEffect(() => {
+    const surDebit = (evenement: Event) => {
+      const detail = (evenement as CustomEvent<{ debit?: number }>).detail;
+      const taux = Number(detail?.debit);
+      if (!Number.isFinite(taux) || taux <= 0) return;
+      setDebitMesure(taux);
+      try {
+        window.localStorage.setItem(
+          CLE_DEBIT_TRADUCTION,
+          String(Math.round(taux))
+        );
+      } catch {
+        /* stockage indisponible : l'estimation vaut pour cette session */
+      }
+    };
+    window.addEventListener('plume:debit-traduction', surDebit);
+    return () =>
+      window.removeEventListener('plume:debit-traduction', surDebit);
+  }, []);
+
+  const estimation = useMemo(() => {
+    if (!aTraduire || aTraduire.caracteres <= 0) return null;
+    const taux = debitMesure ?? DEBIT_TRADUCTION_DEFAUT;
+    return {
+      secondes: aTraduire.caracteres / taux,
+      mesure: debitMesure !== null,
+      taux,
+    };
+  }, [aTraduire, debitMesure]);
+
   /** Tiroir de chapitres (mobile) : le texte reste en premier à l'écran. */
   const [tiroirOuvert, setTiroirOuvert] = useState(false);
 
@@ -321,8 +381,9 @@ export default function EspaceLivre({
       if (data) {
         const chapitre = data as Chapitre;
         setChapitreComplet(chapitre);
-        // Le chapitre traduit s'affiche d'emblée dans sa traduction.
-        if (chapitre.texte_traduit) setLecture('traduit');
+        // On reste sur le TEXTE SOURCE à l'ouverture : l'utilisateur doit
+        // pouvoir lire la version originale avant de lancer une traduction.
+        // La bascule source ↔ traduction reste manuelle (barre d'outils).
       }
     })();
     return () => {
@@ -479,7 +540,7 @@ export default function EspaceLivre({
     if (!selection) return;
     const chapitre = chapitres.find((c) => c.id === selection);
     if (!chapitre) return;
-    setLecture('traduit'); // on verra le texte se construire
+    // La vue reste sur la SOURCE : on ne bascule pas l'utilisateur de force.
     const { data } = await supabaseRef.current
       .from('chapitres')
       .select('*')
@@ -499,7 +560,7 @@ export default function EspaceLivre({
       (c) => c.statut !== 'traduit'
     );
     if (restants.length === 0) return;
-    setLecture('traduit');
+    // Pas de bascule forcée : l'utilisateur garde la main sur la vue.
 
     // Travail PERSISTANT + BAIL, créés avant de lancer. L'onglet PREND le
     // bail en priorité (préemption : l'utilisateur passe avant l'exécutant
@@ -530,36 +591,25 @@ export default function EspaceLivre({
     rafraichirCompteurs();
   }, [livre, executeurOnglet, lancer, majChapitre, rafraichirCompteurs]);
 
-  // ---------- Reprise AUTOMATIQUE au montage ----------
-  // Un livre qui garde des segments `en_attente`, `erreur` ou bloqués en
-  // `en_cours` (onglet fermé, crash, réseau coupé) repart SEUL : les
-  // orphelins sont requalifiés, puis le moteur reprend les chapitres
-  // concernés sans qu'on ait à cliquer sur « Tout traduire ». Une seule
-  // tentative par montage : une annulation de l'utilisateur n'est jamais
-  // défaite par une relance surprise.
-  const repriseAutoFaite = useRef(false);
+  // ---------- Requalification des segments orphelins au montage ----------
+  // Un onglet fermé en pleine traduction laisse des segments bloqués en
+  // `en_cours`. On les remet simplement dans la file (`en_attente`) pour
+  // qu'ils soient pris au PROCHAIN lancement manuel.
+  //
+  // ⚠️ Aucune traduction ne démarre ici : l'utilisateur doit appuyer sur
+  // « Traduire » lui-même, sinon il ne voit ni le texte source, ni le
+  // nombre de caractères, ni l'estimation de durée avant que ça parte.
+  const requalificationFaite = useRef(false);
   useEffect(() => {
-    if (repriseAutoFaite.current || actif) return;
-    repriseAutoFaite.current = true;
-    let ignore = false;
-    (async () => {
-      const ids = chapitresRef.current.map((c) => c.id);
-      if (ids.length === 0) return;
-      const concernes = await chapitresAReprendre(supabaseRef.current, ids);
-      if (ignore || concernes.length === 0) return;
-      const { data } = await supabaseRef.current
-        .from('chapitres')
-        .select('*')
-        .in('id', concernes)
-        .order('position', { ascending: true });
-      if (ignore || !data || data.length === 0) return;
-      setLecture('traduit');
-      await lancer(supabaseRef.current, data as Chapitre[], livre, majChapitre);
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [actif, lancer, livre, majChapitre]);
+    if (requalificationFaite.current || actif) return;
+    requalificationFaite.current = true;
+    const ids = chapitresRef.current.map((c) => c.id);
+    if (ids.length === 0) return;
+    // L'appel effectue la remise en file ; son résultat (chapitres encore
+    // incomplets) n'est volontairement PAS utilisé pour lancer quoi que
+    // ce soit.
+    void chapitresAReprendre(supabaseRef.current, ids).catch(() => undefined);
+  }, [actif]);
 
   // ---------- Exports (état + logique dans le hook) ----------
   const {
@@ -704,6 +754,7 @@ export default function EspaceLivre({
           chapitreActuel={chapitreActuel}
           compteurs={compteurs}
           aTraduire={aTraduire}
+          estimation={estimation}
           onTraduireSelection={traduireSelection}
           onToutTraduire={toutTraduire}
           lecture={lecture}

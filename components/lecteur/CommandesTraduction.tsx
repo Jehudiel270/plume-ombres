@@ -38,6 +38,12 @@ interface Props {
    * plutôt qu'un chiffre inventé.
    */
   aTraduire: { segments: number; caracteres: number } | null;
+  /**
+   * Estimation de durée AVANT lancement, calculée sur le débit réellement
+   * mesuré lors des passages précédents (`mesure: true`) ou, à défaut,
+   * sur un débit prudent annoncé comme tel.
+   */
+  estimation: { secondes: number; mesure: boolean; taux: number } | null;
   onTraduireSelection: () => void;
   onToutTraduire: () => void;
   /** Mode d'affichage courant du lecteur. */
@@ -49,6 +55,16 @@ interface Props {
   langueCible: string;
 }
 
+function dureeLisible(secondes: number): string {
+  const total = Math.max(1, Math.round(secondes));
+  if (total < 60) return 'moins d’une minute';
+  const minutes = Math.round(total / 60);
+  if (minutes < 60) return `≈ ${minutes} min`;
+  const heures = Math.floor(minutes / 60);
+  const reste = minutes % 60;
+  return `≈ ${heures} h ${String(reste).padStart(2, '0')} min`;
+}
+
 function CommandesTraduction({
   actif,
   progression,
@@ -56,6 +72,7 @@ function CommandesTraduction({
   chapitreActuel,
   compteurs,
   aTraduire,
+  estimation,
   onTraduireSelection,
   onToutTraduire,
   lecture,
@@ -125,6 +142,17 @@ function CommandesTraduction({
               {aTraduire.segments > 1 ? 'segments' : 'segment'} ·{' '}
               {aTraduire.caracteres.toLocaleString('fr-FR')} caractères à
               traduire
+              {estimation && (
+                <span data-testid="estimation-duree">
+                  {' '}·{' '}
+                  {dureeLisible(estimation.secondes)}
+                  <span className="opacity-70">
+                    {estimation.mesure
+                      ? ` (d’après ${Math.round(estimation.taux).toLocaleString('fr-FR')} car/s mesurés)`
+                      : ' (estimation initiale)'}
+                  </span>
+                </span>
+              )}
             </p>
           )}
           <button

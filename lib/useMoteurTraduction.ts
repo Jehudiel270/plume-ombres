@@ -238,6 +238,11 @@ interface ContextePasse {
   enregistrerEtat: (id: number, etat: EtatSegment) => void;
   /** Compteur du moteur technique réellement utilisé (par chapitre). */
   moteurs: Map<string, number>;
+  /**
+   * Caractères réellement traduits depuis le début du passage.
+   * Sert à mesurer le débit RÉEL (car/s) pour l'estimation de durée.
+   */
+  caracteresFaits: number;
 }
 
 // ------------------------------------------------------------
@@ -431,6 +436,7 @@ async function envoyerPaquet(
 
   for (const { segment, resultat } of reussis) {
     ctx.enregistrerEtat(segment.id, 'fait');
+    ctx.caracteresFaits += segment.source.length;
     if (resultat.fournisseur) {
       ctx.moteurs.set(
         resultat.fournisseur,
@@ -660,7 +666,10 @@ export function useMoteurTraduction() {
           majProgression();
         },
         moteurs: new Map<string, number>(),
+        caracteresFaits: 0,
       };
+
+      const debutPassage = Date.now();
 
       try {
         for (const chapitre of chapitres) {
@@ -798,6 +807,25 @@ export function useMoteurTraduction() {
           await cloreLivreSiComplet(supabase, livre.id).catch(() => false);
         }
       } finally {
+        // Débit RÉEL du passage : caractères traduits / secondes écoulées.
+        // Publié pour que l'interface enregistre une estimation honnête de
+        // la durée des prochaines traductions (aucune constante inventée).
+        const dureeSec = (Date.now() - debutPassage) / 1000;
+        if (
+          contextePasse.caracteresFaits > 500 &&
+          dureeSec > 3 &&
+          typeof window !== 'undefined'
+        ) {
+          window.dispatchEvent(
+            new CustomEvent('plume:debit-traduction', {
+              detail: {
+                caracteres: contextePasse.caracteresFaits,
+                dureeSec,
+                debit: contextePasse.caracteresFaits / dureeSec,
+              },
+            })
+          );
+        }
         setActif(false);
         signalAnnulation.current = null;
         setProgression((p) => ({ ...p, chapitreEnCours: null }));
