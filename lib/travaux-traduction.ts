@@ -163,6 +163,12 @@ export interface OptionsCreationTravail {
  * livre, il est renvoyé tel quel — deux onglets (ou un onglet + le
  * worker) ne se marchent pas dessus. L'index d'unicité partiel en base
  * garantit la même chose en cas de course entre deux INSERT.
+ *
+ * Cas du NAVIGATEUR (`statutInitial: 'en_cours'`) sur un travail déjà
+ * `en_attente` : le travail est PROMU `en_cours` avec un battement. Sans
+ * cette promotion, l'onglet battrait sur un travail resté `en_attente`,
+ * que l'exécutant serveur prendrait aussitôt : les deux traduiraient le
+ * même livre en parallèle.
  */
 export async function creerTravail(
   supabase: SupabaseClient,
@@ -172,7 +178,15 @@ export async function creerTravail(
   if (!livreId) throw new Error('Travail sans livre.');
 
   const existant = await travailActifDuLivre(supabase, livreId);
-  if (existant) return existant;
+  if (existant) {
+    if (options.statutInitial === 'en_cours' && existant.statut === 'en_attente') {
+      return avancerTravail(supabase, existant.id, {
+        statut: 'en_cours',
+        battement: true,
+      });
+    }
+    return existant;
+  }
 
   const ligne: Record<string, unknown> = {
     livre_id: livreId,
@@ -291,7 +305,11 @@ export async function avancerTravail(
     .eq('id', id)
     .select('*')
     .single();
-  if (error) throw error;
+  if (error) {
+    // Aucune ligne touchée : travail supprimé entre-temps.
+    if (error.code === 'PGRST116') throw new Error('Travail introuvable.');
+    throw error;
+  }
   const avance = assainirTravail(data);
   if (!avance) throw new Error('Travail mis à jour illisible.');
   return avance;
@@ -310,36 +328,73 @@ export interface OptionsProchainTravail {
   seuilBattementMs?: number;
 }
 
+/** Millisecondes d'une date ISO ; 0 si illisible (tri de repli). */
+function dateMs(iso: string): number {
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
 /**
  * Travail à faire MAINTENANT pour l'exécutant : le plus ancien travail
- * actif, en ignorant les `en_cours` dont le battement est frais (un
- * autre passage est en train de les traiter).
+ * LIBRE, c'est-à-dire :
+ *  - un `en_attente` (personne ne l'a pris) ;
+ *  - un `en_cours` SANS battement, ou dont le battement est PÉRIMÉ
+ *    (exécutant tué, déploiement, timeout) — c'est la promesse « la
+ *    traduction continue si je ferme le navigateur ».
  *
- * Le tri est fait par l'index partiel `travaux_traduction_file_idx`.
+ * Un `en_cours` au battement FRAIS appartient à un exécutant vivant : il
+ * est ignoré, sinon l'onglet et le serveur traduiraient le même livre en
+ * parallèle.
+ *
+ * Le filtrage est fait EN BASE (trois lectures, une ligne chacune) et non
+ * par un balayage côté client : un balayage borné (`.limit(20)` puis tri
+ * en mémoire) laissait les travaux situés derrière une file de battements
+ * frais invisibles pour toujours.
  */
 export async function prochainTravail(
   supabase: SupabaseClient,
   options: OptionsProchainTravail = {}
 ): Promise<TravailTraduction | null> {
   const seuil = options.seuilBattementMs ?? SEUIL_BATTEMENT_MS;
-  const limite = Date.now() - Math.max(0, seuil);
+  const limite = new Date(Date.now() - Math.max(0, seuil)).toISOString();
 
-  const { data, error } = await supabase
-    .from('travaux_traduction')
-    .select('*')
-    .in('statut', [...STATUTS_ACTIFS])
-    .order('cree_le', { ascending: true })
-    .limit(20);
-  if (error) throw error;
-  if (!Array.isArray(data)) return null;
+  const [attente, sansBattement, perimes] = await Promise.all([
+    supabase
+      .from('travaux_traduction')
+      .select('*')
+      .eq('statut', 'en_attente')
+      .order('cree_le', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('travaux_traduction')
+      .select('*')
+      .eq('statut', 'en_cours')
+      .is('battement_le', null)
+      .order('cree_le', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('travaux_traduction')
+      .select('*')
+      .eq('statut', 'en_cours')
+      .lt('battement_le', limite)
+      .order('cree_le', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
-  for (const brut of data) {
-    const travail = assainirTravail(brut);
-    if (!travail) continue;
-    if (travail.statut === 'en_attente') return travail;
-    if (!travail.battement_le) return travail;
-    const battement = Date.parse(travail.battement_le);
-    if (!Number.isFinite(battement) || battement < limite) return travail;
+  for (const reponse of [attente, sansBattement, perimes]) {
+    if (reponse.error) throw reponse.error;
   }
-  return null;
+
+  const candidats = [attente.data, sansBattement.data, perimes.data]
+    .map(assainirTravail)
+    .filter((travail): travail is TravailTraduction => travail !== null);
+
+  let choisi: TravailTraduction | null = null;
+  for (const candidat of candidats) {
+    if (!choisi || dateMs(candidat.cree_le) < dateMs(choisi.cree_le)) choisi = candidat;
+  }
+  return choisi;
 }
