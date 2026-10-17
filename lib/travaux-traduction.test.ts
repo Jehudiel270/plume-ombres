@@ -10,20 +10,32 @@
 // La règle centrale prouvée ici : un travail `en_cours` au battement
 // FRAIS appartient à un exécutant vivant (l'onglet) et ne doit pas être
 // pris ; au battement PÉRIMÉ il est repris (le serveur prend le relais).
+//
+// Le BAIL (dernière section) remplace ce protocole implicite : un seul
+// titulaire à la fois, acquisition conditionnelle atomique, reprise d'un
+// bail échu, abandon sans écriture de l'exécutant délogé.
 // ============================================================
 
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { FauxSupabaseTravaux, clientFaux } from './faux-supabase-travaux';
 import {
+  DUREE_BAIL_NAVIGATEUR_MS,
+  DUREE_BAIL_SERVEUR_MS,
+  ErreurBailPerdu,
   SEUIL_BATTEMENT_MS,
   annulerTravail,
   assainirTravail,
   avancerTravail,
   creerTravail,
+  ecrireSousBail,
   estTravailActif,
+  identifiantExecutant,
+  prendreBail,
   prochainTravail,
   progressionTravail,
+  relacherBail,
+  renouvelerBail,
 } from './travaux-traduction';
 
 const MINUTE = 60_000;
@@ -374,6 +386,253 @@ describe('avancerTravail — écriture partielle', () => {
     // Même très ancien, il ne revient jamais.
     faux.parId(ligne.id).cree_le = ilYa(24 * 60 * MINUTE);
     assert.equal(await prochainTravail(clientFaux(faux)), null);
+  });
+});
+
+describe('bail d’exécution — un seul titulaire à la fois', () => {
+  test('deux exécutants concurrents : un seul obtient le bail', async () => {
+    const faux = new FauxSupabaseTravaux();
+    const ligne = faux.inserer({ livre_id: 'livre-bail-course', statut: 'en_attente' });
+    const client = clientFaux(faux);
+
+    // Lancés ensemble : le CAS ne peut en laisser passer qu'un.
+    const [serveur, onglet] = await Promise.all([
+      prendreBail(client, ligne.id, {
+        executeur: 'serveur:a',
+        dureeMs: DUREE_BAIL_SERVEUR_MS,
+      }),
+      prendreBail(client, ligne.id, {
+        executeur: 'onglet:b',
+        dureeMs: DUREE_BAIL_NAVIGATEUR_MS,
+      }),
+    ]);
+
+    assert.equal(
+      [serveur, onglet].filter(Boolean).length,
+      1,
+      'un seul exécutant doit obtenir le bail'
+    );
+    const titulaire = faux.parId(ligne.id).executeur;
+    assert.equal(titulaire, serveur ? 'serveur:a' : 'onglet:b');
+    assert.equal(faux.parId(ligne.id).statut, 'en_cours', 'le travail est pris en main');
+  });
+
+  test('le perdant ne peut ni renouveler ni écrire', async () => {
+    const faux = new FauxSupabaseTravaux();
+    const ligne = faux.inserer({ livre_id: 'livre-bail-perdant' });
+    const client = clientFaux(faux);
+
+    assert.equal(
+      await prendreBail(client, ligne.id, {
+        executeur: 'serveur:gagnant',
+        dureeMs: DUREE_BAIL_SERVEUR_MS,
+      }),
+      true
+    );
+    assert.equal(
+      await prendreBail(client, ligne.id, {
+        executeur: 'serveur:perdant',
+        dureeMs: DUREE_BAIL_SERVEUR_MS,
+      }),
+      false,
+      'un bail valide ne se prend pas'
+    );
+
+    assert.equal(
+      await renouvelerBail(client, ligne.id, 'serveur:perdant', DUREE_BAIL_SERVEUR_MS),
+      false,
+      'le perdant ne renouvelle pas le bail d’autrui'
+    );
+    assert.equal(
+      await renouvelerBail(client, ligne.id, 'serveur:gagnant', DUREE_BAIL_SERVEUR_MS),
+      true
+    );
+    assert.equal(faux.parId(ligne.id).executeur, 'serveur:gagnant');
+  });
+
+  test('un bail échu est repris par un autre exécutant', async () => {
+    const faux = new FauxSupabaseTravaux();
+    const ligne = faux.inserer({ livre_id: 'livre-bail-echu' });
+    const client = clientFaux(faux);
+
+    assert.equal(
+      await prendreBail(client, ligne.id, {
+        executeur: 'serveur:a',
+        dureeMs: DUREE_BAIL_SERVEUR_MS,
+      }),
+      true
+    );
+    assert.equal(
+      await prendreBail(client, ligne.id, {
+        executeur: 'serveur:b',
+        dureeMs: DUREE_BAIL_SERVEUR_MS,
+      }),
+      false,
+      'bail encore valide : reprise refusée'
+    );
+
+    // Le titulaire meurt sans renouveler : le bail échoit.
+    faux.vieillirBail(ligne.id, DUREE_BAIL_SERVEUR_MS + 1_000);
+    assert.equal(
+      await prendreBail(client, ligne.id, {
+        executeur: 'serveur:b',
+        dureeMs: DUREE_BAIL_SERVEUR_MS,
+      }),
+      true,
+      'un bail échu doit être reprenable'
+    );
+    assert.equal(faux.parId(ligne.id).executeur, 'serveur:b');
+  });
+
+  test('le renouvellement d’un exécutant délogé échoue', async () => {
+    const faux = new FauxSupabaseTravaux();
+    const ligne = faux.inserer({ livre_id: 'livre-bail-delegue' });
+    const client = clientFaux(faux);
+
+    await prendreBail(client, ligne.id, {
+      executeur: 'serveur:a',
+      dureeMs: DUREE_BAIL_SERVEUR_MS,
+    });
+    // L'utilisateur clique « Tout traduire » : préemption de l'onglet.
+    assert.equal(
+      await prendreBail(client, ligne.id, {
+        executeur: 'onglet:u',
+        dureeMs: DUREE_BAIL_NAVIGATEUR_MS,
+        forcer: true,
+      }),
+      true
+    );
+
+    assert.equal(
+      await renouvelerBail(client, ligne.id, 'serveur:a', DUREE_BAIL_SERVEUR_MS),
+      false,
+      'l’exécutant délogé ne peut pas prolonger le bail'
+    );
+    assert.equal(
+      await renouvelerBail(client, ligne.id, 'onglet:u', DUREE_BAIL_NAVIGATEUR_MS),
+      true,
+      'le nouveau titulaire, lui, renouvelle'
+    );
+  });
+
+  test('l’exécutant qui a perdu le bail n’écrit rien', async () => {
+    const faux = new FauxSupabaseTravaux();
+    const ligne = faux.inserer({ livre_id: 'livre-bail-sans-ecriture', traites: 0, total: 40 });
+    const client = clientFaux(faux);
+
+    await prendreBail(client, ligne.id, {
+      executeur: 'serveur:a',
+      dureeMs: DUREE_BAIL_SERVEUR_MS,
+    });
+
+    // Le lot est traduit EN MÉMOIRE ; l'onglet préempte pendant ce temps.
+    await prendreBail(client, ligne.id, {
+      executeur: 'onglet:u',
+      dureeMs: DUREE_BAIL_NAVIGATEUR_MS,
+      forcer: true,
+    });
+
+    const ecrituresAvant = faux.ecritures.length;
+    let lotsEnregistres = 0;
+
+    await assert.rejects(
+      () =>
+        ecrireSousBail(
+          client,
+          ligne.id,
+          'serveur:a',
+          DUREE_BAIL_SERVEUR_MS,
+          async () => {
+            lotsEnregistres += 1;
+          }
+        ),
+      (erreur: unknown) => erreur instanceof ErreurBailPerdu
+    );
+
+    assert.equal(lotsEnregistres, 0, 'le lot ne doit jamais être enregistré');
+    // Seule la tentative de renouvellement part vers la base — et elle
+    // ne touche AUCUNE ligne (condition `executeur = celui qui a perdu`).
+    const tentatives = faux.ecritures.slice(ecrituresAvant);
+    assert.ok(
+      tentatives.every((ecriture) => ecriture.ids.length === 0),
+      'aucune ligne ne doit être écrite après la perte du bail'
+    );
+    assert.equal(faux.parId(ligne.id).traites, 0, 'aucun compteur avancé');
+    assert.equal(faux.parId(ligne.id).executeur, 'onglet:u', 'le travail reste au nouveau titulaire');
+  });
+
+  test('prochainTravail ignore un bail valide et propose un bail échu', async () => {
+    const faux = new FauxSupabaseTravaux();
+    const tenu = faux.inserer({
+      livre_id: 'livre-bail-vivant',
+      statut: 'en_cours',
+      // Battement FRAIS : c'est le bail, et lui seul, qui doit décider.
+      battement_le: ilYa(20_000),
+    });
+    const client = clientFaux(faux);
+
+    await prendreBail(client, tenu.id, {
+      executeur: 'onglet:u',
+      dureeMs: DUREE_BAIL_NAVIGATEUR_MS,
+    });
+
+    assert.equal(
+      await prochainTravail(client),
+      null,
+      'un bail valide doit être ignoré par le serveur'
+    );
+
+    faux.vieillirBail(tenu.id, DUREE_BAIL_NAVIGATEUR_MS + 1_000);
+
+    const propose = await prochainTravail(client);
+    assert.equal(propose?.id, tenu.id, 'un bail échu doit être proposé');
+    assert.equal(propose?.statut, 'en_cours');
+  });
+
+  test('relacherBail ne libère que pour le titulaire, et rend le travail disponible', async () => {
+    const faux = new FauxSupabaseTravaux();
+    const ligne = faux.inserer({ livre_id: 'livre-bail-relache', statut: 'en_cours' });
+    const client = clientFaux(faux);
+
+    await prendreBail(client, ligne.id, {
+      executeur: 'serveur:a',
+      dureeMs: DUREE_BAIL_SERVEUR_MS,
+    });
+
+    assert.equal(
+      await relacherBail(client, ligne.id, 'serveur:autre'),
+      false,
+      'on ne libère pas le bail d’un autre'
+    );
+    assert.equal(faux.parId(ligne.id).executeur, 'serveur:a');
+
+    assert.equal(await relacherBail(client, ligne.id, 'serveur:a'), true);
+    const apres = faux.parId(ligne.id);
+    assert.equal(apres.executeur, null);
+    assert.equal(apres.bail_expire_le, null);
+    assert.equal(apres.battement_le, null, 'sans battement : reprenable tout de suite');
+
+    assert.equal((await prochainTravail(client))?.id, ligne.id);
+  });
+
+  test('un travail clos ne peut pas être pris', async () => {
+    const faux = new FauxSupabaseTravaux();
+    const fini = faux.inserer({ livre_id: 'livre-bail-clos', statut: 'termine' });
+
+    assert.equal(
+      await prendreBail(clientFaux(faux), fini.id, {
+        executeur: 'serveur:a',
+        dureeMs: DUREE_BAIL_SERVEUR_MS,
+      }),
+      false
+    );
+  });
+
+  test('identifiantExecutant est unique par passage', () => {
+    const premier = identifiantExecutant('serveur');
+    const second = identifiantExecutant('serveur');
+    assert.notEqual(premier, second);
+    assert.ok(premier.startsWith('serveur:'));
   });
 });
 

@@ -7,15 +7,21 @@
 //
 // Ce qu'il imite de PostgREST / Postgres, volontairement et pas plus :
 //  - select / insert / update avec les filtres eq, in, is, lt, gte ;
+//  - le groupe `or` PLAT utilisé par le CAS du bail
+//    (« col.is.null,col.lt.<date> »), et lui seul ;
 //  - order (date ou nombre), limit, single, maybeSingle, `await` direct ;
-//  - les valeurs par défaut de la table (id, statut, compteurs, dates) ;
+//  - les valeurs par défaut de la table (id, statut, compteurs, dates,
+//    executeur / bail_expire_le à NULL) ;
 //  - l'index d'unicité partiel « un seul travail actif par livre »
 //    (erreur 23505), y compris en cas de course entre deux INSERT ;
 //  - le trigger BEFORE UPDATE qui repose maj_le ;
 //  - PGRST116 quand single() ne ramène pas exactement une ligne.
 //
-// Tout le reste (FK, RLS, CHECK) est hors périmètre : les tests portent
-// sur la LOGIQUE de lib/travaux-traduction.ts, pas sur la base.
+// Tout le reste (FK, RLS, CHECK, verrou de ligne réel) est hors
+// périmètre : les tests portent sur la LOGIQUE de
+// lib/travaux-traduction.ts, pas sur la base. En particulier la course
+// entre deux UPDATE concurrents n'est PAS imitée : les appels du test
+// s'exécutent l'un après l'autre.
 // ============================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -33,6 +39,8 @@ export interface LigneTravailFaux {
   cree_le: string;
   maj_le: string;
   battement_le: string | null;
+  executeur: string | null;
+  bail_expire_le: string | null;
 }
 
 export interface ErreurFaux {
@@ -69,6 +77,7 @@ export interface RequeteFaux {
   is(colonne: string, valeur: null | boolean): RequeteFaux;
   lt(colonne: string, valeur: unknown): RequeteFaux;
   gte(colonne: string, valeur: unknown): RequeteFaux;
+  or(expression: string): RequeteFaux;
   order(colonne: string, options?: { ascending?: boolean }): RequeteFaux;
   limit(nombre: number): RequeteFaux;
   insert(valeurs: Record<string, unknown>): RequeteFaux;
@@ -118,6 +127,44 @@ function copier(ligne: LigneTravailFaux): LigneTravailFaux {
   return { ...ligne };
 }
 
+/**
+ * Analyse le groupe `or` PLAT de PostgREST utilisé par le CAS du bail :
+ * « colonne.operateur.valeur,colonne.operateur.valeur ». Volontairement
+ * étroit : une syntaxe non imitée lève, plutôt que de passer pour vraie.
+ */
+function analyserOu(expression: string): FiltreFaux[] {
+  const termes = expression
+    .split(',')
+    .map((terme) => terme.trim())
+    .filter((terme) => terme.length > 0);
+  if (termes.length === 0) throw new Error('Expression « or » vide.');
+
+  return termes.map((terme) => {
+    if (terme.includes('(')) {
+      throw new Error(`Groupe « or » imbriqué non imité : ${terme}`);
+    }
+    const morceaux = terme.split('.');
+    if (morceaux.length < 3) {
+      throw new Error(`Terme « or » illisible : ${terme}`);
+    }
+    const colonne = morceaux[0];
+    const operation = morceaux[1];
+    const brut = morceaux
+      .slice(2)
+      .join('.')
+      .trim()
+      .replace(/^"(.*)"$/, '$1');
+    if (!['eq', 'in', 'is', 'lt', 'gte'].includes(operation)) {
+      throw new Error(`Opérateur « ${operation} » non imité par le double.`);
+    }
+    return {
+      colonne,
+      operation: operation as FiltreFaux['operation'],
+      valeur: brut === 'null' ? null : brut,
+    };
+  });
+}
+
 /** Violation de travaux_traduction_actif_livre_idx ? */
 function violationUnicite(lignes: LigneTravailFaux[]): boolean {
   const vus = new Set<string>();
@@ -153,6 +200,8 @@ export class FauxSupabaseTravaux {
       cree_le: ligne.cree_le ?? maintenant,
       maj_le: ligne.maj_le ?? maintenant,
       battement_le: ligne.battement_le ?? null,
+      executeur: ligne.executeur ?? null,
+      bail_expire_le: ligne.bail_expire_le ?? null,
     };
     this.ordres.set(complete.id, this.ordres.size);
     this.lignes.push(complete);
@@ -171,6 +220,15 @@ export class FauxSupabaseTravaux {
     const ligne = this.parId(id);
     const base = ligne.battement_le ? Date.parse(ligne.battement_le) : Date.now();
     ligne.battement_le = new Date(base - ms).toISOString();
+  }
+
+  /** Simule l'expiration d'un bail sans que son titulaire ne le renouvelle. */
+  vieillirBail(id: string, ms: number): void {
+    const ligne = this.parId(id);
+    if (!ligne.bail_expire_le) throw new Error(`Aucun bail à vieillir : ${id}`);
+    ligne.bail_expire_le = new Date(
+      Date.parse(ligne.bail_expire_le) - ms
+    ).toISOString();
   }
 
   /**
@@ -197,12 +255,18 @@ export class FauxSupabaseTravaux {
     let mode: 'select' | 'insert' | 'update' = 'select';
     let valeurs: Record<string, unknown> = {};
     const filtres: FiltreFaux[] = [];
+    /** Groupes `or` : chaque groupe est un OU, les groupes sont des ET. */
+    const groupesOu: FiltreFaux[][] = [];
     let tri: { colonne: string; ascendant: boolean } | null = null;
     let borne: number | null = null;
 
     const selectionner = (): LigneTravailFaux[] => {
-      const retenues = this.lignes.filter((ligne) =>
-        filtres.every((filtre) => correspond(ligne, filtre))
+      const retenues = this.lignes.filter(
+        (ligne) =>
+          filtres.every((filtre) => correspond(ligne, filtre)) &&
+          groupesOu.every((groupe) =>
+            groupe.some((terme) => correspond(ligne, terme))
+          )
       );
       if (tri) {
         const { colonne, ascendant } = tri;
@@ -257,6 +321,10 @@ export class FauxSupabaseTravaux {
       },
       gte(colonne, valeur) {
         filtres.push({ colonne, operation: 'gte', valeur });
+        return requete;
+      },
+      or(expression) {
+        groupesOu.push(analyserOu(expression));
         return requete;
       },
       order(colonne, options) {
@@ -359,6 +427,9 @@ export class FauxSupabaseTravaux {
       maj_le: maintenant,
       battement_le:
         typeof valeurs.battement_le === 'string' ? valeurs.battement_le : null,
+      executeur: typeof valeurs.executeur === 'string' ? valeurs.executeur : null,
+      bail_expire_le:
+        typeof valeurs.bail_expire_le === 'string' ? valeurs.bail_expire_le : null,
     };
 
     if (violationUnicite([...this.lignes, ligne])) {
