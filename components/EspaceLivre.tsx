@@ -27,7 +27,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import { paginer } from '@/lib/pagination';
 import type { Chapitre, Livre, StatutChapitre } from '@/lib/types';
-import { useMoteurTraduction } from '@/lib/useMoteurTraduction';
+import {
+  chapitresAReprendre,
+  useMoteurTraduction,
+} from '@/lib/useMoteurTraduction';
 import {
   ratioLectureColonnes,
   ratioLectureVertical,
@@ -63,6 +66,11 @@ export default function EspaceLivre({
   const [chapitreComplet, setChapitreComplet] = useState<Chapitre | null>(null);
   const [lecture, setLecture] = useState<'source' | 'traduit'>('source');
   const [compteurs, setCompteurs] = useState<Compteurs | null>(null);
+  /** Ce qui RESTE à traduire dans le livre (compté avec la vraie source). */
+  const [aTraduire, setATraduire] = useState<{
+    segments: number;
+    caracteres: number;
+  } | null>(null);
   const [messageLangue, setMessageLangue] = useState<string | null>(null);
   /** Tiroir de chapitres (mobile) : le texte reste en premier à l'écran. */
   const [tiroirOuvert, setTiroirOuvert] = useState(false);
@@ -323,6 +331,44 @@ export default function EspaceLivre({
     rafraichirCompteurs();
   }, [rafraichirCompteurs, actif]);
 
+  // ---------- Compteur AVANT traduction (segments + caractères) ----------
+  // Le quota se facture au CARACTÈRE : annoncer « X segments · Y
+  // caractères » avant de lancer évite de découvrir le coût après coup.
+  // La mesure lit la vraie source des seuls segments non traduits (une
+  // passe paginée, à l'ouverture puis à la fin de chaque passage) ; elle
+  // n'est PAS recalculée pendant la traduction, où le bandeau de
+  // progression la remplace.
+  const mesurerATraduire = useCallback(async () => {
+    const liste = chapitresRef.current;
+    if (liste.length === 0) {
+      setATraduire({ segments: 0, caracteres: 0 });
+      return;
+    }
+    const ids = liste.map((c) => c.id);
+    const lignes = await paginer<{
+      id: number;
+      statut: string;
+      source: string | null;
+    }>((debut, fin) =>
+      supabaseRef.current
+        .from('segments')
+        .select('id, statut, source')
+        .in('chapitre_id', ids)
+        .neq('statut', 'fait')
+        .order('id', { ascending: true })
+        .range(debut, fin)
+    );
+    setATraduire({
+      segments: lignes.length,
+      caracteres: lignes.reduce((n, l) => n + (l.source?.length ?? 0), 0),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (actif) return;
+    void mesurerATraduire();
+  }, [actif, mesurerATraduire]);
+
   // ---------- Reprise automatique des segments orphelins « en_cours » ----------
   // Au chargement / changement de chapitre : un onglet fermé (ou un crash)
   // en pleine traduction laisse des segments bloqués en « en_cours » que la
@@ -411,9 +457,46 @@ export default function EspaceLivre({
     );
     if (restants.length === 0) return;
     setLecture('traduit');
+    // Persistance serveur (facultative) : le module `lib/travaux-traduction.ts`
+    // est livré par le lot « persistance » de la même vague. Il est ABSENT de
+    // cette branche, donc aucun import n'est émis (un import mort casserait le
+    // build). Quand il arrivera, c'est ICI qu'appeler `creerTravail({ livreId,
+    // chapitres })` AVANT `lancer`, pour que le travail survive à la fermeture
+    // de l'onglet.
     await lancer(supabaseRef.current, restants, livre, majChapitre);
     rafraichirCompteurs();
   }, [livre, lancer, majChapitre, rafraichirCompteurs]);
+
+  // ---------- Reprise AUTOMATIQUE au montage ----------
+  // Un livre qui garde des segments `en_attente`, `erreur` ou bloqués en
+  // `en_cours` (onglet fermé, crash, réseau coupé) repart SEUL : les
+  // orphelins sont requalifiés, puis le moteur reprend les chapitres
+  // concernés sans qu'on ait à cliquer sur « Tout traduire ». Une seule
+  // tentative par montage : une annulation de l'utilisateur n'est jamais
+  // défaite par une relance surprise.
+  const repriseAutoFaite = useRef(false);
+  useEffect(() => {
+    if (repriseAutoFaite.current || actif) return;
+    repriseAutoFaite.current = true;
+    let ignore = false;
+    (async () => {
+      const ids = chapitresRef.current.map((c) => c.id);
+      if (ids.length === 0) return;
+      const concernes = await chapitresAReprendre(supabaseRef.current, ids);
+      if (ignore || concernes.length === 0) return;
+      const { data } = await supabaseRef.current
+        .from('chapitres')
+        .select('*')
+        .in('id', concernes)
+        .order('position', { ascending: true });
+      if (ignore || !data || data.length === 0) return;
+      setLecture('traduit');
+      await lancer(supabaseRef.current, data as Chapitre[], livre, majChapitre);
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [actif, lancer, livre, majChapitre]);
 
   // ---------- Exports (état + logique dans le hook) ----------
   const {
@@ -557,6 +640,7 @@ export default function EspaceLivre({
           onAnnuler={annuler}
           chapitreActuel={chapitreActuel}
           compteurs={compteurs}
+          aTraduire={aTraduire}
           onTraduireSelection={traduireSelection}
           onToutTraduire={toutTraduire}
           lecture={lecture}

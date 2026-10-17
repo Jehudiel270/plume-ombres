@@ -55,58 +55,95 @@ const dateCourte = (iso: string): string =>
 const nombre = (n: unknown, secours = 0): number =>
   typeof n === 'number' && Number.isFinite(n) ? n : secours;
 
+/** Espacement minimal entre deux relectures déclenchées par un événement. */
+const INTERVALLE_EVENEMENT_MS = 1_200;
+
 export default function JaugeQuota({ initial, intervalleMs = 45_000 }: Props) {
   const [etat, setEtat] = useState<EtatQuotaAffiche>(initial);
   const [relu, setRelu] = useState(false);
   const enCours = useRef(false);
+  const relance = useRef(false);
+  const dernier = useRef(0);
+  const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const recharger = useCallback(async () => {
-    if (enCours.current) return;
+    // Une seule lecture à la fois. Un événement reçu PENDANT la requête
+    // programme une relecture : pendant une traduction par lots, les
+    // consommations s'enchaînent et la dernière ne doit pas être perdue.
+    if (enCours.current) {
+      relance.current = true;
+      return;
+    }
     enCours.current = true;
     try {
-      const reponse = await fetch('/api/abonnement', {
-        cache: 'no-store',
-        headers: { Accept: 'application/json' },
-      });
-      if (!reponse.ok) return;
-      const donnees = (await reponse.json()) as {
-        quota?: {
-          effectif?: number;
-          limite?: number;
-          utilise?: number;
-          restant?: number;
-          periode?: { debut?: string; fin?: string };
+      do {
+        relance.current = false;
+        const reponse = await fetch('/api/abonnement', {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+        });
+        if (!reponse.ok) break;
+        const donnees = (await reponse.json()) as {
+          quota?: {
+            effectif?: number;
+            limite?: number;
+            utilise?: number;
+            restant?: number;
+            periode?: { debut?: string; fin?: string };
+          };
+          credits?: { solde?: number };
         };
-        credits?: { solde?: number };
-      };
-      const q = donnees.quota;
-      if (!q || typeof q.utilise !== 'number') return;
-      const limite = nombre(q.effectif ?? q.limite, etat.limite);
-      const utilise = nombre(q.utilise, etat.utilise);
-      setEtat({
-        utilise,
-        limite,
-        restant: nombre(q.restant, Math.max(limite - utilise, 0)),
-        soldeCredits: nombre(donnees.credits?.solde, etat.soldeCredits),
-        periode: {
-          debut: q.periode?.debut ?? etat.periode.debut,
-          fin: q.periode?.fin ?? etat.periode.fin,
-        },
-      });
-      setRelu(true);
+        const q = donnees.quota;
+        if (!q || typeof q.utilise !== 'number') break;
+        const utilise = nombre(q.utilise);
+        setEtat((precedent) => {
+          const limite = nombre(q.effectif ?? q.limite, precedent.limite);
+          return {
+            utilise,
+            limite,
+            restant: nombre(q.restant, Math.max(limite - utilise, 0)),
+            soldeCredits: nombre(donnees.credits?.solde, precedent.soldeCredits),
+            periode: {
+              debut: q.periode?.debut ?? precedent.periode.debut,
+              fin: q.periode?.fin ?? precedent.periode.fin,
+            },
+          };
+        });
+        setRelu(true);
+      } while (relance.current);
     } catch {
       // Réseau indisponible : on garde la dernière valeur CONNUE (celle
       // du serveur) plutôt que d'afficher un chiffre inventé.
     } finally {
       enCours.current = false;
+      dernier.current = Date.now();
     }
-  }, [etat.limite, etat.utilise, etat.soldeCredits, etat.periode.debut, etat.periode.fin]);
+  }, []);
+
+  /**
+   * Relecture déclenchée par un événement, ESPACÉE : une traduction par
+   * lots émet `plume:quota-consomme` à chaque lot (des dizaines de fois
+   * par chapitre). On relit le quota au plus toutes les 1,2 s, avec un
+   * dernier passage garanti pour ne pas finir sur une valeur en retard.
+   */
+  const rechargerBientot = useCallback(() => {
+    const reste = INTERVALLE_EVENEMENT_MS - (Date.now() - dernier.current);
+    if (reste <= 0) {
+      void recharger();
+      return;
+    }
+    if (minuteur.current) return;
+    minuteur.current = setTimeout(() => {
+      minuteur.current = null;
+      void recharger();
+    }, reste);
+  }, [recharger]);
 
   useEffect(() => {
     // Contrat d'événement : lib/useMoteurTraduction.ts l'émet après
-    // chaque traduction facturée (quota réellement décompté).
+    // chaque lot facturé (quota réellement décompté).
     const surConsommation = () => {
-      void recharger();
+      rechargerBientot();
     };
     const surReveil = () => {
       if (document.visibilityState === 'visible') void recharger();
@@ -116,17 +153,21 @@ export default function JaugeQuota({ initial, intervalleMs = 45_000 }: Props) {
     window.addEventListener('focus', surConsommation);
     document.addEventListener('visibilitychange', surReveil);
 
-    let minuteur: ReturnType<typeof setInterval> | undefined;
+    let battement: ReturnType<typeof setInterval> | undefined;
     if (intervalleMs > 0) {
-      minuteur = setInterval(surReveil, intervalleMs);
+      battement = setInterval(surReveil, intervalleMs);
     }
     return () => {
       window.removeEventListener('plume:quota-consomme', surConsommation);
       window.removeEventListener('focus', surConsommation);
       document.removeEventListener('visibilitychange', surReveil);
-      if (minuteur) clearInterval(minuteur);
+      if (battement) clearInterval(battement);
+      if (minuteur.current) {
+        clearTimeout(minuteur.current);
+        minuteur.current = null;
+      }
     };
-  }, [recharger, intervalleMs]);
+  }, [recharger, rechargerBientot, intervalleMs]);
 
   const pourcent =
     etat.limite > 0

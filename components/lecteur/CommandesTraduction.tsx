@@ -31,6 +31,13 @@ interface Props {
   /** Chapitre actuellement sélectionné (null si aucun). */
   chapitreActuel: ChapitreLeger | null;
   compteurs: Compteurs | null;
+  /**
+   * Ce qui reste à traduire dans le livre, mesuré AVANT lancement
+   * (segments non traduits + somme réelle des caractères source).
+   * `null` tant que la mesure n'a pas abouti — on n'affiche alors rien
+   * plutôt qu'un chiffre inventé.
+   */
+  aTraduire: { segments: number; caracteres: number } | null;
   onTraduireSelection: () => void;
   onToutTraduire: () => void;
   /** Mode d'affichage courant du lecteur. */
@@ -48,6 +55,7 @@ function CommandesTraduction({
   onAnnuler,
   chapitreActuel,
   compteurs,
+  aTraduire,
   onTraduireSelection,
   onToutTraduire,
   lecture,
@@ -106,6 +114,19 @@ function CommandesTraduction({
       {/* Commandes de traduction — condensées sur mobile */}
       {!actif && (
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {/* Ce que la traduction va coûter, AVANT de la lancer : le quota
+              se facture au caractère, l'utilisateur doit le voir ici. */}
+          {aTraduire && aTraduire.segments > 0 && (
+            <p
+              className="w-full text-xs text-encre-500"
+              data-testid="a-traduire"
+            >
+              {aTraduire.segments.toLocaleString('fr-FR')}{' '}
+              {aTraduire.segments > 1 ? 'segments' : 'segment'} ·{' '}
+              {aTraduire.caracteres.toLocaleString('fr-FR')} caractères à
+              traduire
+            </p>
+          )}
           <button
             type="button"
             onClick={onTraduireSelection}
