@@ -15,7 +15,9 @@ import { decouperTexte } from '../lib/segmenter';
 import { FournisseurGoogleLibre } from '../lib/providers/google';
 import { FournisseurGemini } from '../lib/providers/gemini';
 
-const CHEMIN = 'C:/Users/dosso/dev/test-corpus/The_Predator_RuNyx.pdf';
+const CHEMIN =
+  process.argv[3] ??
+  'C:/Users/dosso/dev/test-corpus/The_Predator_RuNyx.pdf';
 
 async function principal() {
   const concurrence = Number(process.argv[2] ?? 10);
