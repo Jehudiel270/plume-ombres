@@ -52,12 +52,25 @@
     Cache-Control = "public, max-age=31536000, immutable"
 
 # ------------------------------------------------------------------
+# Fonctions Netlify (hors application Next.js)
+# ------------------------------------------------------------------
+# worker-traduction : simple HORLOGE authentifiée, planifiée chaque
+# minute. Elle appelle POST /api/translate/travail (en-tête
+# `x-plume-travail` = CRON_SECRET), qui traite un lot du travail de
+# traduction le plus ancien. C'est ce qui rend la traduction persistante
+# après fermeture du navigateur.
+[functions]
+  directory = "netlify/functions"
+
+[functions."worker-traduction"]
+  schedule = "*/1 * * * *"
+
+# ------------------------------------------------------------------
 # Points VOLONTAIREMENT absents :
 #  - pas de [[plugins]] : l'adaptateur Next.js est installé
 #    automatiquement (l'épingler désactiverait les mises à jour).
-#  - pas de [functions] / timeout : la limite d'exécution synchrone
-#    (60 s) n'est PAS configurable (voir DEPLOIEMENT-NETLIFY.md).
-#  - pas de cron / scheduled function : le projet n'en utilise aucune.
+#  - pas de `timeout` : la limite d'exécution synchrone (60 s) n'est PAS
+#    configurable (voir DEPLOIEMENT-NETLIFY.md).
 #  - pas de redirects : le garde d'accès vit dans proxy.ts (ex-middleware
 #    Next 16), exécuté par l'adaptateur via Edge Functions.
 # ------------------------------------------------------------------
