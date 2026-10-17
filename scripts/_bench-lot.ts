@@ -71,7 +71,8 @@ async function principal() {
     JOIN chapitres c ON c.id = s.chapitre_id
     WHERE c.livre_id = $1 AND s.statut IN ('en_attente','erreur')
       AND length(s.source) > 0
-    ORDER BY s.position
+      ${process.argv[4] === 'long' ? 'AND length(s.source) BETWEEN 300 AND 1200' : ''}
+    ORDER BY ${process.argv[4] === 'long' ? 'length(s.source)' : 's.position'}
     LIMIT $2
   `,
     [livre.id, nombre]
