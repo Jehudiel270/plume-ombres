@@ -92,6 +92,79 @@ export async function listerNotifications(
   return assainirNotifications(data);
 }
 
+/** Bornes de taille : une notification ne doit jamais grossir sans fin. */
+const MAX_TITRE = 200;
+const MAX_CORPS = 2000;
+const MAX_LIEN = 500;
+
+/** Contenu d'une notification à créer. */
+export interface NouvelleNotification {
+  /** Destinataire (obligatoire : la RLS « own » s'appuie dessus). */
+  proprietaire_id: string;
+  type: TypeNotification;
+  titre: string;
+  corps?: string | null;
+  /** Lien interne vers l'objet concerné (ex. `/livres/<id>`). */
+  lien?: string | null;
+}
+
+/** Tronque une chaîne facultative ; vide → null. */
+function texteOuNull(valeur: string | null | undefined, max: number): string | null {
+  if (typeof valeur !== 'string') return null;
+  const propre = valeur.trim();
+  if (propre === '') return null;
+  return propre.slice(0, max);
+}
+
+/**
+ * Crée UNE notification pour un compte.
+ *
+ * C'est le SEUL point d'insertion de la table `notifications` du
+ * projet : tout le reste (cloche, compteur, marquage) ne fait que
+ * lire. Fonctionne avec un client navigateur (RLS « own » : le
+ * propriétaire doit être le compte courant) comme avec un client
+ * service role (exécutant serveur, qui notifie le propriétaire du
+ * travail).
+ *
+ * Échoue franchement (throw) sur un contenu inutilisable : une
+ * notification muette serait pire qu'une erreur explicite. Un appelant
+ * serveur peut l'envelopper dans un catch pour ne pas faire échouer un
+ * travail déjà traduit.
+ */
+export async function creerNotification(
+  supabase: SupabaseClient,
+  notification: NouvelleNotification
+): Promise<Notification> {
+  const proprietaireId = (notification.proprietaire_id ?? '').trim();
+  const titre = (notification.titre ?? '').trim().slice(0, MAX_TITRE);
+  if (!proprietaireId) {
+    throw new Error('Notification sans destinataire.');
+  }
+  if (!titre) {
+    throw new Error('Notification sans titre.');
+  }
+  if (!estTypeValide(notification.type)) {
+    throw new Error('Type de notification inconnu.');
+  }
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert({
+      proprietaire_id: proprietaireId,
+      type: notification.type,
+      titre,
+      corps: texteOuNull(notification.corps, MAX_CORPS),
+      lien: texteOuNull(notification.lien, MAX_LIEN),
+    })
+    .select('id, proprietaire_id, type, titre, corps, lien, lu, cree_le')
+    .single();
+
+  if (error) throw error;
+  const [creee] = assainirNotifications([data]);
+  if (!creee) throw new Error('Notification créée illisible.');
+  return creee;
+}
+
 /** Nombre de notifications non lues du compte courant (via la RPC). */
 export async function compterNotificationsNonLues(
   supabase: SupabaseClient
