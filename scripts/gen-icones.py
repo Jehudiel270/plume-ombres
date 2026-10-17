@@ -12,7 +12,7 @@
 from PIL import Image
 from pathlib import Path
 
-SOURCE = r"C:\Users\dosso\AppData\Local\hermes\profiles\devotron\cache\images\img_d4930257338c.png"
+SOURCE = str(Path(__file__).resolve().parent.parent / "assets" / "logo-source.png")
 PUBLIC = Path(__file__).resolve().parent.parent / "public"
 APP = Path(__file__).resolve().parent.parent / "app"
 FOND = (11, 7, 9, 255)  # #0b0709 (themeColor app)
