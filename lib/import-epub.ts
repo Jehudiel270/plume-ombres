@@ -14,6 +14,11 @@
 // ============================================================
 
 import JSZip from 'jszip';
+import {
+  estContenuDeChapitre,
+  longueurUtile,
+  seuilContenuChapitre,
+} from './segmenter';
 
 export interface ChapitreEpub {
   /** Position dans le livre (indice). */
@@ -49,11 +54,19 @@ export function decoderEntites(texte: string): string {
 }
 
 /**
+ * Lignes parasites des EPUB convertis (filigrane du site, texte alternatif
+ * d'image « Unknown ») : elles ne font pas un chapitre.
+ */
+const LIGNE_PARASITE_EPUB =
+  /^(?:oceanofpdf\.com|unknown|www\.[^\s]+|downloaded from[^\n]*|scan(?:ner|ned)? (?:by|from)[^\n]*)$/i;
+
+/**
  * Convertit un fragment HTML (un chapitre EPUB) en texte brut lisible :
  *  - les fin de blocs (\n, <p>, <div>, <h1>…) deviennent des
  *    paragraphes séparés par une ligne vide,
  *  - les autres balises sont retirées (leur contenu texte reste),
- *  - entités HTML décodées, espaces compressés.
+ *  - entités HTML décodées, espaces compressés,
+ *  - lignes de filigrane supprimées.
  */
 export function htmlEnTexte(html: string): string {
   let t = decoderEntites(html);
@@ -65,10 +78,11 @@ export function htmlEnTexte(html: string): string {
   );
   // Toutes les autres balises : retirées (leur contenu texte reste).
   t = t.replace(/<[^>]*>/g, ' ');
-  // Normalisation ligne par ligne.
+  // Normalisation ligne par ligne (filigranes écartés).
   const lignes = t
     .split(/\r?\n/)
-    .map((l) => l.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim());
+    .map((l) => l.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim())
+    .map((l) => (LIGNE_PARASITE_EPUB.test(l) ? '' : l));
   // Regroupement : les lignes d'un même bloc HTML se rejoignent en
   // un seul paragraphe ; les lignes vides séparent les paragraphes.
   const parages: string[] = [];
@@ -229,8 +243,7 @@ export async function lireEpub(donnees: ArrayBuffer): Promise<LivreEpub> {
   }
 
   // 3. Lecture chapitre par chapitre.
-  const chapitres: ChapitreEpub[] = [];
-  let position = 0;
+  const bruts: ChapitreEpub[] = [];
   for (const chemin of entrees) {
     // JSZip n'aime pas les chemins absolus : on essaie les variantes.
     const fichier =
@@ -241,12 +254,30 @@ export async function lireEpub(donnees: ArrayBuffer): Promise<LivreEpub> {
     const html = await fichier.async('string');
     const texte = htmlEnTexte(html);
     if (texte.length < 20) continue; // page de garde / table des matières vide
-    chapitres.push({
-      position,
-      titre: titreDuChapitre(html, position),
-      texte,
-    });
-    position += 1;
+    bruts.push({ position: bruts.length, titre: titreDuChapitre(html, bruts.length), texte });
+  }
+
+  // 4. Un chapitre doit avoir un contenu minimal (cf. segmenter.ts) : les
+  //    pages « numéro de chapitre » ou filigrane (21 caractères) ne sont
+  //    pas des chapitres. Leur texte rejoint le chapitre précédent (la
+  //    page de garde en tête de livre est ignorée) : plus de série
+  //    « Chapitre N » parasite entremêlée aux vrais chapitres.
+  const seuil = seuilContenuChapitre(bruts.map((b) => longueurUtile(b.texte)));
+  const chapitres: ChapitreEpub[] = [];
+  for (const bloc of bruts) {
+    if (estContenuDeChapitre(bloc.texte, seuil)) {
+      chapitres.push({ ...bloc, position: chapitres.length });
+      continue;
+    }
+    const precedent = chapitres[chapitres.length - 1];
+    if (!precedent) continue;
+    // Le titre d'un fragment n'est réinséré que s'il n'est pas déjà dans
+    // le texte (dans un EPUB le <h1> fait partie du texte du chapitre).
+    const corps = bloc.texte.trim();
+    const entete = corps.startsWith(bloc.titre) || /^Chapitre \d+$/.test(bloc.titre)
+      ? corps
+      : `${bloc.titre}\n\n${corps}`;
+    precedent.texte = `${precedent.texte.trimEnd()}\n\n${entete}`;
   }
 
   if (chapitres.length === 0) {

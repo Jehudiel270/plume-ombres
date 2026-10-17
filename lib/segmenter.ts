@@ -207,9 +207,13 @@ function estTitreChapitre(ligne: string): boolean {
   if (ligne.length === 0 || ligne.length > 90) return false;
   const match = TITRE_CHAPITRE_KEYWORDS.exec(ligne);
   if (!match) return false;
-  const reste = ligne.slice(match[0].length).trimStart();
-  if (/^[a-z]/.test(reste)) return false; // suite en minuscules → prose
-  if (/^[,;]/.test(reste)) return false; // virgule → prose
+  const reste = ligne.slice(match[0].length);
+  // Ponctuation de fin de phrase collée au mot-clé (« book. And even in
+  // his mania… ») : la ligne est de la prose enveloppée, pas un titre.
+  if (/^[.,;:!?…]/.test(reste)) return false;
+  const apres = reste.trimStart();
+  if (/^[a-zà-ÿ]/.test(apres)) return false; // suite en minuscules → prose
+  if (/^[,;]/.test(apres)) return false; // virgule → prose
   return true;
 }
 
@@ -261,10 +265,102 @@ export interface ChapitreBrut {
   texte: string;
 }
 
+// ------------------------------------------------------------
+// Contenu minimal d'un chapitre
+//
+// Cause du bug corrigé ici : tout titre détecté ouvrait un chapitre,
+// sans exigence de contenu. Un PDF découpe les têtes de chapitre en
+// plusieurs lignes (« Chapter 1 » puis « The Diamond ») et un EPUB
+// range le filigrane du convertisseur sur sa propre page : chaque
+// fragment devenait un chapitre (« Chapitre 8 » de 21 caractères), d'où
+// deux séries entremêlées dans la liste.
+//
+// Seuil : 200 caractères utiles (≈ 30 mots, soit 2–3 phrases). C'est le
+// plus petit bloc qu'un lecteur peut lire comme un chapitre : en dessous
+// on ne trouve que des numéros, des titres de section, des filigranes ou
+// des lignes de playlist. Sur le livre de test, les vrais chapitres font
+// 5 702 à 39 731 caractères et les blocs parasites 21 à 215 : le seuil
+// tombe largement entre les deux.
+//
+// Échappatoire : un bloc plus court est quand même un chapitre s'il
+// contient ≥ 120 caractères ET ≥ 2 phrases complètes (chapitre court
+// réel). Et si le livre ENTIER est fait de chapitres courts (médiane
+// sous le seuil), le seuil s'abaisse à la moitié de la médiane : un
+// recueil de microfictions garde ses chapitres.
+// ------------------------------------------------------------
+
+/** Longueur minimale (caractères utiles) d'un chapitre lisible. */
+export const MIN_CARACTERES_CHAPITRE = 200;
+/** Longueur à partir de laquelle un bloc court peut rester un chapitre… */
+const MIN_CARACTERES_PROSE = 120;
+/** …s'il contient au moins ce nombre de phrases complètes. */
+const MIN_PHRASES_PROSE = 2;
+
+/** Longueur du texte hors blancs superflus (espaces/retours compressés). */
+export function longueurUtile(texte: string): number {
+  return texte.replace(/\s+/g, ' ').trim().length;
+}
+
+/** Nombre de fins de phrase (ponctuation suivie d'un blanc ou de la fin). */
+export function nombrePhrases(texte: string): number {
+  return (texte.match(/[.!?…]["'”’»)]?(?=\s|$)/g) ?? []).length;
+}
+
+/** Médiane d'une liste de nombres (null si vide). */
+function mediane(valeurs: number[]): number | null {
+  if (valeurs.length === 0) return null;
+  const triees = [...valeurs].sort((a, b) => a - b);
+  const milieu = Math.floor(triees.length / 2);
+  return triees.length % 2 === 1
+    ? triees[milieu]
+    : Math.round((triees[milieu - 1] + triees[milieu]) / 2);
+}
+
+/**
+ * Seuil de contenu applicable à un livre donné, mesuré sur la taille
+ * médiane de ses blocs : 200 caractères pour un roman, la moitié de la
+ * médiane pour un livre de chapitres courts (recueil de microfictions).
+ */
+export function seuilContenuChapitre(longueurs: number[]): number {
+  const med = mediane(longueurs.filter((l) => l > 0));
+  if (med === null || med >= MIN_CARACTERES_CHAPITRE) return MIN_CARACTERES_CHAPITRE;
+  return Math.max(1, Math.floor(med / 2));
+}
+
+/** Vrai si ce texte mérite d'être un chapitre (cf. règles ci-dessus). */
+export function estContenuDeChapitre(
+  texte: string,
+  seuil: number = MIN_CARACTERES_CHAPITRE
+): boolean {
+  const longueur = longueurUtile(texte);
+  if (longueur === 0) return false;
+  if (longueur >= seuil) return true;
+  // Livre fait de chapitres courts : une phrase complète suffit.
+  if (seuil < MIN_CARACTERES_CHAPITRE) return nombrePhrases(texte) >= 1;
+  // Roman : un bloc court reste un chapitre s'il porte ≥ 2 phrases.
+  return longueur >= MIN_CARACTERES_PROSE && nombrePhrases(texte) >= MIN_PHRASES_PROSE;
+}
+
+/** Titre portant un numéro de chapitre / de partie (« Chapter 12 », « PART II »). */
+const TITRE_NUMEROTE = /^(?:chapter|chapitre|part|partie|livre|book)\s+(?:\d+|[ivxlcdm]+)\b/i;
+
+/** Réintègre un titre de bloc dans son texte (fusion sans perte). */
+function blocAvecTitre(bloc: ChapitreBrut): string {
+  const corps = bloc.texte.trim();
+  const titre = bloc.titre.trim();
+  if (!titre) return corps;
+  return corps ? `${titre}\n\n${corps}` : titre;
+}
+
 /**
  * Découpe un livre complet en chapitres bruts.
  * - Détecte les titres de chapitres sur leur propre ligne
  *   (anglais ou français, avec ou sans marqueur Markdown #).
+ * - Un titre sans contenu ne crée pas de chapitre : isolé, il préfixe le
+ *   chapitre suivant (« Chapter 1 — The Diamond ») ; en série, c'est une
+ *   table des matières et il est ignoré.
+ * - Un bloc trop court est rattaché au chapitre précédent (au suivant en
+ *   tête de livre) : aucun texte n'est perdu.
  * - Si aucun titre n'est trouvé, le livre entier est un seul chapitre.
  */
 export function decouperEnChapitres(texteBrut: string): ChapitreBrut[] {
@@ -272,14 +368,14 @@ export function decouperEnChapitres(texteBrut: string): ChapitreBrut[] {
   if (texte.length === 0) return [{ titre: 'Chapitre 1', texte: '' }];
 
   const lignes = texte.split('\n');
-  const chapitres: ChapitreBrut[] = [];
+  const blocs: ChapitreBrut[] = [];
   let courant: ChapitreBrut | null = null;
   let tampon: string[] = [];
 
   const ajouter = () => {
     if (courant) {
       courant.texte = tampon.join('\n').trim() + '\n';
-      chapitres.push(courant);
+      blocs.push(courant);
     }
     tampon = [];
   };
@@ -302,24 +398,62 @@ export function decouperEnChapitres(texteBrut: string): ChapitreBrut[] {
 
   ajouter();
 
-  // Filtre la « table des matières » : un titre sans vraie prose (ex.
-  // liste de titres en début de livre, numéros de pages) n'est pas un
-  // chapitre. On garde un chapitre s'il est long OU contient des phrases
-  // réelles (mots + ponctuation de fin de phrase).
-  const aVraieProse = (c: ChapitreBrut) => {
-    const t = c.texte.trim();
-    return (
-      t.length >= 40 ||
-      /[a-zà-ÿ]{2,}[.!?…]["'”»]?\s/i.test(t + ' ')
-    );
-  };
-  const chapitresPleins = chapitres.filter(aVraieProse);
-  if (chapitresPleins.length > 0) {
-    return chapitresPleins.map((c, i) => ({
-      titre: c.titre || `Chapitre ${i + 1}`,
-      texte: c.texte,
-    }));
+  // 1. Titres sans contenu : voir la règle dans la doc de la fonction.
+  const sansTitresVides: ChapitreBrut[] = [];
+  let prefixe: string | null = null;
+  for (let i = 0; i < blocs.length; ) {
+    if (longueurUtile(blocs[i].texte) === 0) {
+      let j = i;
+      while (j < blocs.length && longueurUtile(blocs[j].texte) === 0) j++;
+      // Un titre nu suivi de contenu → il préfixe le chapitre suivant. Dans
+      // une suite (sommaire, « PART II » puis « Chapter 23 »), seul un titre
+      // NUMÉROTÉ qui précède le contenu le numérote : la fin d'un sommaire
+      // (« ABOUT THE AUTHOR ») ne devient pas le titre du livre entier.
+      if (j < blocs.length) {
+        const dernier = blocs[j - 1].titre;
+        if (j - i === 1 || TITRE_NUMEROTE.test(dernier)) prefixe = dernier;
+      }
+      i = j;
+      continue;
+    }
+    sansTitresVides.push({
+      titre: prefixe ? `${prefixe} — ${blocs[i].titre}` : blocs[i].titre,
+      texte: blocs[i].texte,
+    });
+    prefixe = null;
+    i += 1;
   }
+
+  // 2. Fusion des blocs trop courts dans leur voisin (sans perte de texte).
+  const seuil = seuilContenuChapitre(
+    sansTitresVides.map((b) => longueurUtile(b.texte))
+  );
+  const chapitres: ChapitreBrut[] = [];
+  let enTete: string | null = null;
+
+  for (const bloc of sansTitresVides) {
+    if (estContenuDeChapitre(bloc.texte, seuil)) {
+      chapitres.push({
+        titre: bloc.titre,
+        texte: enTete ? `${enTete}\n\n${bloc.texte}` : bloc.texte,
+      });
+      enTete = null;
+      continue;
+    }
+    const morceau = blocAvecTitre(bloc);
+    const precedent = chapitres[chapitres.length - 1];
+    if (precedent) {
+      precedent.texte = `${precedent.texte.trimEnd()}\n\n${morceau}\n`;
+    } else {
+      enTete = enTete ? `${enTete}\n\n${morceau}` : morceau;
+    }
+  }
+
+  if (chapitres.length === 0) {
+    // Aucun bloc n'atteint le seuil : le livre est un seul chapitre.
+    return [{ titre: prefixe ?? 'Chapitre 1', texte: `${(enTete ?? texte).trim()}\n` }];
+  }
+
   return chapitres.map((c, i) => ({
     titre: c.titre || `Chapitre ${i + 1}`,
     texte: c.texte,
