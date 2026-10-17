@@ -32,6 +32,12 @@ import {
 import { construireDirectives } from '@/lib/glossaire';
 import type { PaireGlossaire } from '@/lib/types';
 import {
+  assemblerGroupe,
+  caracteresGroupe,
+  decouperTraduction,
+  regrouperSegments,
+} from '@/lib/traduction/groupes';
+import {
   MagasinRateLimitSupabase,
   limiterRequete,
   entetesRateLimit,
@@ -413,11 +419,176 @@ function messageDepuisRaison(raison: RaisonEchecLot): string {
   }
 }
 
+/** Consigne ajoutée aux directives d'un GROUPE (moteurs à prompt). */
+const CONSIGNE_GROUPE =
+  'Le texte contient plusieurs segments séparés par des lignes « ⟦PLUME:n⟧ ». ' +
+  'Traduis chaque segment séparément et recopie ces lignes EXACTEMENT, ' +
+  'dans le même ordre, sans rien ajouter ni commenter.';
+
+/** Contexte d'exécution partagé par les groupes d'un lot. */
+interface ContexteTraductionLot {
+  traduire: TraducteurLot;
+  options: OptionsLotSegments;
+  glossaire: PaireGlossaire[];
+}
+
+/** Issue d'un segment (succès ou échec), avant agrégation du lot. */
+type IssueSegment =
+  | { type: 'succes'; resultat: ResultatSegmentLot }
+  | { type: 'echec'; id: string; raison: RaisonEchecLot; caracteres: number };
+
+/** Options moteur d'un appel : glossaire + directives (contexte, groupe). */
+function optionsMoteur(
+  contexte: ContexteTraductionLot,
+  contexteSegment: string | undefined,
+  groupe: boolean
+): OptionsTraduction {
+  const optionsMoteurAppel: OptionsTraduction = {
+    source: contexte.options.source,
+    cible: contexte.options.cible,
+  };
+  if (contexte.glossaire.length > 0) optionsMoteurAppel.glossaire = contexte.glossaire;
+  const bloc = construireDirectives({
+    entrees: contexte.glossaire,
+    contexte: contexteSegment ?? '',
+  }).directives;
+  // La consigne de groupe passe EN TÊTE : elle ne doit pas être
+  // tronquée par le budget de directives.
+  const directives = [groupe ? CONSIGNE_GROUPE : '', bloc]
+    .filter((partie) => partie.length > 0)
+    .join('\n')
+    .slice(0, MAX_DIRECTIVES);
+  if (directives) optionsMoteurAppel.directives = directives;
+  return optionsMoteurAppel;
+}
+
+/** Traduit UN segment (chemin historique, un appel moteur). */
+async function traduireSeul(
+  segment: SegmentLot,
+  contexte: ContexteTraductionLot
+): Promise<IssueSegment> {
+  const texte = segment.texte.trim();
+  if (texte.length === 0) {
+    return { type: 'echec', id: segment.id, raison: 'vide', caracteres: 0 };
+  }
+  if (texte.length > MAX_CARACTERES_SEGMENT) {
+    return { type: 'echec', id: segment.id, raison: 'long', caracteres: 0 };
+  }
+
+  try {
+    const resultat = await contexte.traduire(
+      texte,
+      optionsMoteur(contexte, segment.contexte, false)
+    );
+    if (typeof resultat.traduit !== 'string' || resultat.traduit.trim() === '') {
+      return { type: 'echec', id: segment.id, raison: 'echec', caracteres: texte.length };
+    }
+    return {
+      type: 'succes',
+      resultat: {
+        id: segment.id,
+        traduit: resultat.traduit,
+        fournisseur: resultat.fournisseur,
+        essais: resultat.essais,
+      },
+    };
+  } catch (erreur) {
+    const raison =
+      erreur instanceof ErreurChaineSecours
+        ? raisonDepuisEchecs(erreur.echecs)
+        : 'echec';
+    console.warn(
+      '[traduction/lot] segment en échec',
+      JSON.stringify({ id: segment.id, raison })
+    );
+    return { type: 'echec', id: segment.id, raison, caracteres: texte.length };
+  }
+}
+
+/**
+ * Traduit un GROUPE en UN SEUL appel moteur, puis répartit la
+ * traduction entre ses segments.
+ *
+ * Garanties :
+ *  • découpage impossible (sentinelle perdue, déformée, partie vide)
+ *    → repli segment par segment pour CE groupe, et pour lui seul ;
+ *  • échec moteur du groupe → TOUS ses segments en échec (ils seront
+ *    repris au passage suivant), jamais un texte partiel propagé ;
+ *  • aucun texte n'est jamais attribué au mauvais segment.
+ */
+async function traduireGroupe(
+  groupe: SegmentLot[],
+  contexte: ContexteTraductionLot
+): Promise<IssueSegment[]> {
+  if (groupe.length === 1) return [await traduireSeul(groupe[0], contexte)];
+
+  const caracteres = caracteresGroupe(groupe);
+  const echecsDuGroupe = (raison: RaisonEchecLot): IssueSegment[] =>
+    groupe.map((segment) => ({
+      type: 'echec' as const,
+      id: segment.id,
+      raison,
+      caracteres: segment.texte.trim().length,
+    }));
+
+  let resultat: ResultatTraductionSecours;
+  try {
+    resultat = await contexte.traduire(
+      assemblerGroupe(groupe),
+      optionsMoteur(contexte, groupe[0].contexte, true)
+    );
+  } catch (erreur) {
+    const raison =
+      erreur instanceof ErreurChaineSecours
+        ? raisonDepuisEchecs(erreur.echecs)
+        : 'echec';
+    console.warn(
+      '[traduction/lot] groupe en échec',
+      JSON.stringify({ segments: groupe.length, caracteres, raison })
+    );
+    return echecsDuGroupe(raison);
+  }
+
+  if (typeof resultat.traduit !== 'string' || resultat.traduit.trim() === '') {
+    console.warn(
+      '[traduction/lot] groupe en échec',
+      JSON.stringify({ segments: groupe.length, caracteres, raison: 'echec' })
+    );
+    return echecsDuGroupe('echec');
+  }
+
+  const parties = decouperTraduction(resultat.traduit, groupe.length);
+  if (parties === null) {
+    // Repli sûr : un appel par segment, uniquement pour ce groupe.
+    console.warn(
+      '[traduction/lot] découpage du groupe impossible, repli un par un',
+      JSON.stringify({ segments: groupe.length, caracteres })
+    );
+    const issues: IssueSegment[] = [];
+    for (const segment of groupe) issues.push(await traduireSeul(segment, contexte));
+    return issues;
+  }
+
+  return groupe.map((segment, index) => ({
+    type: 'succes' as const,
+    resultat: {
+      id: segment.id,
+      traduit: parties[index],
+      fournisseur: resultat.fournisseur,
+      essais: resultat.essais,
+    },
+  }));
+}
+
 /**
  * Traduit un lot de segments : une réservation de quota en amont
- * (faite par l'appelant), `concurrence` traductions simultanées, puis
- * UNE libération pour la somme des caractères des segments tentés qui
- * ont échoué.
+ * (faite par l'appelant), `concurrence` appels moteur simultanés
+ * (UN PAR GROUPE de segments courts), puis UNE libération pour la
+ * somme des caractères des segments tentés qui ont échoué.
+ *
+ * Le regroupement réduit fortement le nombre d'appels sans jamais
+ * risquer un texte mal attribué : un découpage douteux retombe sur
+ * un appel par segment pour le groupe concerné.
  *
  * Ne lève jamais pour un segment : tout échec sort dans `echecs`.
  */
@@ -429,69 +600,24 @@ export async function traiterLotSegments(
     1,
     Math.min(Math.floor(options.concurrence ?? CONCURRENCE_LOT), 16)
   );
-  const traduire = options.traduire ?? traduireParDefaut;
-  const glossaire = options.glossaire ?? [];
+  const contexte: ContexteTraductionLot = {
+    traduire: options.traduire ?? traduireParDefaut,
+    options,
+    glossaire: options.glossaire ?? [],
+  };
 
-  const issues = await enParalleleBorne(segments, concurrence, async (segment) => {
-    const texte = segment.texte.trim();
-    if (texte.length === 0) {
-      return { type: 'echec' as const, id: segment.id, raison: 'vide' as const, caracteres: 0 };
-    }
-    if (texte.length > MAX_CARACTERES_SEGMENT) {
-      return { type: 'echec' as const, id: segment.id, raison: 'long' as const, caracteres: 0 };
-    }
+  // Groupes de segments CONSÉCUTIFS : un long segment reste seul.
+  const groupes = regrouperSegments(segments);
 
-    const optionsMoteur: OptionsTraduction = { source: options.source, cible: options.cible };
-    if (glossaire.length > 0) optionsMoteur.glossaire = glossaire;
-    const bloc = construireDirectives({
-      entrees: glossaire,
-      contexte: segment.contexte ?? '',
-    }).directives;
-    const directives = bloc.slice(0, MAX_DIRECTIVES);
-    if (directives) optionsMoteur.directives = directives;
-
-    try {
-      const resultat = await traduire(texte, optionsMoteur);
-      if (typeof resultat.traduit !== 'string' || resultat.traduit.trim() === '') {
-        return {
-          type: 'echec' as const,
-          id: segment.id,
-          raison: 'echec' as const,
-          caracteres: texte.length,
-        };
-      }
-      return {
-        type: 'succes' as const,
-        resultat: {
-          id: segment.id,
-          traduit: resultat.traduit,
-          fournisseur: resultat.fournisseur,
-          essais: resultat.essais,
-        },
-      };
-    } catch (erreur) {
-      const raison =
-        erreur instanceof ErreurChaineSecours
-          ? raisonDepuisEchecs(erreur.echecs)
-          : 'echec';
-      console.warn(
-        '[traduction/lot] segment en échec',
-        JSON.stringify({ id: segment.id, raison })
-      );
-      return {
-        type: 'echec' as const,
-        id: segment.id,
-        raison,
-        caracteres: texte.length,
-      };
-    }
-  });
+  const parGroupe = await enParalleleBorne(groupes, concurrence, (groupe) =>
+    traduireGroupe(groupe, contexte)
+  );
 
   const resultats: ResultatSegmentLot[] = [];
   const echecs: EchecSegmentLot[] = [];
   let caracteresEchoues = 0;
 
-  for (const issue of issues) {
+  for (const issue of parGroupe.flat()) {
     if (issue.type === 'succes') {
       resultats.push(issue.resultat);
     } else {

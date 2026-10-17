@@ -44,6 +44,13 @@ function segment(id: string, longueur: number): SegmentLot {
 /** Traducteur qui réussit toujours, en préfixant le texte. */
 const traduireOk: TraducteurLot = async (texte) => succes(`[fr] ${texte.slice(0, 10)}`);
 
+/**
+ * Traducteur qui NE RECOPIE PAS la sentinelle de groupe (comportement
+ * des moteurs sans prompt : le marqueur est perdu). Le lot doit alors
+ * se replier sur un appel par segment, sans jamais corrompre un texte.
+ */
+const sansMarqueurs = (texte: string): string => texte.replace(/⟦PLUME:\d+⟧/g, ' ');
+
 // ------------------------------------------------------------
 // 1. Seuils du contrat
 // ------------------------------------------------------------
@@ -166,7 +173,9 @@ test('quota libéré : une seule libération, du montant exact des segments éch
   const liberations: number[] = [];
   const traduire: TraducteurLot = async (texte) => {
     if (texte.startsWith('ECHEC')) throw new ErreurChaineSecours([{ id: 'gemini', categorie: 'http' }]);
-    return succes(texte);
+    // Le marqueur de groupe est perdu : repli un par un, donc ce sont
+    // bien les segments b et d, seuls, qui échouent.
+    return succes(sansMarqueurs(texte));
   };
   const segments: SegmentLot[] = [
     { id: 'a', texte: 'x'.repeat(50) },
@@ -219,7 +228,7 @@ test('quota libéré : rien à libérer quand tout réussit', async () => {
 test('une panne de la libération ne casse pas la réponse du lot', async () => {
   const traduire: TraducteurLot = async (texte) => {
     if (texte === 'ko') throw new Error('panne');
-    return succes(texte);
+    return succes(sansMarqueurs(texte));
   };
   const { resultats, echecs } = await traiterLotSegments(
     [{ id: 'a', texte: 'bonjour' }, { id: 'b', texte: 'ko' }],
@@ -252,7 +261,7 @@ test('statut : ok quand tout réussit', async () => {
 test('statut : partiel quand un segment échoue', async () => {
   const traduire: TraducteurLot = async (texte) => {
     if (texte === 'ko') throw new ErreurChaineSecours([{ id: 'mymemory', categorie: 'http' }]);
-    return succes(texte);
+    return succes(sansMarqueurs(texte));
   };
   const resultat = await traiterLotSegments(
     [{ id: 'a', texte: 'bonjour' }, { id: 'b', texte: 'ko' }],
@@ -346,7 +355,9 @@ test('8 traductions simultanées au maximum par défaut', async () => {
     enCours -= 1;
     return succes(texte);
   };
-  const segments = Array.from({ length: 20 }, (_, i) => segment(`s${i}`, 5));
+  // Segments de 700 caractères : chacun reste seul dans son groupe
+  // (seuil 600), on mesure donc bien la borne d'appels simultanés.
+  const segments = Array.from({ length: 20 }, (_, i) => segment(`s${i}`, 700));
   const { resultats } = await traiterLotSegments(segments, {
     source: 'en',
     cible: 'fr',
