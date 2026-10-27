@@ -23,6 +23,7 @@ import {
   MagasinPaiementSupabase,
 } from '@/lib/paiement/magasin';
 import { traiterWebhook } from '@/lib/paiement/service';
+import { estPing, statutHttpErreurWebhook } from '@/lib/paiement/politique-webhook';
 import { clientServiceRole, utilisateurRequete } from '@/lib/paiement/serveur';
 
 export const runtime = 'nodejs';
@@ -37,6 +38,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erreur: 'JSON invalide.' }, { status: 400 });
   }
   const entetes = request.headers as unknown as EntetesWebhook;
+
+  // Ping de vérification d'endpoint FedaPay (bouton « Tester » du
+  // tableau de bord) : rien à traiter, mais il FAUT répondre 2xx, sinon
+  // FedaPay compte un échec sur l'endpoint. Traité AVANT l'authentification
+  // (il ne porte aucune donnée et ne déclenche aucune écriture).
+  if (estPing(corps)) {
+    return NextResponse.json({ ok: true, ping: true });
+  }
 
   let fournisseur: FournisseurPaiement;
   try {
@@ -138,12 +147,14 @@ export async function POST(request: NextRequest) {
       statutAbonnement: resultat.statutAbonnement,
     });
   } catch (erreur) {
+    const message =
+      erreur instanceof Error ? erreur.message : 'Traitement impossible.';
+    // 400 = définitif (réessayer ne sert à rien) ; 500 = transitoire
+    // (API ou base momentanément indisponible) → FedaPay DOIT réessayer,
+    // sinon le paiement n'est jamais crédité.
     return NextResponse.json(
-      {
-        erreur:
-          erreur instanceof Error ? erreur.message : 'Traitement impossible.',
-      },
-      { status: 400 }
+      { erreur: message },
+      { status: statutHttpErreurWebhook(message) }
     );
   }
 }
