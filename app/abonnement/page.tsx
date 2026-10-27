@@ -123,11 +123,11 @@ export default async function PageAbonnement() {
             </p>
           ) : (
             <p>
-              Paiement via{' '}
+              Paiement sécurisé via{' '}
               <strong className="text-encre-100">
                 {etatPaiement.fournisseur === 'fedapay' ? 'FedaPay' : etatPaiement.fournisseur}
               </strong>{' '}
-              (Mobile Money). Environnement : {etatPaiement.mode}.
+              (Mobile Money).
             </p>
           )}
         </div>

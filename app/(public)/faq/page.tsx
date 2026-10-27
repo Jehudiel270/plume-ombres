@@ -53,11 +53,11 @@ const QUESTIONS: { q: string; r: React.ReactNode }[] = [
     r: (
       <>
         C’est la question la plus importante, et la réponse dépend du moteur qui
-        répond. Par défaut, le studio essaie dans l’ordre : <strong>LibreTranslate</strong>{' '}
-        (auto-hébergé, privé), puis <strong>Gemini</strong> (Google), puis{' '}
-        <strong>Google Traduction</strong> (endpoint non officiel), puis{' '}
-        <strong>MyMemory</strong>. Seul LibreTranslate auto-hébergé garde le texte chez
-        nous. Les autres sont des services tiers : le détail figure dans la{' '}
+        répond. Le studio privilégie un moteur de traduction <strong>auto-hébergé</strong>,
+        qui ne fait pas sortir le texte de nos serveurs. Quand il ne sait pas faire — une
+        langue rare, un passage qu’il refuse — la traduction bascule sur des services
+        tiers, qui reçoivent alors le segment concerné, jamais le livre entier, et ne le
+        conservent pas. Le détail des sous-traitants et des durées figure dans la{' '}
         <Link href="/confidentialite" className="lien-discret underline">
           politique de confidentialité
         </Link>
