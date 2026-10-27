@@ -28,6 +28,18 @@ function montant(p: Paiement): string {
   return `${p.montant.toLocaleString('fr-FR')} ${p.devise}`;
 }
 
+/** Statut de paiement lisible : jamais l'énumération brute en base. */
+function libellePaiement(statut: Paiement['statut']): string {
+  const libelles: Record<string, string> = {
+    en_attente: 'En attente',
+    reussi: 'Payé',
+    echoue: 'Échoué',
+    annule: 'Annulé',
+    rembourse: 'Remboursé',
+  };
+  return libelles[statut] ?? statut;
+}
+
 export default function AbonnementHistorique({
   evenements,
   paiements,
@@ -78,7 +90,7 @@ export default function AbonnementHistorique({
                   {planParCode(p.plan)?.nom ?? p.plan} · {montant(p)}
                 </span>
                 <span className="text-encre-500 text-xs">
-                  {p.statut} · {p.fournisseur} · {date(p.created_at)}
+                  {libellePaiement(p.statut)} · {p.fournisseur} · {date(p.created_at)}
                 </span>
               </li>
             ))}
