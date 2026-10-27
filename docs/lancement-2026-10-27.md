@@ -33,12 +33,14 @@ l'entoure est exercé et vérifié ci-dessous.
 
 ## Points connus, non bloquants
 
-- **Reprise côté serveur : un seul passage par jour** (`vercel.json`, cron 04:00,
-  plan Hobby). Le moteur de traduction tourne dans l'onglet du client
-  (`lib/useMoteurTraduction.ts` → `POST /api/translate/lot`) ; s'il ferme sa
-  page en cours de route, rien n'est perdu — les segments en échec sont repris —
-  mais le reste n'avance qu'au passage quotidien du worker. Correctif gratuit
-  possible : un bouton « Reprendre » qui relance le moteur côté client.
+- **Reprise côté serveur : enchaînement automatique** (commit `a6231c5`). Chaque
+  passage du worker (`/api/translate/travail`) qui laisse du travail **et qui a
+  réellement avancé** relance le suivant via `after()` : le livre continue même
+  onglet fermé, sans service tiers. Garde-fous : jamais d'enchaînement sans
+  progrès (`faits > 0`), plafond de 200 passages, échec = arrêt de la chaîne.
+  Le cron quotidien 04:00 (plan Hobby, 1×/jour) reste le filet de sécurité.
+  `?budget=25000` disponible si un déclencheur externe (cron-job.org, 30 s de
+  timeout) est utilisé un jour.
 - Le compte de test affiche « à vie · 16 septembre 2126 » : donnée de test
   (droit accordé à la main), pas un calcul du tunnel.
 - `/connexion` n'affiche pas son `<h1>` dans le HTML initial : la page est un
