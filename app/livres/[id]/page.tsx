@@ -37,6 +37,78 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+type ClientServeur = Awaited<ReturnType<typeof creerClientServeur>>;
+
+/**
+ * Nombre de caractères d'un livre, recalculé depuis ses segments via le
+ * RPC `public.metriques_chapitres` (migration
+ * 20261002000003_allegement_chapitres.sql). Sert de REPLI quand
+ * `chapitres.texte_source` est vide : les imports postérieurs au
+ * 2 oct. 2026 avaient cessé de réécrire la colonne (défaut SQL ''), d'où
+ * un total à 0, un bandeau de crédits muet et un « ~1 min » inventé.
+ *
+ * TOLÉRANT : un RPC en panne rend 0, jamais une exception — l'ouverture
+ * du livre ne doit pas dépendre de ce comptage.
+ */
+async function totalCaracteresDepuisMetriques(
+  client: ClientServeur,
+  livreId: string
+): Promise<number> {
+  try {
+    const { data, error } = await client.rpc('metriques_chapitres', {
+      p_livre: livreId,
+    });
+    if (error || !Array.isArray(data)) return 0;
+    return (data as Array<{ caracteres_source?: number | string | null }>).reduce(
+      (somme, metrique) => somme + Number(metrique.caracteres_source ?? 0),
+      0
+    );
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Texte source d'un livre reconstitué depuis ses segments — repli du même
+ * trou que `totalCaracteresDepuisMetriques`, pour la détection des repères.
+ *
+ * UNE SEULE requête (pas de N+1) : les segments des chapitres du livre sont
+ * lus d'un bloc, triés par chapitre puis par position, et concaténés dans
+ * l'ordre de `idsChapitres`. TOLÉRANT : chaîne vide en cas d'échec.
+ */
+async function corpusDepuisSegments(
+  client: ClientServeur,
+  idsChapitres: string[]
+): Promise<string> {
+  if (idsChapitres.length === 0) return '';
+  try {
+    const { data, error } = await client
+      .from('segments')
+      .select('chapitre_id, position, source, suite')
+      .in('chapitre_id', idsChapitres)
+      .order('chapitre_id', { ascending: true })
+      .order('position', { ascending: true });
+    if (error || !data) return '';
+
+    const parChapitre = new Map<string, string>();
+    for (const segment of data as Array<{
+      chapitre_id: string;
+      source: string | null;
+      suite: string | null;
+    }>) {
+      parChapitre.set(
+        segment.chapitre_id,
+        (parChapitre.get(segment.chapitre_id) ?? '') +
+          (segment.source ?? '') +
+          (segment.suite ?? '')
+      );
+    }
+    return idsChapitres.map((idChapitre) => parChapitre.get(idChapitre) ?? '').join('\n');
+  } catch {
+    return '';
+  }
+}
+
 export default async function PageLivre({
   params,
 }: {
@@ -56,21 +128,39 @@ export default async function PageLivre({
     .maybeSingle();
   if (!livre) notFound();
 
-  // texte_source est nécessaire pour estimer le temps de lecture —
-  // on le compte côté serveur puis on le RETIRE avant de passer les
-  // chapitres au client (payload SSR mince).
+  // texte_source est nécessaire pour estimer le temps de lecture et pour
+  // la détection des repères — on le compte côté serveur puis on le RETIRE
+  // avant de passer les chapitres au client (payload SSR mince).
   const { data: chapitres } = await supabase
     .from('chapitres')
     .select('id, position, titre, statut, texte_source')
     .eq('livre_id', id)
     .order('position', { ascending: true });
 
-  const totalCaracteres = (chapitres ?? []).reduce(
-    (somme, c) =>
-      somme + ((c as { texte_source?: string }).texte_source?.length ?? 0),
+  const listeChapitres = chapitres ?? [];
+  const textesChapitres = listeChapitres.map(
+    (chapitre) =>
+      (chapitre as { texte_source?: string | null }).texte_source ?? ''
+  );
+  // Colonne muette = import antérieur au correctif d'écriture de
+  // `chapitres.texte_source` (défaut SQL '') : les compteurs et les repères
+  // doivent alors se rabattre sur les segments. Détecté une seule fois.
+  const colonneTexteVide =
+    listeChapitres.length > 0 &&
+    textesChapitres.every((texte) => texte.length === 0);
+
+  let totalCaracteres = textesChapitres.reduce(
+    (somme, texte) => somme + texte.length,
     0
   );
-  const chapitresLegers = (chapitres ?? []).map((chapitre) => {
+  // Garde-fou : sans ce repli, un livre importé avec la colonne vide affiche
+  // `totalCaracteres = 0` → bandeau de crédits muet (ComplementCredits rend
+  // null) et « ~1 min » de lecture inventé. TOLÉRANT : RPC en panne → 0.
+  if (colonneTexteVide) {
+    totalCaracteres = await totalCaracteresDepuisMetriques(supabase, id);
+  }
+
+  const chapitresLegers = listeChapitres.map((chapitre) => {
     // texte_source ne sert qu'au comptage ci-dessus (payload SSR mince
     // côté client) : on l'écarte au passage.
     const { texte_source: _echappee, ...leger } = chapitre;
@@ -106,9 +196,16 @@ export default async function PageLivre({
   // Propositions automatiques : détection par mots-clés sur le texte
   // source DÉJÀ en base. Jamais enregistrées sans validation explicite
   // (calculées uniquement pour le propriétaire).
-  const corpus = (chapitres ?? [])
-    .map((chapitre) => (chapitre as { texte_source?: string }).texte_source ?? '')
-    .join('\n');
+  // Même trou que le comptage ci-dessus : si `texte_source` est muet, le
+  // corpus est reconstitué depuis les segments — UNE requête, et seulement
+  // dans ce cas (aucune requête de plus pour un livre à colonne remplie).
+  const corpus =
+    colonneTexteVide && estProprietaire
+      ? await corpusDepuisSegments(
+          supabase,
+          listeChapitres.map((chapitre) => (chapitre as { id: string }).id)
+        )
+      : textesChapitres.join('\n');
   const dejaPresents = new Set(avertissements.map((a) => cleRepere(a.libelle)));
   const propositions: PropositionRepere[] = estProprietaire
     ? detecterReperes(corpus).filter((p) => !dejaPresents.has(cleRepere(p.libelle)))
