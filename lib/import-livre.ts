@@ -3,10 +3,13 @@
 // Lit le fichier brut, découpe en chapitres puis en segments,
 // et produit les enregistrements à insérer dans Supabase.
 //
-// Chantier B1 : le texte N'EST PLUS recopié dans
-// `chapitres.texte_source` — les segments (`source` + `suite`)
-// sont la source de vérité unique. Le champ `texte_source` n'est
-// donc plus alimenté (cf. ChapitrePret.texte_source déprécié).
+// Stockage : les segments (`source` + `suite`) restent la source de
+// vérité de la LECTURE et des métriques (quota, estimation, reprise) ;
+// `chapitres.texte_source` est MALGRÉ TOUT réécrit à l'import, parce
+// que les exports fidèles (lib/export-fidele.ts, lib/pdf-fidele.ts),
+// le glossaire (lib/glossaire.ts) et les repères
+// (app/livres/[id]/page.tsx) lisent encore cette colonne. Décision
+// P0.10 : on conserve le stockage (cf. ChapitrePret.texte_source).
 // ============================================================
 
 import { decouperEnChapitres, decouperTexte, type Unite } from './segmenter';
@@ -29,14 +32,19 @@ export interface ChapitrePret {
   position: number;
   titre: string;
   /**
-   * @deprecated Le texte du chapitre est porté par `segments`
-   * (`source` + `suite`), source de vérité UNIQUE : recopier le
-   * chapitre entier doublait le stockage (chantier B1). Plus
-   * alimenté à l'import ; conservé optionnel le temps que tous les
-   * appelants lisent les segments (cf. lib/lecture.ts). Ne pas
-   * réintroduire : `supabase` appliquera le défaut '' si absent.
+   * Texte source du chapitre, TEL QU'IMPORTÉ — champ REQUIS : l'omettre
+   * fait échouer le typecheck au lieu de vider la colonne en silence.
+   *
+   * - Lecture et métriques : les `segments` (`source` + `suite`) restent
+   *   la source de vérité (concaténation 1:1, cf.
+   *   `reconstituerSourceDepuisSegments` dans lib/lecture.ts).
+   * - Stockage : `chapitres.texte_source` est malgré tout réécrit ici,
+   *   car les exports fidèles (lib/export-fidele.ts, lib/pdf-fidele.ts),
+   *   le glossaire (lib/glossaire.ts) et les repères
+   *   (app/livres/[id]/page.tsx) lisent encore cette colonne. Décision
+   *   P0.10 : on conserve le stockage.
    */
-  texte_source?: string;
+  texte_source: string;
   segments: SegmentBrut[];
 }
 
@@ -104,6 +112,11 @@ function assemblage(
       id: crypto.randomUUID(),
       position: c.numero,
       titre: c.titre,
+      // Réécrit la colonne lue par les exports fidèles, le glossaire et
+      // les repères ; les segments restent la source de vérité de la
+      // lecture. Jamais laisser `undefined` : la clé serait omise par
+      // JSON et le défaut SQL '' s'appliquerait sans aucune erreur.
+      texte_source: c.texte,
       segments,
     };
   });

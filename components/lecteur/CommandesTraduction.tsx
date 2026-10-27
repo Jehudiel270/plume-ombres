@@ -146,11 +146,6 @@ function CommandesTraduction({
                 <span data-testid="estimation-duree">
                   {' '}·{' '}
                   {dureeLisible(estimation.secondes)}
-                  <span className="opacity-70">
-                    {estimation.mesure
-                      ? ` (d’après ${Math.round(estimation.taux).toLocaleString('fr-FR')} car/s mesurés)`
-                      : ' (estimation initiale)'}
-                  </span>
                 </span>
               )}
             </p>
