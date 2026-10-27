@@ -34,3 +34,19 @@
 9. Pour identifier les gains : Page de Paiement → « Ajouter une page » par plan (montant fixe) ; lien ponctuel via Transactions → Détails → « Générer un lien de paiement » (valide 24 h). Le suivi fiable reste Transactions + `merchant_reference` / `custom_metadata.plan`.
 10. Configurer le **compte de versement** (Moov/MTN) : solde à 0 aujourd'hui ; frais 1,80 % Moov/MTN/Celtiis, 3,60 % Visa/Mastercard.
 11. Montant minimum constaté : **100 XOF**, montant entier — tous les plans du site (500 à 90 000 XOF) sont au-dessus.
+
+---
+
+## 5. Fait le 27/10/2026 (Devotron) — branchement réel terminé côté code
+
+| Point | État | Preuve |
+|---|---|---|
+| Endpoint webhook 9136 | ✅ repointé vers `plume-ombres.vercel.app/api/paiement/webhook`, `enabled=true` | `PUT /v1/webhooks/9136` puis relecture `GET` (updated_at 27/10). FedaPay répond 500 *après* un update réussi — vérifier par relecture, pas par le code HTTP |
+| `FEDAPAY_WEBHOOK_SECRET` en prod | ✅ présent et **correct** | webhook signé HMAC envoyé à la prod → **200** ; sans signature → **401** |
+| Clé secrète live en prod | ✅ valide | re-vérification `GET /v1/transactions/{id}` déclenchée par le webhook prod : la transaction réelle du 10/10 a été relue et le paiement marqué `échoue` en base |
+| Tunnel de vente | ✅ réel, de bout en bout | `scripts/preuve-tunnel-live.ts` : transaction live **500 XOF** créée (id 113905065), URL `process.fedapay.com` servie **HTTP 200**, réconciliation `merchant_reference` OK — **non payée**, expire seule |
+| Robustesse webhook | ✅ | `ping` → 200 (plus d'échec compté sur l'endpoint) ; 400 pour une cause définitive ; **500** pour une panne transitoire afin que FedaPay réessaie |
+| Garde-fou clés | ✅ | une clé `sk_live_` en mode sandbox (ou l'inverse) = erreur explicite **avant** tout appel réseau |
+
+Reste à faire **dans le tableau de bord** (impossible par API) : items **2, 3, 4, 5, 8, 10** ci-dessus. Le seul maillon non prouvable sans argent réel est la **livraison d'un événement `transaction.approved` par FedaPay** : à constater sur le premier paiement (Logs du webhook), puis `Redeliver` si besoin.
+

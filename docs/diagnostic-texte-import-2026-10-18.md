@@ -48,3 +48,17 @@ l'import n'écrit plus `chapitres.texte_source`, alors que la page livre continu
 2. Le « nombre de caractères » vu : est-ce « N caractères à traduire » au-dessus de « Traduire ce chapitre », ou un chiffre
    qui devrait être là (taille du livre dans le bandeau de crédits) et qui manque ?
 3. Le livre concerné a-t-il été importé après le 2 octobre ? Les livres plus anciens ont encore `texte_source` rempli et s'affichent normalement.
+
+---
+
+## 6. Résolu le 27/10/2026 — correctifs appliqués et mesurés
+
+| Correctif | Fichier | Preuve |
+|---|---|---|
+| `texte_source: c.texte` réécrit à l'import, champ redevenu **requis** (un oubli casse le typecheck) | `lib/import-livre.ts` | `lib/import-livre.test.ts` : 5 tests verts, égalité stricte `texte_source === segments.map(source + suite).join('')` |
+| Garde-fou du compteur : colonne vide détectée → total relu depuis les segments (RPC `metriques_chapitres`), tolérant | `app/livres/[id]/page.tsx` | repli paginé par 1 000 (PostgREST plafonne à 1 000 lignes) |
+| Mention interne « d'après N car/s mesurés » retirée | `components/lecteur/CommandesTraduction.tsx` | seule la durée reste affichée |
+| **Réparation des livres déjà importés** : `texte_source` reconstitué depuis les segments (même règle que `reconstituer_source`) | `supabase/migrations/20261027000001_reparer_texte_source.sql` | appliqué : **578 chapitres** réparés sur 791, **13 482 582** caractères restitués, 1 seul chapitre encore vide (chapitre réellement sans texte), égalité stocké/reconstruit **5/5** |
+
+Contrôle rejouable : `node --env-file=.env.local scripts/verif-reparation-texte-source.mjs`.
+
