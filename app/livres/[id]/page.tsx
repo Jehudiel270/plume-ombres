@@ -82,26 +82,35 @@ async function corpusDepuisSegments(
 ): Promise<string> {
   if (idsChapitres.length === 0) return '';
   try {
-    const { data, error } = await client
-      .from('segments')
-      .select('chapitre_id, position, source, suite')
-      .in('chapitre_id', idsChapitres)
-      .order('chapitre_id', { ascending: true })
-      .order('position', { ascending: true });
-    if (error || !data) return '';
-
     const parChapitre = new Map<string, string>();
-    for (const segment of data as Array<{
-      chapitre_id: string;
-      source: string | null;
-      suite: string | null;
-    }>) {
-      parChapitre.set(
-        segment.chapitre_id,
-        (parChapitre.get(segment.chapitre_id) ?? '') +
-          (segment.source ?? '') +
-          (segment.suite ?? '')
-      );
+    // PostgREST plafonne une réponse à 1 000 lignes : sans pagination, un
+    // livre de plus de 1 000 segments verrait son corpus tronqué et les
+    // repères des derniers chapitres passeraient inaperçus. On lit donc
+    // par pages de 1 000, en s'arrêtant à la première page incomplète.
+    const TAILLE_PAGE = 1000;
+    for (let debut = 0; debut < 500_000; debut += TAILLE_PAGE) {
+      const { data, error } = await client
+        .from('segments')
+        .select('chapitre_id, position, source, suite')
+        .in('chapitre_id', idsChapitres)
+        .order('chapitre_id', { ascending: true })
+        .order('position', { ascending: true })
+        .range(debut, debut + TAILLE_PAGE - 1);
+      if (error) return '';
+      const page = (data ?? []) as Array<{
+        chapitre_id: string;
+        source: string | null;
+        suite: string | null;
+      }>;
+      for (const segment of page) {
+        parChapitre.set(
+          segment.chapitre_id,
+          (parChapitre.get(segment.chapitre_id) ?? '') +
+            (segment.source ?? '') +
+            (segment.suite ?? '')
+        );
+      }
+      if (page.length < TAILLE_PAGE) break;
     }
     return idsChapitres.map((idChapitre) => parChapitre.get(idChapitre) ?? '').join('\n');
   } catch {
