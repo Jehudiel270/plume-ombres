@@ -7,7 +7,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
-import BandeauGabarit from '@/components/public/BandeauGabarit';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
@@ -27,15 +26,7 @@ export default function PageCookies() {
         intro="Dernière mise à jour : 15 octobre 2026. Le studio n’utilise ni traceur publicitaire, ni mesure d’audience tierce : uniquement ce qui est nécessaire à la connexion et au confort de lecture. Lisible sans compte."
       >
         <SommaireLegal actif="cookies" />
-
-        <div className="mt-4">
-          <BandeauGabarit>
-            Ce texte est une <strong>rédaction de travail</strong>. La liste des
-            cookies doit être revérifiée au moment de la mise en ligne (elle
-            dépend des prestataires réellement déployés) et l’ensemble relu par un
-            juriste avant l’ouverture commerciale.
-          </BandeauGabarit>
-        </div>
+
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="1" titre="Ce que nous utilisons">

@@ -7,7 +7,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
-import BandeauGabarit from '@/components/public/BandeauGabarit';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
@@ -81,17 +80,7 @@ export default function PageConfidentialite() {
         intro="Dernière mise à jour : 15 octobre 2026. Lisible sans compte. Résumé en une phrase : vos livres sont privés dans la base, mais pour les traduire, le texte passe par un moteur externe, et nous vous disons lequel."
       >
         <SommaireLegal actif="confidentialite" />
-
-        <div className="mt-4">
-          <BandeauGabarit>
-            L’identité du responsable de traitement (VICE LYNX), son siège, ses
-            coordonnées, l’autorité de contrôle et les dates ci-dessous sont
-            complètes : aucun champ n’est laissé en blanc. L’ensemble reste à relire
-            par un juriste (et, si l’activité le justifie, un délégué à la
-            protection des données) avant la mise en ligne, en particulier les
-            durées de conservation et les transferts hors Union européenne.
-          </BandeauGabarit>
-        </div>
+
       </SectionPublique>
 
       <SectionPublique

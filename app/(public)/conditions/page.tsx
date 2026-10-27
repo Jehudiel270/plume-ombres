@@ -11,7 +11,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
-import BandeauGabarit from '@/components/public/BandeauGabarit';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
@@ -390,17 +389,7 @@ export default function PageConditions() {
         intro="Dernière mise à jour : 15 octobre 2026. Elle s’applique à l’usage du studio et couvre la vente des formules payantes (prix, Mobile Money, durée, résiliation, rétractation). Lisible sans compte."
       >
         <SommaireLegal actif="conditions" />
-
-        <div className="mt-4">
-          <BandeauGabarit>
-            Les éléments d’identification (éditeur VICE LYNX, hébergeurs,
-            prestataire de paiement, droit applicable, juridiction) sont complétés :
-            aucun champ n’est laissé en blanc. Ce document reste une rédaction de
-            travail à relire et à arbitrer par un juriste (<em>a fortiori</em> avant
-            toute vente), en particulier la garantie de conformité, la clause de
-            non-remboursement et le droit de rétractation.
-          </BandeauGabarit>
-        </div>
+
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="Articles" titre="Le texte">

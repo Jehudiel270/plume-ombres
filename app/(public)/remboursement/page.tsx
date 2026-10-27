@@ -5,7 +5,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
-import BandeauGabarit from '@/components/public/BandeauGabarit';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
@@ -25,17 +24,7 @@ export default function PageRemboursement() {
         intro="Comment fonctionne le remboursement des formules payantes, et ce que devient le droit de rétractation sur un contenu numérique délivré immédiatement. Dernière mise à jour : 15 octobre 2026, lisible sans compte."
       >
         <SommaireLegal actif="remboursement" />
-
-        <div className="mt-4">
-          <BandeauGabarit>
-            Ce texte est une <strong>rédaction de travail</strong>. La politique
-            de <strong>non-remboursement</strong> qu’il expose est celle du studio
-            en l’état, mais elle reste <em>à arbitrer</em> par un juriste,
-            notamment sur le point délicat du <em>droit de rétractation du contenu
-            numérique</em> : une clause « aucun remboursement » peut, dans
-            certains cas, être écartée par le droit de la consommation.
-          </BandeauGabarit>
-        </div>
+
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="1" titre="Nature du contenu">

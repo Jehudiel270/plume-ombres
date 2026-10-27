@@ -11,7 +11,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
-import BandeauGabarit from '@/components/public/BandeauGabarit';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
@@ -31,16 +30,7 @@ export default function PageMentionsLegales() {
         intro="Ce que la loi impose de rendre lisible : qui édite le site, qui l’héberge, à qui appartiennent les textes, et comment signaler un contenu. Dernière mise à jour : 15 octobre 2026."
       >
         <SommaireLegal actif="mentions-legales" />
-
-        <div className="mt-4">
-          <BandeauGabarit>
-            Les identités, le siège, l’immatriculation et les coordonnées
-            ci-dessous sont ceux de l’exploitant du studio : aucune mention n’y est
-            laissée en blanc. L’ensemble de la page reste à relire par un juriste
-            avant l’ouverture commerciale. Les identifiants non exigés par la loi
-            ne sont pas publiés.
-          </BandeauGabarit>
-        </div>
+
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="1" titre="Éditeur du site">
