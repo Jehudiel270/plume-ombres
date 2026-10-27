@@ -33,6 +33,14 @@ l'entoure est exercé et vérifié ci-dessous.
 
 ## Points connus, non bloquants
 
+- **Reprise côté serveur : un seul passage par jour** (`vercel.json`, cron 04:00,
+  plan Hobby). Le moteur de traduction tourne dans l'onglet du client
+  (`lib/useMoteurTraduction.ts` → `POST /api/translate/lot`) ; s'il ferme sa
+  page en cours de route, rien n'est perdu — les segments en échec sont repris —
+  mais le reste n'avance qu'au passage quotidien du worker. Correctif gratuit
+  possible : un bouton « Reprendre » qui relance le moteur côté client.
+- Le compte de test affiche « à vie · 16 septembre 2126 » : donnée de test
+  (droit accordé à la main), pas un calcul du tunnel.
 - `/connexion` n'affiche pas son `<h1>` dans le HTML initial : la page est un
   composant client qui lit `useSearchParams`, donc son contenu arrive après
   hydratation. Gênant seulement pour le SEO de cette page-là.
@@ -42,3 +50,12 @@ l'entoure est exercé et vérifié ci-dessous.
   complètes et factuelles, mais **la relecture par un juriste reste due**
   (garantie de conformité, non-remboursement, rétractation sur contenu
   numérique). C'est un risque assumé par l'exploitant, pas un oubli.
+
+## Corrigé le 27/10 après vérification côté client
+
+- « Environnement : live » supprimé de la page Abonnement (détail d'exploitation).
+- Noms des moteurs de traduction retirés de la FAQ (règle produit) ; la
+  politique de confidentialité continue de nommer les sous-traitants, c'est
+  une obligation.
+- Historique des paiements : statut écrit en français (« Échoué ») au lieu de
+  l'énumération brute (`echoue`).
