@@ -1,7 +1,8 @@
 // Contact (C6, complété par les coordonnées réelles de l'éditeur VICE LYNX).
 // Pas de formulaire branché : aucun envoi ne doit être simulé. On donne donc
-// l'adresse de contact officielle, le siège et le téléphone de l'exploitant, et
-// on oriente vers la FAQ pour ce qui y est déjà répondu.
+// l'adresse de contact officielle et le téléphone de l'exploitant, et on
+// oriente vers la FAQ pour ce qui y est déjà répondu. Le domicile de
+// l'exploitant n'est PAS publié (adresse exacte sur demande écrite).
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -10,21 +11,20 @@ import SectionPublique from '@/components/public/SectionPublique';
 export const metadata: Metadata = {
   title: 'Contact',
   description:
-    'Écrire à VICE LYNX, exploitant du studio Plume d’Ombres : question, bug, demande d’effacement de données ou signalement d’un contenu. Adresse, siège et téléphone.',
+    'Écrire à VICE LYNX, exploitant du studio Plume d’Ombres : question, bug, demande d’effacement de données ou signalement d’un contenu. Adresse e-mail et téléphone.',
 };
 
 /**
  * Coordonnées officielles de l'éditeur (VICE LYNX), communiquées par
- * l'exploitant. Elles sont reprises, à l'identique, dans les mentions légales,
- * la politique de confidentialité, les conditions générales et la politique de
- * remboursement : toute modification ici doit être répercutée là-bas, sans quoi
- * les pages se contrediraient.
+ * l'exploitant. L'e-mail et le téléphone sont repris, à l'identique, dans les
+ * mentions légales, la politique de confidentialité et les conditions générales :
+ * toute modification ici doit être répercutée là-bas, sans quoi les pages se
+ * contrediraient. Le siège est publié sous la forme « Ouidah, Atlantique, Bénin »
+ * uniquement — jamais l'adresse exacte.
  */
 const ADRESSE_CONTACT = 'dossoucarrel@gmail.com';
 const TELEPHONE_CONTACT = '+229 01 53 17 23 61';
 const TELEPHONE_LIEN = 'tel:+2290153172361';
-const SIEGE_CONTACT =
-  'Îlot CSB, parcelle CSB, Maison Dègla Rodrigue DOSSOU, Atlantique, Ouidah, Pahou, Zoungoudo, Bénin';
 
 const MOTIFS: { titre: string; texte: React.ReactNode }[] = [
   {
@@ -124,15 +124,7 @@ export default function PageContact() {
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 mt-4">
-          <div className="velours p-5">
-            <p className="sur-titre text-encre-300">Par courrier</p>
-            <p className="text-encre-300 text-sm mt-3 leading-relaxed">
-              VICE LYNX — Plume d’Ombres
-              <br />
-              {SIEGE_CONTACT}
-            </p>
-          </div>
+        <div className="grid gap-3 mt-4">
           <div className="velours p-5">
             <p className="sur-titre text-encre-300">Par téléphone</p>
             <p className="text-encre-300 text-sm mt-3 leading-relaxed">

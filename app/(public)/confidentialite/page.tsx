@@ -105,8 +105,8 @@ export default function PageConfidentialite() {
             LYNX</strong> (sigle VLYNX), nom commercial de{' '}
             <strong className="text-encre-100">DOSSOU Sègla Carrel Jéhudiel</strong>,
             établissement (personne physique) — entreprise individuelle — établi au
-            Bénin, dont le siège est situé Îlot CSB, parcelle CSB, Maison Dègla
-            Rodrigue DOSSOU, Atlantique, Ouidah, Pahou, Zoungoudo, Bénin. Il est
+            Bénin, dont le siège est situé à Ouidah, Atlantique, Bénin — adresse
+            postale exacte communiquée sur demande écrite. Il est
             joignable à l’adresse{' '}
             <a
               href="mailto:dossoucarrel@gmail.com"

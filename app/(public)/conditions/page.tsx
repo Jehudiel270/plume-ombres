@@ -37,8 +37,8 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
           (sigle VLYNX), nom commercial de{' '}
           <strong className="text-encre-100">DOSSOU Sègla Carrel Jéhudiel</strong>,
           établissement (personne physique) — entreprise individuelle — dont le
-          siège est situé Îlot CSB, parcelle CSB, Maison Dègla Rodrigue DOSSOU,
-          Atlantique, Ouidah, Pahou, Zoungoudo, Bénin. Contact :{' '}
+          siège est situé à Ouidah, Atlantique, Bénin — adresse postale exacte
+          communiquée sur demande écrite. Contact :{' '}
           <a href="mailto:dossoucarrel@gmail.com" className="lien-discret underline">
             dossoucarrel@gmail.com
           </a>{' '}

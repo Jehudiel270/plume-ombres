@@ -61,9 +61,8 @@ export default function PageMentionsLegales() {
               Bénin.
             </li>
             <li>
-              <strong className="text-encre-100">Siège</strong> : Îlot CSB,
-              parcelle CSB, Maison Dègla Rodrigue DOSSOU, Atlantique, Ouidah, Pahou,
-              Zoungoudo, Bénin.
+              <strong className="text-encre-100">Siège</strong> : Ouidah, Atlantique,
+              Bénin — adresse postale exacte communiquée sur demande écrite.
             </li>
           </ul>
           <ul className="space-y-2">

@@ -158,9 +158,9 @@ export default function PageRemboursement() {
             <strong className="text-encre-100">VICE LYNX</strong> (sigle VLYNX), nom
             commercial de{' '}
             <strong className="text-encre-100">DOSSOU Sègla Carrel Jéhudiel</strong>,
-            établissement (personne physique) dont le siège est situé Îlot CSB,
-            parcelle CSB, Maison Dègla Rodrigue DOSSOU, Atlantique, Ouidah, Pahou,
-            Zoungoudo, Bénin ; identité complète dans les{' '}
+            établissement (personne physique) dont le siège est situé à Ouidah,
+            Atlantique, Bénin (adresse postale exacte sur demande écrite) ;
+            identité complète dans les{' '}
             <Link href="/mentions-legales" className="lien-discret underline">
               mentions légales
             </Link>
