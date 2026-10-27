@@ -45,7 +45,36 @@ export function fedapayEnv(): 'sandbox' | 'live' {
 
 /** Clé secrète FedaPay, ou null si absente. */
 export function cleFedapay(): string | null {
-  return process.env.FEDAPAY_SECRET_KEY?.trim() || null;
+  // La clé de l'environnement COURANT est prioritaire : elle évite qu'un
+  // passage en sandbox n'utilise la clé live (et inversement). Repli sur
+  // la clé générique pour les configurations mono-environnement.
+  const specifique =
+    fedapayEnv() === 'live'
+      ? process.env.FEDAPAY_LIVE_SECRET_KEY
+      : process.env.FEDAPAY_SANDBOX_SECRET_KEY;
+  return (
+    specifique?.trim() || process.env.FEDAPAY_SECRET_KEY?.trim() || null
+  );
+}
+
+/**
+ * Vrai si la clé correspond bien à l'environnement demandé.
+ *
+ * Garde-fou anti-erreur-humaine : une clé `sk_live_` envoyée à l'API
+ * sandbox (ou l'inverse) échoue de toute façon en 401, mais surtout une
+ * clé live utilisée « pour tester » débite de l'argent réel. On refuse
+ * donc explicitement l'incohérence au lieu de la laisser passer.
+ */
+export function cleCoherente(
+  mode: ModePaiement,
+  cle: string | null
+): boolean {
+  if (!cle) return false;
+  if (mode === 'simulation') return false;
+  const live = cle.startsWith('sk_live_');
+  const sandbox = cle.startsWith('sk_sandbox_') || cle.startsWith('sk_sandb');
+  if (!live && !sandbox) return true; // format inconnu : on ne bloque pas
+  return mode === 'live' ? live : sandbox;
 }
 
 /** Vrai si FedaPay est configuré (clé présente). */
@@ -166,6 +195,15 @@ export class FedaPayFournisseur {
   ): Promise<Record<string, unknown>> {
     const cle = cleFedapay();
     if (!cle) throw new Error('[fedapay] FEDAPAY_SECRET_KEY manquante.');
+    if (!cleCoherente(this.mode, cle)) {
+      throw new Error(
+        `[fedapay] Configuration incohérente : l'environnement est « ${this.mode} » ` +
+          'mais la clé fournie appartient à l’autre environnement. ' +
+          'Renseignez FEDAPAY_LIVE_SECRET_KEY (mode live) ou ' +
+          'FEDAPAY_SANDBOX_SECRET_KEY (mode sandbox) — aucun appel n’est ' +
+          'envoyé, pour ne jamais débiter en réel par erreur.'
+      );
+    }
     const controleur = new AbortController();
     const delai = setTimeout(() => controleur.abort(), 20_000);
     try {
