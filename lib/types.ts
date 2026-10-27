@@ -69,18 +69,28 @@ export interface Chapitre {
   position: number;
   titre: string;
   /**
-   * @deprecated REDONDANT avec la table `segments` : la concaténation
-   * 1:1 `source + suite` (cf. `reconstituerSourceDepuisSegments`
-   * dans lib/lecture.ts) restitue ce texte. Plus écrit à l'import
-   * (chantier B1) ; l'estimation de lecture et la détection de
-   * repères se recalculent depuis les segments. Colonne vouée à
-   * être supprimée — ne plus la lire.
+   * Texte source du chapitre, TEL QU'IMPORTÉ. Réécrit à chaque import
+   * (`lib/import-livre.ts`, champ `ChapitrePret.texte_source` REQUIS) et
+   * réparé depuis les segments par la migration
+   * `20261027000001_reparer_texte_source.sql`.
+   *
+   * REDONDANT avec `segments`, mais PAS déprécié : les exports fidèles
+   * (`lib/export-fidele.ts`, `lib/pdf-fidele.ts`), le glossaire
+   * (`lib/glossaire.ts`) et les repères (`app/livres/[id]/page.tsx`)
+   * lisent cette colonne. La lecture et les métriques gardent les
+   * segments comme source de vérité (`reconstituerSourceDepuisSegments`).
+   * Décision P0.10 : on conserve le stockage — ne pas cesser de
+   * l'alimenter (défaut SQL '' = panne silencieuse, cf. régression 469a428).
    */
   texte_source: string;
   /**
-   * @deprecated REDONDANT avec `segments` : `reconstituerTraduitDepuisSegments`
-   * (lib/lecture.ts) restitue la traduction assemblée. Colonne vouée
-   * à être supprimée — ne plus la lire.
+   * Texte TRADUIT assemblé du chapitre, réécrit à chaque fin de
+   * traduction (`lib/useMoteurTraduction.ts`, `app/api/translate/travail`).
+   *
+   * REDONDANT avec `segments.traduit`, mais PAS déprécié : les exports
+   * (`components/lecteur/useExports.ts`) et le PDF fidèle
+   * (`lib/pdf-fidele.ts`) lisent cette colonne. La lecture garde les
+   * segments comme source de vérité (`reconstituerTraduitDepuisSegments`).
    */
   texte_traduit: string | null;
   statut: StatutChapitre;
