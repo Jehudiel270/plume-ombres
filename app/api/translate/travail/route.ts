@@ -28,8 +28,9 @@
 
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, after, type NextRequest } from 'next/server';
 import { traiterLotSegments } from '@/lib/traduction/lot';
+import { fautIlEnchainer, profondeurSuivante } from '@/lib/traduction/chaine';
 import type {
   EchecSegmentLot,
   ResultatLotSegments,
@@ -65,6 +66,12 @@ const CONCURRENCE = 8;
  * passage suivant prendra la suite (le travail reste `en_cours`).
  */
 const BUDGET_MS = 45_000;
+
+/**
+ * Plancher du budget quand un déclencheur externe l'impose par `?budget=`
+ * (en millisecondes) : sous ~8 s, un lot n'a pas le temps de se terminer.
+ */
+const BUDGET_MIN_MS = 8_000;
 /** Un segment `en_cours` plus vieux que ce seuil est orphelin. */
 const SEUIL_SEGMENT_ORPHELIN_MS = 10 * 60 * 1000;
 /** Fenêtre de déduplication de la notification de fin. */
@@ -494,7 +501,8 @@ function identifiantPassage(): string {
 async function executer(
   supabase: SupabaseClient,
   travail: TravailTraduction,
-  executeur: string
+  executeur: string,
+  budgetMs: number
 ): Promise<NextResponse> {
   const debut = Date.now();
   const livre = await chargerLivre(supabase, travail.livre_id);
@@ -559,7 +567,7 @@ async function executer(
     // 2) Reprise des erreurs EN FIN de travail : plus rien en attente mais
     // il reste des échecs → une dernière passe, sans action de l'utilisateur.
     let restants = await compterSegments(supabase, chapitreIds, ['en_attente', 'erreur']);
-    if (restants > 0 && Date.now() - debut < BUDGET_MS) {
+    if (restants > 0 && Date.now() - debut < budgetMs) {
       const resteEnAttente = await compterSegments(supabase, chapitreIds, ['en_attente']);
       if (resteEnAttente === 0) {
         const reprise = await constituerLot(supabase, chapitreIds, ['erreur'], ordre);
@@ -682,7 +690,7 @@ async function executer(
 // POST
 // ------------------------------------------------------------
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+async function passer(request: NextRequest): Promise<NextResponse> {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) {
     return reponse({ erreur: 'Exécutant non configuré (CRON_SECRET).' }, 503);
@@ -698,6 +706,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!jetonValide(fourni, secret)) {
     return reponse({ erreur: 'Non autorisé.' }, 401);
   }
+
+  // Budget d'exécution : 45 s par défaut. Un déclencheur externe peut
+  // l'abaisser via `?budget=25000` (cron-job.org coupe à 30 s).
+  const demande = Number(request.nextUrl.searchParams.get('budget') ?? '');
+  const budgetMs =
+    Number.isFinite(demande) && demande > 0
+      ? Math.min(BUDGET_MS, Math.max(BUDGET_MIN_MS, demande))
+      : BUDGET_MS;
 
   const supabase = clientServeur();
   if (!supabase) {
@@ -729,7 +745,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Relu après la prise : les compteurs peuvent avoir bougé depuis
     // prochainTravail (autre passage, navigateur).
     travail = (await lireTravailParId(supabase, candidat.id)) ?? candidat;
-    return await executer(supabase, travail, executeur);
+    const resultat = await executer(supabase, travail, executeur, budgetMs);
+    await enchainerSiUtile(request, resultat, secret, budgetMs);
+    return resultat;
   } catch (erreur) {
     // Panne transitoire : le bail est RELÂCHÉ et le travail rendu à la
     // file, aucun segment n'est perdu, le passage suivant repart.
@@ -745,7 +763,58 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
+ * Un passage qui laisse du travail DERRIÈRE LUI relance le suivant, sans
+ * horloge externe : le livre avance même si le client a fermé son onglet.
+ *
+ * Garde-fous :
+ *  • seulement si le passage a RÉELLEMENT avancé (`faits > 0`) — sinon on
+ *    tournerait à vide sur un moteur en panne et le cron trancherait ;
+ *  • profondeur bornée (PROFONDEUR_MAX_CHAINE) : une chaîne ne peut pas
+ *    s'emballer, le cron reprend la main au-delà ;
+ *  • relance après la réponse (`after`) : le client reçoit son statut sans
+ *    attendre le passage suivant.
+ */
+async function enchainerSiUtile(
+  request: NextRequest,
+  resultat: NextResponse,
+  secret: string,
+  budgetMs: number
+): Promise<void> {
+  type CorpsPassage = { statut?: string; lots?: { faits?: number } };
+  let corps: CorpsPassage | null = null;
+  try {
+    corps = (await resultat.clone().json()) as CorpsPassage;
+  } catch {
+    return;
+  }
+  const profondeur = profondeurSuivante(
+    request.nextUrl.searchParams.get('chaine')
+  );
+  if (!fautIlEnchainer(corps, profondeur)) return;
+
+  const url = new URL(request.nextUrl.pathname, request.nextUrl.origin);
+  url.searchParams.set('chaine', String(profondeur));
+  if (budgetMs !== BUDGET_MS) url.searchParams.set('budget', String(budgetMs));
+
+  after(async () => {
+    try {
+      await fetch(url, {
+        headers: { 'x-plume-travail': secret },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(120_000),
+      });
+    } catch {
+      // Le cron quotidien reste le filet : rien n'est perdu.
+    }
+  });
+}
+
+/**
  * Vercel Cron appelle la route en GET (avec `Authorization: Bearer
  * CRON_SECRET`). Le traitement est identique à POST : un seul passage.
  */
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  return passer(request);
+}
+
 export const GET = POST;
