@@ -109,14 +109,13 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales }: 
       <div className="liseret mt-2" />
       <p className="text-encre-500 text-sm mt-3 leading-relaxed">
         Cochez les parties du tableau de bord que chaque administrateur peut consulter. Sans
-        réglage, un administrateur voit toutes les sections d’exploitation.
+        réglage, un administrateur ne voit rien d’exploitation : ouvrez-lui explicitement les
+        sections utiles.
       </p>
 
       <ul className="mt-4 space-y-4">
         {administrateurs.map((compte) => {
-          const ouvertes = etat[compte.id] === null || etat[compte.id] === undefined
-            ? SECTIONS.map((s) => s.cle)
-            : etat[compte.id] ?? [];
+          const ouvertes = etat[compte.id] ?? [];
           const message = messages[compte.id];
           return (
             <li key={compte.id} className="rounded-lg border border-nuit-700/60 p-4">
@@ -145,9 +144,9 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales }: 
                     type="button"
                     className="bouton-fantome text-xs"
                     disabled={enCours === compte.id}
-                    onClick={() => void enregistrer(compte.id, null)}
+                    onClick={() => void enregistrer(compte.id, [])}
                   >
-                    Réglage par défaut
+                    Tout fermer
                   </button>
                 </div>
               </div>

@@ -46,7 +46,13 @@ bord ouvre chaque administrateur qu'il crée.
   `definir_sections_admin(cible, sections[])` (super-admin seulement, vérifie
   que la cible est bien administratrice), `sections_admin_connues()`.
 - Sections : `comptes`, `abonnements`, `paiements`, `audience`, `systeme`.
-  Absence de ligne = comportement historique (toutes les sections ouvertes).
+  **Défaut fermé** (correctif du 3/11) : aucune section n'est ouverte tant que
+  le super-administrateur ne les coche pas ; l'onglet « Vue d'ensemble » reste
+  visible pour ne pas bloquer l'administrateur. Un compte sans ligne de profil
+  n'obtient rien (comparaisons `is distinct from`, sûres face à `NULL`).
+- Épreuve réelle : `scripts/verifier-sections-e2e.mjs` crée un compte
+  jetable, le connecte par mot de passe et vérifie 14 points (sections
+  restreintes, refus d'escalade, audience fermée puis ouverte) — **14/14**.
 - Interface : bloc « Sections ouvertes » sous la gestion des rôles
   (`components/admin/SectionsAdministrateurs.tsx`), route
   `POST /api/admin/sections`.

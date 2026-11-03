@@ -8,7 +8,7 @@
 // authentiques (titre + texte), et nettoie le HTML en texte
 // brut lisible.
 //
-// Dépendance : jszip (déjà présente via epubjs, déclarée
+// Dépendance : jszip (déclarée en dépendance directe du projet).
 // explicitement dans package.json). 100 % local, rien n'est
 // envoyé à un serveur. Testable en Node (cf. scripts/).
 // ============================================================
@@ -39,18 +39,52 @@ export interface LivreEpub {
 
 // ---------- Décodage du texte HTML ----------
 
+// Table des entités nommées latines les plus fréquentes dans les EPUB
+// anciens (les livres produits en Word/Sigil écrivent « caf&eacute; »).
+// Les numériques (&#233;) sont décodées juste après ; &amp; reste en
+// DERNIER pour ne pas décoder deux fois « &amp;eacute; ».
+const ENTITES_NOMMEES: Record<string, string> = {
+  eacute: 'é', egrave: 'è', ecirc: 'ê', euml: 'ë',
+  aacute: 'á', agrave: 'à', acirc: 'â', auml: 'ä', atilde: 'ã', aring: 'å',
+  iacute: 'í', igrave: 'ì', icirc: 'î', iuml: 'ï',
+  oacute: 'ó', ograve: 'ò', ocirc: 'ô', ouml: 'ö', otilde: 'õ', oslash: 'ø',
+  uacute: 'ú', ugrave: 'ù', ucirc: 'û', uuml: 'ü',
+  yacute: 'ý', yuml: 'ÿ', ntilde: 'ñ', ccedil: 'ç', szlig: 'ß',
+  Eacute: 'É', Egrave: 'È', Ecirc: 'Ê', Euml: 'Ë',
+  Aacute: 'Á', Agrave: 'À', Acirc: 'Â', Auml: 'Ä', Atilde: 'Ã', Aring: 'Å',
+  Iacute: 'Í', Igrave: 'Ì', Icirc: 'Î', Iuml: 'Ï',
+  Oacute: 'Ó', Ograve: 'Ò', Ocirc: 'Ô', Ouml: 'Ö', Otilde: 'Õ', Oslash: 'Ø',
+  Uacute: 'Ú', Ugrave: 'Ù', Ucirc: 'Û', Uuml: 'Ü',
+  Ntilde: 'Ñ', Ccedil: 'Ç',
+  oe: 'œ', OE: 'Œ', aelig: 'æ', AElig: 'Æ',
+  laquo: '«', raquo: '»', hellip: '…', mdash: '—', ndash: '–',
+  rsquo: '\u2019', lsquo: '\u2018', rdquo: '\u201d', ldquo: '\u201c',
+  deg: '°', euro: '€', times: '×', middot: '·', bull: '•',
+};
+
+const MOTIF_NOMMEES = new RegExp(
+  `&(${Object.keys(ENTITES_NOMMEES).join('|')});`,
+  'g'
+);
+
 /** Décode les entités HTML courantes. */
 export function decoderEntites(texte: string): string {
   return texte
     .replace(/&nbsp;/gi, ' ')
+    .replace(MOTIF_NOMMEES, (_, nom: string) => ENTITES_NOMMEES[nom] ?? _)
+    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => {
+      const code = parseInt(h, 16);
+      return Number.isFinite(code) && code > 0 ? String.fromCodePoint(code) : '';
+    })
+    .replace(/&#(\d+);/g, (_, n) =>
+      isFinite(+n) && +n > 0 ? String.fromCodePoint(+n) : ''
+    )
+    // « &amp; » en dernier : sinon « &amp;eacute; » deviendrait « é ».
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&#(\d+);/g, (_, n) =>
-      isFinite(+n) && +n > 0 ? String.fromCodePoint(+n) : ''
-    );
+    .replace(/&#39;|&apos;/gi, "'");
 }
 
 /**

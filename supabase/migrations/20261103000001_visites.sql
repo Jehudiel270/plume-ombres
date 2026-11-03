@@ -56,9 +56,18 @@ declare
 begin
   -- Le rôle service_role (clé serveur, jamais exposée au navigateur) est
   -- admis pour les vérifications scriptées et les tâches d'exploitation.
-  if auth.role() <> 'service_role' and not public.est_admin(auth.uid()) then
-    raise exception 'admin_stats_visites : réservé aux administrateurs'
-      using errcode = '42501';
+  -- Un administrateur doit en plus avoir la section « audience » ouverte
+  -- (cf. 20261103000003_sections_defaut_ferme.sql) : masquer un onglet
+  -- ne suffit pas, l'appel direct doit être refusé.
+  if auth.role() <> 'service_role' then
+    if not public.est_admin(auth.uid()) then
+      raise exception 'admin_stats_visites : réservé aux administrateurs'
+        using errcode = '42501';
+    end if;
+    if not public.section_autorisee('audience') then
+      raise exception 'admin_stats_visites : section audience fermée'
+        using errcode = '42501';
+    end if;
   end if;
 
   with fenetre as (

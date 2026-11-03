@@ -133,7 +133,7 @@ un nonce par requête exigerait un middleware. Aucun script distant, aucun
 | --- | --- |
 | `npx tsc --noEmit` | 0 erreur |
 | `npx eslint` sur 12 fichiers modifiés | 0 erreur, 0 avertissement |
-| `npx tsx --test "lib/**/*.test.ts"` | 158 tests / 158 réussis / 0 échec |
+| `npx tsx --test "lib/**/*.test.ts"` | 162 tests / 162 réussis / 0 échec (dont 4 nouveaux sur l'import EPUB) |
 | `node --env-file=.env.local scripts/audit-rls.mjs` | Compte neuf : 0 ligne étrangère sur 13 tables (abonnements et historique : uniquement ses propres lignes) |
 | `node --env-file=.env.local scripts/verifier-audience.mjs` | Insertion 201, agrégats 200 (3 visites, 2 uniques), purge des lignes de test 204 |
 | `curl -X POST` sur 7 routes API sans session | **non concluant** : `curl` sort en 23 (écriture stdout) sans code HTTP ; le refus est établi par lecture du code (`verifierPermission` en tête de chaque route), pas par une preuve réseau |
@@ -146,13 +146,31 @@ un nonce par requête exigerait un middleware. Aucun script distant, aucun
 | Webhook sans signature | 401 ; avec signature | 200 `{"ok":true}`, rejeu idempotent |
 | `npm audit --omit=dev` | 17 avis restants (3 élevés), tous dans la chaîne de BUILD de `next-pwa` (`workbox-build`, `rollup-plugin-terser`, `minimatch`) — jamais chargés à l'exécution. `epubjs` retiré : 2 avis élevés et 17 paquets de moins |
 | En-têtes de sécurité en production | **vérifiés** le 3/11 : CSP, HSTS (`max-age=31536000; includeSubDomains`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` |
+| `node --env-file=.env.local scripts/verifier-sections-e2e.mjs` | **14/14** avec un vrai compte connecté (mot de passe) : sections restreintes, refus d'escalade, défaut fermé, audience fermée/ouverte |
 
-## 9. Rejeu des épreuves
+## 9. Failles trouvées par l'épreuve de bout en bout (3 novembre 2026)
+
+L'épreuve avec un **compte réel** (création, connexion par mot de passe,
+interrogation des RPC comme le ferait le navigateur) a révélé trois défauts
+que la lecture de code et les tests unitaires n'avaient pas vus. Tous sont
+corrigés et rejoués par `scripts/verifier-sections-e2e.mjs`.
+
+| Faille | Cause exacte | Correctif |
+| --- | --- | --- |
+| Un compte **sans ligne de profil** obtenait TOUTES les sections | `if v_role <> 'admin'` vaut `NULL` quand `v_role` est `NULL` : la branche n'était jamais exécutée, la fonction tombait sur « aucune ligne de réglage → tout » | `mes_sections()` réécrite en **défaut fermé** et comparaisons `is distinct from` (`20261103000003`) |
+| Un administrateur **sans réglage** voyait tout l'exploitation | défaut ouvert assumé à la conception | défaut fermé : aucune section tant que le super-admin n'en ouvre pas ; l'onglet « Vue d'ensemble » reste visible |
+| `admin_stats_visites` répondait **même section audience fermée** | la fonction ne contrôlait que `est_admin()`, pas la section | garde `section_autorisee('audience')` ajoutée dans la fonction |
+
+Bilan : masquer un onglet ne suffit jamais — chaque RPC et chaque route qui
+sert des données d'une section vérifie désormais la section **côté base**.
+
+## 10. Rejeu des épreuves
 
 ```bash
-node --env-file=.env.local scripts/audit-rls.mjs      # isolation RLS
-npx tsx --test lib/admin-stats.test.ts               # injection CSV
-npx tsc --noEmit                                     # typage strict
-npm audit --omit=dev                                 # dépendances
+node --env-file=.env.local scripts/audit-rls.mjs           # isolation RLS
+node --env-file=.env.local scripts/verifier-sections-e2e.mjs  # sections (compte réel)
+npx tsx --test "lib/**/*.test.ts"                     # 162 tests
+npx tsc --noEmit                                      # typage strict
+npm audit --omit=dev                                  # dépendances
 curl -sI https://plume-ombres.vercel.app | grep -i -E 'content-security|strict-transport|x-frame'
 ```
