@@ -16,6 +16,7 @@
 import JSZip from 'jszip';
 import {
   estContenuDeChapitre,
+  ligneEstUnTitre,
   longueurUtile,
   seuilContenuChapitre,
 } from './segmenter';
@@ -104,8 +105,21 @@ const LIGNE_PARASITE_EPUB =
  */
 export function htmlEnTexte(html: string): string {
   let t = decoderEntites(html);
+  // L'en-tête XHTML (<head> : <title>, <style>, <script>) ne fait pas partie
+  // du texte. Sans ce retrait, le <title> du fichier — souvent le titre du
+  // livre — se retrouvait en tête de CHAQUE chapitre, et c'est lui qui était
+  // pris pour le titre du chapitre.
+  t = t.replace(/<\s*(head|script|style)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, ' ');
   // Les fins de blocs deviennent des retours à la ligne.
   t = t.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+  // Fin de paragraphe : DEUX retours à la ligne. Avec un seul, deux
+  // paragraphes voisins étaient recollés en un seul bloc à la lecture
+  // (contrairement à ce qu'annonce la doc ci-dessus) — les EPUB minifiés
+  // perdaient tous leurs paragraphes.
+  t = t.replace(
+    /<\s*\/\s*(p|div|section|h[1-6]|li|tr|blockquote|article|ul|ol|table|figure)\s*>/gi,
+    '\n\n'
+  );
   t = t.replace(
     /<\s*(p|div|section|h[1-6]|li|tr|blockquote|figure|figcaption|article|ul|ol|table|nav|aside|main)\b[^>]*>/gi,
     '\n'
@@ -215,8 +229,8 @@ function lireSpine(opf: string, cheminOpf: string): string[] {
   return entrees.map(normaliserChemin);
 }
 
-/** Extrait le premier titre (h1/h2) d'un fragment XHTML. */
-function titreDuChapitre(html: string, position: number): string {
+/** Extrait le titre balisé (<h1>/<h2>) d'un fragment XHTML, s'il existe. */
+function titreBalise(html: string): string {
   // On ignore les blocs <nav> (table des matières) pour ne pas
   // prendre un titre de TOC comme titre de chapitre.
   const sansNav = html
@@ -224,9 +238,117 @@ function titreDuChapitre(html: string, position: number): string {
     .join(' ');
   const m = sansNav.match(/<\s*h[12]\b[^>]*>([\s\S]*?)<\s*\/\s*h[12]>/i);
   const brut = m ? m[1].replace(/<[^>]*>/g, '').trim() : '';
-  const propre = decoderEntites(brut).replace(/\s+/g, ' ').trim();
-  if (propre.length === 0) return `Chapitre ${position + 1}`;
-  return propre;
+  return decoderEntites(brut).replace(/\s+/g, ' ').trim();
+}
+
+/** Comparaison d'en-têtes : casse et espaces neutralisés. */
+function normaliserEntete(l: string): string {
+  return l.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * Cette ligne est-elle l'en-tête courant (titre du livre répété en tête de
+ * chaque fragment) ? Compare les formes normalisées, en acceptant qu'un
+ * en-tête abrégé (« Try ») corresponde à une métadonnée complète
+ * (« Try (Temptation Series) »).
+ */
+function estEnteteCourant(ligne: string, titreLivre: string): boolean {
+  const l = normaliserEntete(ligne);
+  const t = normaliserEntete(titreLivre);
+  if (!l || !t) return false;
+  if (l === t) return true;
+  const abbregeDe = (court: string, complet: string) =>
+    court.length >= 3 &&
+    [' (', ':', ' -', ' —', ' /'].some((sep) => complet.startsWith(`${court}${sep}`));
+  return abbregeDe(l, t) || abbregeDe(t, l);
+}
+
+/** Un titre qui porte un numéro (« Chapter One », « Chapitre 12 »…). */
+const LIGNE_TITRE_NUMEROTEE =
+  /^(?:chapter|chapitre|part|partie|livre|book|prologue|epilogue|épilogue|préface|preface)\b/i;
+
+/**
+ * Titre numéroté collé à sa première phrase sur la même ligne :
+ * « Chapter One Past… », « Chapitre 12. La nuit tombait ». Le texte découpé
+ * s'arrête après le mot-numéro et son éventuel séparateur.
+ */
+const TITRE_COLLE =
+  /^(?:chapitre|chapter|partie|part|livre|book)\s+(?:[0-9]+|[a-zà-ÿ]+(?:[-'’][a-zà-ÿ]+)?)\s*(?:[.:–—-]\s*)?/i;
+
+/**
+ * Lit le titre d'un fragment EPUB DANS SON TEXTE.
+ *
+ * Beaucoup d'EPUB n'ont ni <h1> ni <h2> : le titre du chapitre est un
+ * simple paragraphe (« Chapter One », « Prologue », « Erika »), posé juste
+ * après l'en-tête courant répété sur chaque page (le titre du livre, ex.
+ * « Try »). L'ancien code ne lisait que les balises et retombait sinon sur
+ * `Chapitre ${position}` — l'indice du spine, pas le numéro du chapitre :
+ * d'où des chapitres nommés « Chapitre 3 », « Chapitre 6 », « Chapitre 8 »…
+ * alors que le texte affichait « Chapter One ». C'est ce décalage qui est
+ * corrigé ici : plus de numéro inventé quand le titre est écrit en clair.
+ *
+ * Le titre retourné est vide quand le fragment n'en porte aucun : la
+ * numérotation séquentielle est alors faite à la FIN, sur les seuls
+ * chapitres retenus (1, 2, 3… et non des indices de spine troués).
+ */
+export function titreEtCorpsDuFragment(
+  texte: string,
+  titreLivre: string
+): { titre: string; corps: string } {
+  const lignes = texte.split('\n');
+  // En-tête courant (titre du livre) et lignes vides de tête.
+  let debut = 0;
+  while (debut < lignes.length) {
+    const vide = normaliserEntete(lignes[debut]).length === 0;
+    if (vide || estEnteteCourant(lignes[debut], titreLivre ?? '')) {
+      debut += 1;
+      continue;
+    }
+    break;
+  }
+
+  // Le titre est l'une des premières lignes utiles, et seulement si la
+  // ligne ressemble à un titre : dès qu'une ligne de prose arrive, on
+  // s'arrête pour ne pas transformer une phrase en titre de chapitre.
+  let indexTitre = -1;
+  let resteSurLaLigne = '';
+  const limite = Math.min(lignes.length, debut + 6);
+  for (let i = debut; i < limite; i += 1) {
+    const l = lignes[i].trim();
+    if (l.length === 0) continue;
+    // Titre collé à sa première phrase sur la même ligne (« Chapter One
+    // Past… ») : les paragraphes de certains EPUB sont fusionnés.
+    const colle = l.match(TITRE_COLLE);
+    if (colle) {
+      indexTitre = i;
+      resteSurLaLigne = l.slice(colle[0].length).trim();
+      break;
+    }
+    if (ligneEstUnTitre(l)) {
+      indexTitre = i;
+      break;
+    }
+    if (l.length > 90) break; // prose : plus aucun titre dans ce fragment
+  }
+
+  const corps = lignes.slice(debut).join('\n').trim();
+  if (indexTitre === -1) return { titre: '', corps };
+
+  const brut = lignes[indexTitre].trim().replace(/^#+\s*/, '');
+  const colle = resteSurLaLigne.length > 0 ? brut.match(TITRE_COLLE) : null;
+  const titre = (colle ? colle[0] : brut).trim().replace(/[.:–—\-\s]+$/, '');
+
+  // Un titre numéroté n'est pas une phrase : on le retire du corps, sinon
+  // le lecteur l'affiche deux fois (titre du chapitre + première ligne).
+  if (!LIGNE_TITRE_NUMEROTEE.test(titre)) return { titre, corps };
+  const nettoyees = lignes.slice();
+  nettoyees[indexTitre] = resteSurLaLigne;
+  const sansTitre = nettoyees
+    .slice(debut)
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return { titre, corps: sansTitre.length > 0 ? sansTitre : corps };
 }
 
 /**
@@ -288,7 +410,25 @@ export async function lireEpub(donnees: ArrayBuffer): Promise<LivreEpub> {
     const html = await fichier.async('string');
     const texte = htmlEnTexte(html);
     if (texte.length < 20) continue; // page de garde / table des matières vide
-    bruts.push({ position: bruts.length, titre: titreDuChapitre(html, bruts.length), texte });
+    // Titre : la balise <h1>/<h2> fait foi ; sinon on lit le titre écrit en
+    // clair dans le texte. Un titre vide = numérotation séquentielle à la
+    // fin (jamais l'indice du spine).
+    const balise = titreBalise(html);
+    const lu = titreEtCorpsDuFragment(texte, titre);
+    let corps = lu.corps;
+    if (balise) {
+      // La balise de titre est aussi dans le texte : on évite le doublon
+      // (le lecteur affiche déjà le titre au-dessus du chapitre).
+      const lignesCorps = corps.split('\n');
+      const premiere = lignesCorps.findIndex((l) => l.trim().length > 0);
+      const egale =
+        premiere !== -1 &&
+        normaliserEntete(lignesCorps[premiere]) === normaliserEntete(balise);
+      if (egale) {
+        corps = lignesCorps.slice(premiere + 1).join('\n').trim() || corps;
+      }
+    }
+    bruts.push({ position: bruts.length, titre: balise || lu.titre, texte: corps });
   }
 
   // 4. Un chapitre doit avoir un contenu minimal (cf. segmenter.ts) : les
@@ -319,5 +459,17 @@ export async function lireEpub(donnees: ArrayBuffer): Promise<LivreEpub> {
       'EPUB illisible : aucun texte exploitable (EPUB scanné ou image ?).'
     );
   }
-  return { titre, auteur, chapitres };
+  // 5. Numérotation des fragments SANS titre : 1, 2, 3… sur les chapitres
+  //    réellement retenus. Avant, le numéro venait de l'indice du spine
+  //    (pages de garde, sommaire, images comprises) : les chapitres
+  //    s'appelaient « Chapitre 3 », « Chapitre 6 », « Chapitre 8 »…
+  return {
+    titre,
+    auteur,
+    chapitres: chapitres.map((c, i) => ({
+      ...c,
+      position: i,
+      titre: c.titre.trim() || `Chapitre ${i + 1}`,
+    })),
+  };
 }

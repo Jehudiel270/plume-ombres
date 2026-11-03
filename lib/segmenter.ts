@@ -260,6 +260,17 @@ function estTitreSectionOuChapitre(ligne: string): boolean {
   return estTitreChapitre(ligne) || estTitreSection(ligne);
 }
 
+/**
+ * Version publique de la détection, pour les lecteurs de fichiers
+ * (EPUB notamment) qui doivent reconnaître un titre écrit en clair dans
+ * le texte — beaucoup d'EPUB n'ont ni <h1> ni <h2>, le titre du chapitre
+ * n'est qu'un paragraphe parmi d'autres.
+ */
+export function ligneEstUnTitre(ligne: string): boolean {
+  const l = ligne.trim();
+  return l.length > 0 && estTitreSectionOuChapitre(l);
+}
+
 export interface ChapitreBrut {
   titre: string;
   texte: string;
