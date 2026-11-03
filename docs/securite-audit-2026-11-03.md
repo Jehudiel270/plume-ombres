@@ -137,9 +137,15 @@ un nonce par requête exigerait un middleware. Aucun script distant, aucun
 | `node --env-file=.env.local scripts/audit-rls.mjs` | Compte neuf : 0 ligne étrangère sur 13 tables (abonnements et historique : uniquement ses propres lignes) |
 | `node --env-file=.env.local scripts/verifier-audience.mjs` | Insertion 201, agrégats 200 (3 visites, 2 uniques), purge des lignes de test 204 |
 | `curl -X POST` sur 7 routes API sans session | **non concluant** : `curl` sort en 23 (écriture stdout) sans code HTTP ; le refus est établi par lecture du code (`verifierPermission` en tête de chaque route), pas par une preuve réseau |
+| Production — `POST /api/admin/export?type=comptes` sans session | **401** `{"erreur":"Non connecté."}` |
+| Production — `POST /api/admin/sections` sans session | **401** `{"erreur":"Non connecté."}` |
+| Production — `POST /api/paiement` sans session | **401** `{"erreur":"Non autorisé."}` |
+| Production — `GET /admin` sans session | **307** (redirection vers la connexion) |
+| Production — `POST /api/track` (agent mobile) | **204**, ligne réellement insérée : chemin `/catalogue?page=2` nettoyé en `/catalogue`, source `google.com`, appareil `mobile` ; ligne de test supprimée après contrôle |
+| Production — `POST /api/track` (curl) | **204** sans insertion : l'agent `curl` est classé robot et écarté |
 | Webhook sans signature | 401 ; avec signature | 200 `{"ok":true}`, rejeu idempotent |
-| `npm audit --omit=dev` | 19 avis restants, tous dans la chaîne de build de `next-pwa` |
-| En-têtes de sécurité en production | à revérifier après le prochain déploiement (`curl -sI`) |
+| `npm audit --omit=dev` | 17 avis restants (3 élevés), tous dans la chaîne de BUILD de `next-pwa` (`workbox-build`, `rollup-plugin-terser`, `minimatch`) — jamais chargés à l'exécution. `epubjs` retiré : 2 avis élevés et 17 paquets de moins |
+| En-têtes de sécurité en production | **vérifiés** le 3/11 : CSP, HSTS (`max-age=31536000; includeSubDomains`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` |
 
 ## 9. Rejeu des épreuves
 

@@ -14,7 +14,6 @@
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.114.0",
     "docx": "^9.7.1",
-    "epubjs": "^0.3.93",
     "formidable": "^3.5.4",
     "jszip": "^3.10.1",
     "lucide-react": "^1.41.0",
