@@ -16,6 +16,26 @@ export const metadata: Metadata = {
   },
   description:
     'Studio personnel de traduction littéraire pour la dark romance : import, découpage, traduction et réassemblage fidèle de vos textes.',
+  // Base absolue : obligatoire pour que l'image de partage produite par
+  // app/opengraph-image.tsx soit servie avec une URL complète aux robots
+  // de WhatsApp, Facebook et Telegram.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://plume-ombres.vercel.app'
+  ),
+  openGraph: {
+    type: 'website',
+    locale: 'fr_FR',
+    siteName: 'Plume d’Ombres',
+    title: 'Plume d’Ombres — traduire la dark romance',
+    description:
+      'Importez une romance sombre, laissez-la se découper en chapitres et lisez-la en français. Essai gratuit pendant le lancement.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Plume d’Ombres — traduire la dark romance',
+    description:
+      'Importez une romance sombre, laissez-la se découper en chapitres et lisez-la en français. Essai gratuit pendant le lancement.',
+  },
   // PWA — icône plein écran iOS (« Ajouter à l'écran d'accueil »)
   // et signal de nature d'application mobile.
   appleWebApp: {
