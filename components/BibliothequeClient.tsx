@@ -181,13 +181,19 @@ export default function BibliothequeClient({
   return (
     <div className="space-y-8">
       {/* id : ancre du CTA d'import (état vide « premier livre ») */}
-      <div id="zone-import" tabIndex={-1} className="focus:outline-none">
+      <div
+        id="zone-import"
+        data-reveler="haut"
+        tabIndex={-1}
+        className="focus:outline-none"
+      >
         <ZoneImport />
       </div>
 
       {/* ---------------- Barre d'outils : filtre statut + tri ---------------- */}
       {livres.length > 0 && (
         <section
+          data-reveler="haut"
           className="velours p-3 sm:p-4"
           aria-label="Filtres et tri de la bibliothèque"
         >
@@ -345,8 +351,9 @@ export default function BibliothequeClient({
                 <article
                   key={livre.id}
                   role="listitem"
-                  className="carte-livre animate-fondu-monte group cursor-pointer"
-                  style={{ animationDelay: `${i * 60}ms` }}
+                  data-reveler="zoom"
+                  data-delai={(i % 6) + 1}
+                  className="carte-livre group cursor-pointer"
                   tabIndex={0}
                   aria-label={`Ouvrir « ${livre.titre} » (${ETIQUETTES_STATUT[
                     livre.statut

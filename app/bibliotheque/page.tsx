@@ -102,7 +102,7 @@ export default async function Bibliotheque() {
     <>
       <BarreNavigation email={utilisateur.email ?? ''} pseudo={pseudo} />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fondu-monte">
-        <div>
+        <div data-reveler="haut">
           <h1 className="font-display text-3xl text-encre-100">
             Ma bibliothèque
           </h1>

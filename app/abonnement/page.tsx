@@ -103,7 +103,7 @@ export default async function PageAbonnement() {
       <BarreNavigation email={utilisateur.email ?? ''} pseudo={pseudo} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 animate-fondu-monte">
-        <div>
+        <div data-reveler="haut">
           <p className="sur-titre text-grenat-400">Abonnement</p>
           <h1 className="font-display text-3xl sm:text-4xl text-encre-100 mt-2">
             Offre et quota
@@ -115,7 +115,7 @@ export default async function PageAbonnement() {
         </div>
 
         {/* Bandeau de mode */}
-        <div className="velours p-4 mt-6 text-sm text-encre-300">
+        <div data-reveler="haut" data-delai="1" className="velours p-4 mt-6 text-sm text-encre-300">
           {etatPaiement.mode === 'simulation' ? (
             <p>
               <strong className="text-encre-100">Mode simulation.</strong>{' '}
@@ -134,7 +134,7 @@ export default async function PageAbonnement() {
         </div>
 
         {/* Offre en cours */}
-        <section className="velours p-6 mt-4" aria-label="Offre en cours">
+        <section data-reveler="haut" data-delai="2" className="velours p-6 mt-4" aria-label="Offre en cours">
           <p className="sur-titre text-encre-300">Offre en cours</p>
           <div className="mt-4">
             <AbonnementStatut
@@ -186,7 +186,7 @@ export default async function PageAbonnement() {
         />
 
         {/* Tarifs actionnables (abonnements) */}
-        <section className="mt-8" aria-label="Tarifs">
+        <section data-reveler="haut" data-delai="3" className="mt-8" aria-label="Tarifs">
           <p className="sur-titre text-violet-rom-300">Abonnements</p>
           <h2 className="font-display text-2xl text-encre-100 mt-2 mb-4">
             Changer d’offre
@@ -200,7 +200,7 @@ export default async function PageAbonnement() {
         </section>
 
         {/* Historique */}
-        <section className="velours p-6 mt-8" aria-label="Historique">
+        <section data-reveler="haut" data-delai="4" className="velours p-6 mt-8" aria-label="Historique">
           <AbonnementHistorique
             evenements={evenements}
             paiements={paiements}

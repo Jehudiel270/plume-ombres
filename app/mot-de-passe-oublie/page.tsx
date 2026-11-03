@@ -53,7 +53,7 @@ export default function MotDePasseOublie() {
           <div className="liseret mx-auto mt-5" />
         </div>
 
-        <div className="velours p-7">
+        <div data-reveler="zoom" className="velours p-7">
           {envoye ? (
             <div className="space-y-4 text-sm">
               <p className="text-encre-100">

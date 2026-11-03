@@ -121,7 +121,7 @@ export default async function PageCompte() {
       <BarreNavigation email={utilisateur.email ?? ''} pseudo={pseudo} />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 animate-fondu-monte">
-        <div>
+        <div data-reveler="haut">
           <p className="sur-titre text-grenat-400">Mon compte</p>
           <h1 className="font-display text-3xl sm:text-4xl text-encre-100 mt-2">
             {pseudo}
@@ -146,7 +146,7 @@ export default async function PageCompte() {
           <ReglagesApparence />
 
           {/* ---------------- Favoris ---------------- */}
-          <section className="velours p-6" aria-label="Favoris">
+          <section data-reveler="haut" data-delai="1" className="velours p-6" aria-label="Favoris">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="sur-titre text-encre-300">
                 Favoris{' '}
@@ -195,7 +195,7 @@ export default async function PageCompte() {
           </section>
 
           {/* ---------------- Offre en cours ---------------- */}
-          <section className="velours p-6" aria-label="Offre en cours">
+          <section data-reveler="haut" data-delai="2" className="velours p-6" aria-label="Offre en cours">
             <p className="sur-titre text-encre-300">Offre en cours</p>
             <div className="flex flex-wrap items-center gap-3 mt-4">
               <span className="rounded-full px-3 py-1 text-[11px] uppercase tracking-wider bg-grenat-500/15 text-grenat-300">
@@ -247,7 +247,7 @@ export default async function PageCompte() {
           {/* ---------------- Compte & données ---------------- */}
           <ActionsCompte email={utilisateur.email ?? ''} />
 
-          <section className="velours p-6" aria-label="Vos livres">
+          <section data-reveler="haut" data-delai="3" className="velours p-6" aria-label="Vos livres">
             <p className="sur-titre text-encre-300">Vos livres</p>
             <ul className="mt-4 space-y-3 text-sm text-encre-300 leading-relaxed">
               <li>
@@ -272,7 +272,7 @@ export default async function PageCompte() {
           </section>
 
           {/* ---------------- Textes du cadre légal ---------------- */}
-          <section className="velours p-6" aria-label="Application">
+          <section data-reveler="haut" data-delai="4" className="velours p-6" aria-label="Application">
             <p className="sur-titre text-encre-300">Application</p>
             <p className="text-sm text-encre-400 mt-2">
               Plume d’Ombres s’installe comme une application : icône sur l’écran d’accueil, lecture
@@ -281,7 +281,7 @@ export default async function PageCompte() {
             <InstallationApplication />
           </section>
 
-          <section className="velours p-6" aria-label="Textes légaux">
+          <section data-reveler="haut" data-delai="5" className="velours p-6" aria-label="Textes légaux">
             <p className="sur-titre text-encre-300">Documents</p>
             <div className="flex flex-wrap gap-3 mt-4 text-sm">
               <Link href="/conditions" className="lien-discret underline">

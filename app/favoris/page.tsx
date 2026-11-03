@@ -99,7 +99,7 @@ export default async function PageFavoris() {
       <BarreNavigation email={utilisateur.email ?? ''} pseudo={pseudo} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fondu-monte">
-        <div>
+        <div data-reveler="haut">
           <p className="sur-titre text-grenat-400">Vos préférés</p>
           <h1 className="font-display text-3xl text-encre-100 mt-2">Mes favoris</h1>
           <div className="liseret mt-3" />
@@ -165,8 +165,9 @@ export default async function PageFavoris() {
                   key={livre.id}
                   href={`/livres/${livre.id}`}
                   role="listitem"
-                  className="carte-livre animate-fondu-monte group !no-underline"
-                  style={{ animationDelay: `${i * 60}ms` }}
+                  data-reveler="zoom"
+                  data-delai={(i % 6) + 1}
+                  className="carte-livre group !no-underline"
                 >
                   <div className="flex items-start justify-between gap-2 min-w-0">
                     <div className="min-w-0">

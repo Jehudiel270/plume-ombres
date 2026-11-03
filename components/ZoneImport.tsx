@@ -15,7 +15,6 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import { preparerLivre, preparerLivreDepuisChapitres } from '@/lib/import-livre';
-import { lireEpub } from '@/lib/import-epub';
 import { resumerGeo, type GeometrieStockee } from '@/lib/geo-pdf';
 import { memoriserOriginal } from '@/lib/original-en-memoire';
 import type { CodeLangue } from '@/lib/types';
@@ -82,6 +81,9 @@ export default function ZoneImport() {
         // EPUB : dézippage local (jszip), chapitres lus dans l'ordre
         // de lecture (spine) — rien n'est envoyé à un serveur tiers.
         setEtape('Ouverture de l’EPUB…');
+        // Chargé à la demande : jszip (~40 Ko gzip) ne sert qu'ici et
+        // n'a pas à peser sur le bundle de la bibliothèque.
+        const { lireEpub } = await import('@/lib/import-epub');
         const octets = await fichier.arrayBuffer();
         const contenu = await lireEpub(octets);
         if (contenu.chapitres.length === 0) {

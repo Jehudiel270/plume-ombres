@@ -66,7 +66,7 @@ export default function RevelerAuScroll() {
       { rootMargin: '0px 0px -8% 0px', threshold: 0.08 }
     );
 
-    function armer(racine: ParentNode = document) {
+    function armer(racine: ParentNode | Element = document) {
       const cibles = racine.querySelectorAll<HTMLElement>('[data-reveler]');
       for (const cible of cibles) {
         if (cible.classList.contains('reveler')) continue;
@@ -88,11 +88,29 @@ export default function RevelerAuScroll() {
       }
     }, 2500);
 
-    // Blocs montés après coup (onglets, filtres, pagination).
+    // Blocs montés après coup (onglets, filtres, pagination). On ne
+    // ré-interroge QUE le sous-arbre ajouté : un querySelectorAll sur tout
+    // le document à chaque mutation coûtait cher dans le lecteur, qui
+    // réécrit fréquemment son contenu.
     let minuteur: ReturnType<typeof setTimeout> | undefined;
-    const mutations = new MutationObserver(() => {
+    let racines: Element[] = [];
+    const mutations = new MutationObserver((liste) => {
+      for (const m of liste) {
+        for (const noeud of m.addedNodes) {
+          if (noeud.nodeType === 1) racines.push(noeud as Element);
+        }
+      }
+      if (racines.length === 0) return;
       if (minuteur) clearTimeout(minuteur);
-      minuteur = setTimeout(() => armer(), 80);
+      minuteur = setTimeout(() => {
+        const lot = racines;
+        racines = [];
+        for (const racine of lot) {
+          // Le nœud ajouté peut lui-même porter l'attribut.
+          if (racine.matches?.('[data-reveler]')) armer(racine.parentNode ?? document);
+          armer(racine);
+        }
+      }, 80);
     });
     mutations.observe(document.body, { childList: true, subtree: true });
 

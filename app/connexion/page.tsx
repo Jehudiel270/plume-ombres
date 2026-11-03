@@ -125,7 +125,7 @@ function PageConnexion() {
         </div>
 
         {/* Carte */}
-        <div className="velours p-7 md:p-8">
+        <div data-reveler="zoom" className="velours p-7 md:p-8">
           <div className="flex rounded-full bg-nuit-900 p-1 mb-7">
             {(['connexion', 'inscription'] as const).map((m) => (
               <button

@@ -53,7 +53,7 @@ export default async function PageEchec({
       </h1>
       <div className="liseret mt-4 mx-auto" />
 
-      <div className="velours p-6 mt-6 text-left space-y-3">
+      <div data-reveler="haut" data-delai="1" className="velours p-6 mt-6 text-left space-y-3">
         <p className="text-sm text-encre-300">
           {achatCredits
             ? 'Aucun crédit n’a été ajouté : votre solde reste inchangé.'

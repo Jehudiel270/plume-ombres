@@ -85,7 +85,7 @@ export default function ReinitialiserAuth() {
           <div className="liseret mx-auto mt-5" />
         </div>
 
-        <div className="velours p-7 space-y-4 text-sm text-center">
+        <div data-reveler="zoom" className="velours p-7 space-y-4 text-sm text-center">
           {!termine ? (
             <p className="text-encre-100">Ouverture de la réinitialisation…</p>
           ) : (

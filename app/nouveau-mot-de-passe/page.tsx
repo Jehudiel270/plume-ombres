@@ -83,7 +83,7 @@ export default function NouveauMotDePasse() {
           <div className="liseret mx-auto mt-5" />
         </div>
 
-        <div className="velours p-7">
+        <div data-reveler="zoom" className="velours p-7">
           {sessionPrete === false && (
             <div className="space-y-4 text-sm">
               <p className="text-grenat-300">

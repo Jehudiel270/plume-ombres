@@ -78,6 +78,15 @@ const nextConfig: NextConfig = {
   // Ne plus annoncer la pile technique dans les réponses HTTP.
   poweredByHeader: false,
   ...(racinePartagee ? { turbopack: { root: racinePartagee } } : {}),
+  // Images : AVIF d'abord (25-35 % plus léger que WebP à qualité égale),
+  // repli WebP pour les navigateurs qui ne le lisent pas. Les visuels du
+  // site ne changent jamais sous le même nom : on garde leur version
+  // optimisée un mois en cache au lieu des 60 s par défaut, ce qui évite
+  // de refaire la transformation à chaque visite (latence + coût Vercel).
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 2678400,
+  },
   async headers() {
     return [
       { source: '/:path*', headers: entetesSecurite },

@@ -105,7 +105,7 @@ export default async function PagePaiementPlan({
           <div className="liseret mt-3" />
         </div>
 
-        <div className="velours p-6 mt-6">
+        <div data-reveler="haut" data-delai="1" className="velours p-6 mt-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="font-display text-3xl text-encre-100">
               {libellePrix(plan)}

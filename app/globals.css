@@ -123,6 +123,192 @@
   }
 }
 
+/* ----- Transition de palette (généré : tokens officiels) ----- */
+/* Les 18 palettes ne posent que des variables CSS : sans enregistrement,
+   elles basculent d'un coup et l'écran « flashe ». @property déclare les
+   jetons comme des couleurs INTERPOLABLES ; la transition posée sur <html>
+   fait alors dérouler la valeur, que les descendants héritent image par
+   image. Aucun JS, aucun coût au repos, et les utilitaires Tailwind
+   (bg-nuit-800, text-grenat-400…) en profitent sans modification. */
+@property --color-nuit-950 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0a0608;
+}
+@property --color-nuit-900 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #10090c;
+}
+@property --color-nuit-850 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #150d10;
+}
+@property --color-nuit-800 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1b1216;
+}
+@property --color-nuit-700 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2e1f27;
+}
+@property --color-encre-100 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f2e6eb;
+}
+@property --color-encre-300 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #c8b6c0;
+}
+@property --color-encre-500 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #a89aa3;
+}
+@property --color-grenat-300 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f0a5b4;
+}
+@property --color-grenat-400 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #e0607f;
+}
+@property --color-grenat-500 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #c13d5c;
+}
+@property --color-grenat-600 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #a32b4b;
+}
+@property --color-grenat-700 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #6b1e2d;
+}
+@property --color-violet-rom-300 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #c3a6e8;
+}
+@property --color-violet-rom-400 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #a678d6;
+}
+@property --color-violet-rom-500 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #8a5bc4;
+}
+@property --color-violet-rom-600 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #663a93;
+}
+@property --color-or-ros-300 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #e8c4a0;
+}
+@property --color-bouton-1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #6b1e2d;
+}
+@property --color-bouton-2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #a32b4b;
+}
+@property --color-bouton-3 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #663a93;
+}
+@property --color-sur-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+/* Coupée si l'utilisateur demande moins de mouvement, ou si l'appareil
+   est en économie de données (html[data-economie="1"]). */
+html {
+  transition:
+    --color-nuit-950 520ms var(--courbe),
+    --color-nuit-900 520ms var(--courbe),
+    --color-nuit-850 520ms var(--courbe),
+    --color-nuit-800 520ms var(--courbe),
+    --color-nuit-700 520ms var(--courbe),
+    --color-encre-100 520ms var(--courbe),
+    --color-encre-300 520ms var(--courbe),
+    --color-encre-500 520ms var(--courbe),
+    --color-grenat-300 520ms var(--courbe),
+    --color-grenat-400 520ms var(--courbe),
+    --color-grenat-500 520ms var(--courbe),
+    --color-grenat-600 520ms var(--courbe),
+    --color-grenat-700 520ms var(--courbe),
+    --color-violet-rom-300 520ms var(--courbe),
+    --color-violet-rom-400 520ms var(--courbe),
+    --color-violet-rom-500 520ms var(--courbe),
+    --color-violet-rom-600 520ms var(--courbe),
+    --color-or-ros-300 520ms var(--courbe),
+    --color-bouton-1 520ms var(--courbe),
+    --color-bouton-2 520ms var(--courbe),
+    --color-bouton-3 520ms var(--courbe),
+    --color-sur-accent 520ms var(--courbe);
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    transition: none;
+  }
+}
+html[data-economie='1'] {
+  transition: none;
+}
+
+/* ----- Transitions légères d'état (survol, focus, changement de couleur) ----- */
+/* Un seul tempo pour tout le site : les éléments qui portent DÉJÀ leur
+   propre transition (utilitaires Tailwind, .carte-livre, .fond-ambiance…)
+   ne sont pas touchés : leurs classes sont plus spécifiques. */
+a:not(.carte-livre),
+button:not(.carte-livre),
+summary,
+input,
+select,
+textarea,
+.velours,
+.lien-discret,
+.champ {
+  transition-property: color, background-color, border-color, box-shadow,
+    outline-color, fill, stroke, text-decoration-color;
+  transition-duration: 220ms;
+  transition-timing-function: var(--courbe);
+}
+@media (prefers-reduced-motion: reduce) {
+  a:not(.carte-livre),
+  button:not(.carte-livre),
+  summary,
+  input,
+  select,
+  textarea,
+  .velours,
+  .lien-discret,
+  .champ {
+    transition-duration: 1ms;
+  }
+}
+
 /* ============================================================
    PALETTES — chaque bloc redéfinit TOUS les jetons sémantiques.
    Les utilitaires Tailwind (bg-nuit-800, text-grenat-400…)
@@ -1243,6 +1429,10 @@ input[type='range'].regl-lecture:focus-visible {
   transition:
     opacity 0.55s ease,
     transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* `will-change` UNIQUEMENT avant la révélation : le garder ensuite
+   immobilise inutilement une couche de composition par bloc. */
+.reveler:not(.revele) {
   will-change: opacity, transform;
 }
 .reveler.revele {

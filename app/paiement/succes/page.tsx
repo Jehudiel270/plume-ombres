@@ -76,7 +76,7 @@ export default async function PageSucces({
       </h1>
       <div className="liseret mt-4 mx-auto" />
 
-      <div className="velours p-6 mt-6 text-left space-y-3">
+      <div data-reveler="haut" data-delai="1" className="velours p-6 mt-6 text-left space-y-3">
         {paiement && (
           <p className="text-sm text-encre-300">
             Référence{' '}
