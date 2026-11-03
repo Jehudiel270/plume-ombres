@@ -7,9 +7,16 @@
 // Réservé au super-administrateur (la route serveur et la base le
 // revérifient ; ici on ne fait que cacher/montrer des cases).
 //
-// Convention : une case décochée partout vaut « aucune section » ;
-// le bouton « Tout ouvrir » supprime la ligne en base (comportement
-// par défaut : toutes les sections d'exploitation).
+// Chaque administrateur est un bloc repliable : la page restait trop
+// longue quand plusieurs comptes avaient des droits. Le résumé affiche
+// déjà l'essentiel (rôle + nombre de sections ouvertes), le détail ne
+// s'ouvre qu'au besoin.
+//
+// Convention : une case décochée partout vaut « aucune section ».
+//
+// La ligne du compte connecté est en LECTURE SEULE : la base refuse
+// l'auto-modification (`auto_modification_interdite`) et un
+// super-administrateur garde de toute façon toutes les sections.
 // ============================================================
 
 import { useState } from 'react';
@@ -44,11 +51,18 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales, mo
   const [enCours, setEnCours] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, { texte: string; ok: boolean }>>({});
 
+  function ouvertesDe(id: string): string[] {
+    const valeur = etat[id];
+    if (valeur === null || valeur === undefined) return SECTIONS.map((s) => s.cle);
+    return valeur;
+  }
+
   function basculer(id: string, section: string): void {
     setEtat((courant) => {
-      const actuelles = courant[id] === null || courant[id] === undefined
-        ? SECTIONS.map((s) => s.cle)
-        : courant[id] ?? [];
+      const valeur = courant[id];
+      // `null`/absent = toutes les sections ouvertes (état par défaut).
+      const actuelles =
+        valeur === null || valeur === undefined ? SECTIONS.map((s) => s.cle) : valeur;
       const suivantes = actuelles.includes(section)
         ? actuelles.filter((s) => s !== section)
         : [...actuelles, section];
@@ -114,18 +128,17 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales, mo
       </h3>
       <div className="liseret mt-2" />
       <p className="text-encre-500 text-sm mt-3 leading-relaxed">
-        Cochez les parties du tableau de bord que chaque administrateur peut consulter. Sans
-        réglage, un administrateur ne voit rien d’exploitation : ouvrez-lui explicitement les
-        sections utiles.
+        Dépliez un administrateur pour cocher les parties du tableau de bord qu’il peut consulter.
+        Sans réglage, il ne voit rien d’exploitation : ouvrez-lui explicitement les sections utiles.
       </p>
 
-      <ul className="mt-4 space-y-4">
+      <ul className="mt-4 space-y-3">
         {administrateurs.map((compte) => {
-          const ouvertes = etat[compte.id] ?? [];
           const message = messages[compte.id];
+          const role = normaliserRole(compte.role);
+          const ouvertes = ouvertesDe(compte.id);
 
           // Son propre compte : information seule, aucune case, aucun envoi.
-          // (La route serveur et la fonction SQL refusent aussi l'écriture.)
           if (compte.id === moiId) {
             return (
               <li
@@ -135,7 +148,7 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales, mo
                 <p className="text-encre-100 text-sm">
                   {compte.pseudo}
                   <span className="text-encre-500 text-xs ml-2">
-                    {LIBELLE_ROLE[normaliserRole(compte.role)]} — votre compte
+                    {LIBELLE_ROLE[role]} — votre compte
                   </span>
                 </p>
                 <p className="text-encre-500 text-xs mt-2 leading-relaxed">
@@ -147,79 +160,103 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales, mo
             );
           }
 
+          const total = SECTIONS.length;
+          const nbOuvertes = ouvertes.length;
+
           return (
-            <li key={compte.id} className="rounded-lg border border-nuit-700/60 p-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="text-encre-100 text-sm">
-                  {compte.pseudo}
-                  <span className="text-encre-500 text-xs ml-2">
-                    {LIBELLE_ROLE[normaliserRole(compte.role)]}
+            <li key={compte.id}>
+              <details className="group rounded-lg border border-nuit-700/60">
+                <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 p-4 [&::-webkit-details-marker]:hidden">
+                  <span className="flex flex-wrap items-baseline gap-2">
+                    <span className="text-encre-100 text-sm">{compte.pseudo}</span>
+                    <span className="text-encre-500 text-xs">{LIBELLE_ROLE[role]}</span>
                   </span>
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="bouton-fantome text-xs"
-                    disabled={enCours === compte.id}
-                    onClick={() =>
-                      setEtat((courant) => ({
-                        ...courant,
-                        [compte.id]: SECTIONS.map((s) => s.cle),
-                      }))
-                    }
-                  >
-                    Tout cocher
-                  </button>
-                  <button
-                    type="button"
-                    className="bouton-fantome text-xs"
-                    disabled={enCours === compte.id}
-                    onClick={() => void enregistrer(compte.id, [])}
-                  >
-                    Tout fermer
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {SECTIONS.map((section) => (
-                  <label
-                    key={section.cle}
-                    className="flex items-start gap-2 text-sm text-encre-300 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={ouvertes.includes(section.cle)}
-                      onChange={() => basculer(compte.id, section.cle)}
-                    />
-                    <span>
-                      {section.libelle}
-                      <span className="block text-encre-500 text-[11px]">{section.detail}</span>
+                  <span className="flex items-center gap-3">
+                    <span
+                      className={
+                        nbOuvertes === 0
+                          ? 'text-grenat-300 text-xs'
+                          : nbOuvertes === total
+                            ? 'text-violet-rom-300 text-xs'
+                            : 'text-encre-300 text-xs'
+                      }
+                    >
+                      {nbOuvertes === 0
+                        ? 'aucune section'
+                        : `${nbOuvertes}/${total} sections`}
                     </span>
-                  </label>
-                ))}
-              </div>
-
-              <div className="mt-3 flex items-center gap-3">
-                <button
-                  type="button"
-                  className="bouton-fantome text-xs"
-                  disabled={enCours === compte.id}
-                  onClick={() => void enregistrer(compte.id, ouvertes)}
-                >
-                  {enCours === compte.id ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
-                {message && message.texte && (
-                  <span
-                    className={
-                      message.ok ? 'text-encre-500 text-xs' : 'text-grenat-300 text-xs'
-                    }
-                  >
-                    {message.texte}
+                    <span className="text-encre-500 text-xs transition-transform group-open:rotate-90">
+                      ▸
+                    </span>
                   </span>
-                )}
-              </div>
+                </summary>
+
+                <div className="border-t border-nuit-700/50 p-4">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      className="bouton-fantome text-xs"
+                      disabled={enCours === compte.id}
+                      onClick={() =>
+                        setEtat((courant) => ({
+                          ...courant,
+                          [compte.id]: SECTIONS.map((s) => s.cle),
+                        }))
+                      }
+                    >
+                      Tout cocher
+                    </button>
+                    <button
+                      type="button"
+                      className="bouton-fantome text-xs"
+                      disabled={enCours === compte.id}
+                      onClick={() => void enregistrer(compte.id, [])}
+                    >
+                      Tout fermer
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {SECTIONS.map((section) => (
+                      <label
+                        key={section.cle}
+                        className="flex items-start gap-2 text-sm text-encre-300 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={ouvertes.includes(section.cle)}
+                          onChange={() => basculer(compte.id, section.cle)}
+                        />
+                        <span>
+                          {section.libelle}
+                          <span className="block text-encre-500 text-[11px]">{section.detail}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="bouton-fantome text-xs"
+                      disabled={enCours === compte.id}
+                      onClick={() => void enregistrer(compte.id, ouvertes)}
+                    >
+                      {enCours === compte.id ? 'Enregistrement…' : 'Enregistrer'}
+                    </button>
+                    {message && message.texte && (
+                      <span
+                        className={
+                          message.ok ? 'text-encre-500 text-xs' : 'text-grenat-300 text-xs'
+                        }
+                      >
+                        {message.texte}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </details>
             </li>
           );
         })}

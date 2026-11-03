@@ -162,3 +162,11 @@ dans la même migration.
 Épreuve : `node --env-file=.env.local scripts/verifier-sections-e2e.mjs` →
 **18/18**, dont les quatre nouvelles assertions (refus de l'auto-réglage,
 conservation des six sections, réglage d'un autre administrateur, nettoyage).
+
+## 10. Onglet « Rôles » : blocs repliables
+
+La liste des périmètres tenait sur plusieurs écrans dès deux administrateurs.
+Chaque administrateur est désormais un bloc replié par défaut (balise
+`<details>`, sans JavaScript) dont le résumé affiche déjà l'essentiel : pseudo,
+rôle et « 3/6 sections ». Pistes de modernisation du tableau de bord :
+`docs/idees-dashboard.md`.
