@@ -111,3 +111,23 @@ Les paiements restent sur le domaine kodelyza uniquement (choix retenu).
   (`jsQR`, `@zxing/library`) échouent sur ce QR stylisé (points arrondis + logo) :
   prévoir un essai sur 2–3 téléphones avant impression, et garder au moins
   8 px par module dans la taille finale.
+
+## 8. Aperçu de lien : l'ancien domaine restait affiché
+
+Deux causes distinctes, corrigées toutes les deux.
+
+1. **Cache des robots.** WhatsApp, Facebook et Telegram gardent la vignette
+   *par URL d'image*. L'image était servie par `app/opengraph-image.tsx`, dont
+   Next choisissait seul le suffixe : le contenu changeait, l'URL restait, donc
+   les robots ne retéléchargeaient jamais. L'image est désormais une route
+   dédiée **`/api/og?v=2`** (`app/api/og/route.tsx`), avec une constante `VERSION`
+   à incrémenter pour forcer un rafraîchissement mondial des aperçus.
+2. **Ancienne adresse encore servie.** `plume-ombres.vercel.app` répondait
+   toujours. `proxy.ts` renvoie maintenant un **308** vers le domaine définitif
+   (les URL de préversion `*.vercel.app` ne sont pas touchées).
+
+Pour purger l'aperçu déjà en cache sur une plateforme : Facebook Sharing
+Debugger (vaut aussi pour WhatsApp) puis « Scrape Again » ; Telegram
+`@WebpageBot` avec le lien à réanalyser ; LinkedIn Post Inspector. Côté
+téléphone, la vignette reste parfois en cache local : renvoyer le lien dans une
+nouvelle conversation suffit.

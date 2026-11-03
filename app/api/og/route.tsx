@@ -1,14 +1,20 @@
 import { ImageResponse } from 'next/og';
 
-// Image de partage (WhatsApp, Facebook, Telegram, X) : sans elle, un lien
-// partagé n'affiche qu'une vignette grise. Générée par Next, aucune
-// dépendance ajoutée, aucun fichier binaire à maintenir.
-export const alt = 'Plume d’Ombres — traduction de dark romance, chapitre par chapitre';
-export const size = { width: 1200, height: 630 };
-export const contentType = 'image/png';
+// ============================================================
+// Image de partage — /api/og?v=2
+//
+// Anciennement app/opengraph-image.tsx : Next choisissait lui-même l'URL
+// suffixée d'un identifiant de build. Les robots (WhatsApp, Facebook,
+// Telegram) gardaient l'ancienne vignette, avec l'ancien domaine gravé
+// dedans, sans jamais re-télécharger. Une route dédiée donne une URL
+// maîtrisée : pour rafraîchir tous les aperçus, on incrémente VERSION.
+// ============================================================
 
-// Le domaine affiché DANS l'image : sans ça, le visuel de partage
-// continuait d'annoncer l'ancienne adresse Vercel.
+// Sur une route, seuls GET/POST/… et quelques clés de config sont exportables :
+// la version reste donc une constante locale. Pour rafraîchir les aperçus,
+// l'incrémenter ICI et dans l'URL déclarée par app/layout.tsx.
+const VERSION = '2';
+
 const HOTE = (() => {
   const brut = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (!brut) return 'plumedombres.kodelyza.com';
@@ -19,8 +25,8 @@ const HOTE = (() => {
   }
 })();
 
-export default function Image() {
-  return new ImageResponse(
+export async function GET() {
+  const image = new ImageResponse(
     (
       <div
         style={{
@@ -77,6 +83,17 @@ export default function Image() {
         </div>
       </div>
     ),
-    size
+    { width: 1200, height: 630 }
   );
+
+  return new Response(image.body, {
+    headers: {
+      'Content-Type': 'image/png',
+      // Un jour de cache : assez pour ne pas recalculer à chaque partage,
+      // assez court pour qu'un changement de visuel se propage vite.
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+      // Rend visible, d'un simple curl, quelle version est réellement servie.
+      'X-Og-Version': VERSION,
+    },
+  });
 }

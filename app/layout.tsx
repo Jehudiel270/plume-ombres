@@ -16,9 +16,9 @@ export const metadata: Metadata = {
   },
   description:
     'Studio personnel de traduction littéraire pour la dark romance : import, découpage, traduction et réassemblage fidèle de vos textes.',
-  // Base absolue : obligatoire pour que l'image de partage produite par
-  // app/opengraph-image.tsx soit servie avec une URL complète aux robots
-  // de WhatsApp, Facebook et Telegram.
+  // Base absolue : obligatoire pour que l'image de partage (/api/og)
+  // soit servie avec une URL complète aux robots de WhatsApp, Facebook
+  // et Telegram.
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://plumedombres.kodelyza.com'
   ),
@@ -29,12 +29,25 @@ export const metadata: Metadata = {
     title: 'Plume d’Ombres — traduire la dark romance',
     description:
       'Importez une romance sombre, laissez-la se découper en chapitres et lisez-la en français. Essai gratuit pendant le lancement.',
+    // URL VOLONTAIREMENT versionnée : les robots (WhatsApp, Facebook,
+    // Telegram) gardent la vignette en cache par URL. Changer de version
+    // force un nouveau téléchargement — c'est ce qui a manqué quand
+    // l'ancienne adresse Vercel est restée gravée dans l'aperçu.
+    images: [
+      {
+        url: '/api/og?v=2',
+        width: 1200,
+        height: 630,
+        alt: 'Plume d’Ombres — traduire la dark romance, chapitre par chapitre',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Plume d’Ombres — traduire la dark romance',
     description:
       'Importez une romance sombre, laissez-la se découper en chapitres et lisez-la en français. Essai gratuit pendant le lancement.',
+    images: ['/api/og?v=2'],
   },
   // PWA — icône plein écran iOS (« Ajouter à l'écran d'accueil »)
   // et signal de nature d'application mobile.

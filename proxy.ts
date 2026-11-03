@@ -7,6 +7,22 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function proxy(request: NextRequest) {
+  // Ancienne adresse Vercel : redirection permanente vers le domaine définitif.
+  // Sans cela, un lien partagé sur l'ancienne adresse produit un aperçu qui
+  // garde l'ancien nom, et le référencement se disperse sur deux hôtes.
+  // (Les URL de préversion *.vercel.app ne sont PAS touchées.)
+  const hote = (request.headers.get('host') ?? '').split(':')[0].toLowerCase();
+  const hoteOfficiel = new URL(
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://plumedombres.kodelyza.com'
+  ).host.toLowerCase();
+  const ALIAS_ANCIENS = ['plume-ombres.vercel.app', `www.${hoteOfficiel}`];
+  if (hote && ALIAS_ANCIENS.includes(hote) && hote !== hoteOfficiel) {
+    return NextResponse.redirect(
+      new URL(request.nextUrl.pathname + request.nextUrl.search, `https://${hoteOfficiel}`),
+      308
+    );
+  }
+
   let reponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
