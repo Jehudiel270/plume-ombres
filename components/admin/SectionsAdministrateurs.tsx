@@ -30,10 +30,15 @@ interface Props {
   comptes: CompteAdmin[];
   /** Sections déjà réglées, par identifiant de compte. Absent = toutes. */
   sectionsInitiales: Record<string, string[] | null>;
+  /** Identifiant du compte connecté : sa propre ligne est en lecture seule. */
+  moiId: string;
 }
 
-export default function SectionsAdministrateurs({ comptes, sectionsInitiales }: Props) {
-  const administrateurs = comptes.filter((compte) => estAdmin(normaliserRole(compte.role)));
+export default function SectionsAdministrateurs({ comptes, sectionsInitiales, moiId }: Props) {
+  const administrateurs = comptes
+    .filter((compte) => estAdmin(normaliserRole(compte.role)))
+    // Sa propre ligne en dernier : c'est une information, pas un réglage.
+    .sort((a, b) => Number(a.id === moiId) - Number(b.id === moiId));
 
   const [etat, setEtat] = useState<Record<string, string[] | null>>(sectionsInitiales);
   const [enCours, setEnCours] = useState<string | null>(null);
@@ -118,6 +123,30 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales }: 
         {administrateurs.map((compte) => {
           const ouvertes = etat[compte.id] ?? [];
           const message = messages[compte.id];
+
+          // Son propre compte : information seule, aucune case, aucun envoi.
+          // (La route serveur et la fonction SQL refusent aussi l'écriture.)
+          if (compte.id === moiId) {
+            return (
+              <li
+                key={compte.id}
+                className="rounded-lg border border-nuit-700/40 bg-nuit-900/30 p-4"
+              >
+                <p className="text-encre-100 text-sm">
+                  {compte.pseudo}
+                  <span className="text-encre-500 text-xs ml-2">
+                    {LIBELLE_ROLE[normaliserRole(compte.role)]} — votre compte
+                  </span>
+                </p>
+                <p className="text-encre-500 text-xs mt-2 leading-relaxed">
+                  Accès complet, non modifiable : ces réglages ne concernent que les autres
+                  administrateurs. Un super-administrateur ne peut pas restreindre son propre
+                  périmètre.
+                </p>
+              </li>
+            );
+          }
+
           return (
             <li key={compte.id} className="rounded-lg border border-nuit-700/60 p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">

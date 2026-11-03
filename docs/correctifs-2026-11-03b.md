@@ -131,3 +131,34 @@ Debugger (vaut aussi pour WhatsApp) puis « Scrape Again » ; Telegram
 `@WebpageBot` avec le lien à réanalyser ; LinkedIn Post Inspector. Côté
 téléphone, la vignette reste parfois en cache local : renvoyer le lien dans une
 nouvelle conversation suffit.
+
+## 9. Un super-administrateur pouvait régler son propre périmètre
+
+Constat : dans l'onglet **Rôles**, la ligne du compte connecté s'affichait avec
+ses cases à cocher, et la route acceptait l'écriture. Trois défauts
+s'empilaient : l'interface proposait un réglage, la route l'acceptait, et la
+base l'enregistrait — alors que `mes_sections()` renvoie **toujours toutes les
+sections** à un super-administrateur : la ligne écrite ne servait à rien, mais
+elle aurait ressorti le jour d'un changement de rôle.
+
+Correctif à trois niveaux (migration `20261103000007_scope_propre_interdit.sql`) :
+
+1. **Base** — `definir_sections_admin()` lève `auto_modification_interdite`
+   quand la cible est l'appelant. Seul un appel `service_role` (scripts
+   d'épreuve, sans session) échappe à la règle.
+2. **Route** — `/api/admin/sections` traduit ce refus en message clair.
+3. **Interface** — la ligne du compte connecté est en lecture seule, en bas de
+   liste, avec la mention « votre compte ».
+
+Ménage : les lignes `admin_sections` des super-administrateurs (inertes) sont
+supprimées par la même migration.
+
+Découvert au passage, par l'épreuve de bout en bout : la section **Alertes**
+était acceptée par la contrainte de table et par la route, mais refusée par
+`sections_admin_connues()` (20261103000006 n'avait rouvert que le `CHECK`).
+Ouvrir les alertes à un autre administrateur échouait donc en base. Corrigé
+dans la même migration.
+
+Épreuve : `node --env-file=.env.local scripts/verifier-sections-e2e.mjs` →
+**18/18**, dont les quatre nouvelles assertions (refus de l'auto-réglage,
+conservation des six sections, réglage d'un autre administrateur, nettoyage).

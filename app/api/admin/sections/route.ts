@@ -86,7 +86,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (error) {
     const message =
-      error.message.includes('cible_non_administrateur')
+      error.message.includes('auto_modification_interdite')
+        ? 'Vous ne pouvez pas modifier votre propre périmètre : un super-administrateur garde toujours l’accès complet.'
+        : error.message.includes('cible_non_administrateur')
         ? 'Ce compte n’est pas administrateur : nommez-le administrateur avant de choisir ses sections.'
         : error.message.includes('reserve_au_super_admin')
           ? 'Réservé au super-administrateur.'

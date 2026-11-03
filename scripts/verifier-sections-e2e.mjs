@@ -43,6 +43,7 @@ const appelRpc = async (entetes, nom, args = {}) => {
 const courriel = `secu-sections-${Date.now()}@example.invalid`;
 const motDePasse = 'Test-' + Math.random().toString(36).slice(2) + '-Aa1!';
 let idCompte = null;
+let idSuper = null;
 
 try {
   // 1. Compte jetable (déjà confirmé, aucun envoi de courriel réel).
@@ -162,6 +163,66 @@ try {
 
   const audienceFermee = await rpc('admin_stats_visites', { p_jours: 30 });
   verifier("audience refusée quand rien n'est ouvert", audienceFermee.status >= 400, String(audienceFermee.status));
+
+  // 7. Le super-administrateur ne règle pas SON PROPRE périmètre
+  //    (correctif 20261103000007), mais garde tout et règle les autres.
+  const courrielSuper = `secu-scope-${Date.now()}@example.invalid`;
+  const mdpSuper = 'Test-' + Math.random().toString(36).slice(2) + '-Aa1!';
+  const creationSuper = await fetch(`${URL_BASE}/auth/v1/admin/users`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({ email: courrielSuper, password: mdpSuper, email_confirm: true }),
+  });
+  const creeSuper = await creationSuper.json();
+  idSuper = creeSuper.id ?? null;
+  verifier('création du compte jetable super-admin', !!idSuper, String(creationSuper.status));
+
+  if (idSuper) {
+    await fetch(`${URL_BASE}/rest/v1/profiles`, {
+      method: 'POST',
+      headers: { ...json, Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ id: idSuper, pseudo: 'test-scope', role: 'super_admin' }),
+    });
+
+    const conSuper = await fetch(`${URL_BASE}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { apikey: ANON, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: courrielSuper, password: mdpSuper }),
+    });
+    const sesSuper = await conSuper.json();
+    const entetesSuper = {
+      apikey: ANON,
+      Authorization: 'Bearer ' + sesSuper.access_token,
+      'Content-Type': 'application/json',
+    };
+
+    const auto = await appelRpc(entetesSuper, 'definir_sections_admin', {
+      p_cible: idSuper,
+      p_sections: ['paiements'],
+    });
+    verifier(
+      'un super-admin ne peut pas restreindre SON PROPRE périmètre',
+      auto.status >= 400 && JSON.stringify(auto.corps ?? {}).includes('auto_modification_interdite'),
+      `${auto.status} ${JSON.stringify(auto.corps)}`
+    );
+
+    const sesSections = await appelRpc(entetesSuper, 'mes_sections');
+    verifier(
+      'il conserve malgré tout toutes les sections',
+      Array.isArray(sesSections.corps) && sesSections.corps.length === 6,
+      JSON.stringify(sesSections.corps)
+    );
+
+    const surAutre = await appelRpc(entetesSuper, 'definir_sections_admin', {
+      p_cible: idCompte,
+      p_sections: ['audience'],
+    });
+    verifier(
+      'il peut en revanche régler un AUTRE administrateur',
+      surAutre.status === 200 && JSON.stringify(surAutre.corps) === '["audience"]',
+      `${surAutre.status} ${JSON.stringify(surAutre.corps)}`
+    );
+  }
 } catch (erreur) {
   console.error('ÉPREUVE INTERROMPUE :', erreur.message);
   echecs += 1;
@@ -172,6 +233,13 @@ try {
       headers: service,
     });
     console.log('nettoyage du compte jetable :', nettoyage.status);
+  }
+  if (idSuper) {
+    const nettoyageSuper = await fetch(`${URL_BASE}/auth/v1/admin/users/${idSuper}`, {
+      method: 'DELETE',
+      headers: service,
+    });
+    console.log('nettoyage du compte jetable super-admin :', nettoyageSuper.status);
   }
 }
 

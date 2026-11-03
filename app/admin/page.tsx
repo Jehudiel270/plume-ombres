@@ -427,6 +427,7 @@ export default async function PageAdmin() {
                 <SectionsAdministrateurs
                   comptes={resultatComptes.comptes}
                   sectionsInitiales={sectionsParCompte}
+                  moiId={user?.id ?? ''}
                 />
               </>
             ),
