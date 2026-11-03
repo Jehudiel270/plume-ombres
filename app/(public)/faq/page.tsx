@@ -7,6 +7,7 @@ import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/faq' },
   title: 'Questions fréquentes',
   description:
     'Formats acceptés, qualité des PDF, confidentialité des textes, moteurs de traduction, exports, prix : les réponses franches sur Plume d’Ombres.',

@@ -35,6 +35,7 @@ import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: 'Abonnement',
   description:
     'Votre offre, votre quota de traduction, vos crédits et votre historique.',

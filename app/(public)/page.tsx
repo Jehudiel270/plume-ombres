@@ -17,6 +17,7 @@ import { utilisateurConnecte } from '@/lib/supabase/server';
 import SectionPublique from '@/components/public/SectionPublique';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/' },
   // `absolute` : le titre contient déjà la marque, on évite le doublon
   // avec le gabarit `%s · Plume d’Ombres` du layout racine.
   title: {

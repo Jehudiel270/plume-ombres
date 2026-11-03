@@ -6,6 +6,10 @@
     {
       "path": "/api/translate/travail",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/surveillance",
+      "schedule": "0 5 * * *"
     }
   ]
 }

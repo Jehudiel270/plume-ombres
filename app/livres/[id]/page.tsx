@@ -34,6 +34,9 @@ import {
   type Livre,
   type PropositionRepere,
 } from '@/lib/types';
+import { prive } from '@/lib/metadata';
+
+export const metadata = prive('Lecture');
 
 export const dynamic = 'force-dynamic';
 

@@ -10,6 +10,7 @@ import SectionPublique from '@/components/public/SectionPublique';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/cookies' },
   title: 'Cookies',
   description:
     'Quels cookies et stockages locaux Plume d’Ombres (VICE LYNX) utilise : le cookie de session nécessaire à l’authentification, les préférences de lecture gardées dans le navigateur, et l’absence de traceur publicitaire.',

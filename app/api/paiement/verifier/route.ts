@@ -11,6 +11,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { fournisseurActif } from '@/lib/paiement/fournisseur';
+import { notifierPaiement } from '@/lib/paiement/alertes';
 import {
   MagasinAbonnementSupabase,
   MagasinCreditsSupabase,
@@ -102,6 +103,19 @@ export async function POST(request: NextRequest) {
   }
 
   const paiement = await magasinPaiement.lire(reference);
+
+  // Le retour du client est souvent la PREMIÈRE preuve d'un paiement
+  // abouti (le webhook peut arriver après) : on alerte ici aussi.
+  // Idempotent : notifier_paiement ne crée jamais deux fois la même alerte.
+  try {
+    await notifierPaiement(supabase, reference, paiement?.statut);
+  } catch (erreur) {
+    console.warn(
+      '[alertes] notification de paiement non écrite :',
+      erreur instanceof Error ? erreur.message : erreur
+    );
+  }
+
   const abonnement = await lireStatutAbonnement(
     { magasinAbonnement },
     existing.proprietaire_id

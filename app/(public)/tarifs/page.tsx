@@ -40,6 +40,7 @@ import { creerClientServeur } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/tarifs' },
   title: 'Tarifs',
   description:
     'Les formules Plume d’Ombres et leurs prix en francs CFA : offre gratuite, abonnements Lecteur et Passionné (mensuels et annuels), paiement par Mobile Money.',

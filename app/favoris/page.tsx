@@ -14,6 +14,7 @@ import { libelleLangue } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: 'Mes favoris',
   description: 'Les romances que vous avez marquées d’une étoile.',
 };

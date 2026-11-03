@@ -25,6 +25,7 @@ import {
 import { traiterWebhook } from '@/lib/paiement/service';
 import { estPing, statutHttpErreurWebhook } from '@/lib/paiement/politique-webhook';
 import { clientServiceRole, utilisateurRequete } from '@/lib/paiement/serveur';
+import { notifierPaiement } from '@/lib/paiement/alertes';
 
 export const runtime = 'nodejs';
 
@@ -139,6 +140,22 @@ export async function POST(request: NextRequest) {
       },
       evenement
     );
+    // 4. Alerter l'acheteur et les administrateurs abonnés (réussi /
+    //    échoué). Une erreur ici ne doit jamais faire échouer le
+    //    paiement : FedaPay rejouerait l'événement pour rien.
+    try {
+      await notifierPaiement(
+        client,
+        evenement.referenceInterne,
+        resultat.paiement?.statut
+      );
+    } catch (erreur) {
+      console.warn(
+        '[alertes] notification de paiement non écrite :',
+        erreur instanceof Error ? erreur.message : erreur
+      );
+    }
+
     return NextResponse.json({
       ok: true,
       statut: resultat.paiement?.statut ?? 'inconnu',

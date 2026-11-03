@@ -8,6 +8,7 @@ import SectionPublique from '@/components/public/SectionPublique';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/remboursement' },
   title: 'Remboursement',
   description:
     'Conditions de remboursement et droit de rétractation des formules payantes Plume d’Ombres : contenu numérique à accès immédiat, paiement par Mobile Money, demande via la page Contact.',

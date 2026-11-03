@@ -22,6 +22,7 @@ import type { Livre, StatutLivre } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: false },
   title: 'Mon compte',
   description:
     'Identité, apparence, favoris, déconnexion et suppression de votre compte.',

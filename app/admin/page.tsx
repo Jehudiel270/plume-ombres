@@ -36,6 +36,7 @@ import PaiementsFiltrables from '@/components/admin/PaiementsFiltrables';
 import TableauVisites from '@/components/admin/TableauVisites';
 import { agregerPaiements } from '@/lib/admin-paiements';
 import SectionsAdministrateurs from '@/components/admin/SectionsAdministrateurs';
+import AlertesPaiements from '@/components/admin/AlertesPaiements';
 import { normaliserVisites } from '@/lib/visites';
 import JournalActions from '@/components/admin/JournalActions';
 import AnomaliesComptes from '@/components/admin/AnomaliesComptes';
@@ -63,6 +64,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'Administration',
   description: 'Statistiques d’usage, comptes, abonnements et paiements.',
+  robots: { index: false, follow: false, nocache: true },
 };
 
 interface CarteStatProps {
@@ -113,6 +115,8 @@ export default async function PageAdmin() {
     { data: visitesBrutes, error: visitesErreur },
     { data: sectionsRows },
     sante,
+    mesAlertesResultat,
+    { data: alertesAdminRows },
   ] = await Promise.all([
     supabase.from('profiles').select('pseudo, role').eq('id', user?.id ?? '').maybeSingle(),
     collecterStatsAdmin(clientRpc),
@@ -136,6 +140,11 @@ export default async function PageAdmin() {
     // Contrôle de santé RÉEL des moteurs (sondes courtes mises en cache).
     // En cas d'erreur inattendue, l'admin reste affiché sans ce bloc.
     verifierChaine().catch(() => null as SanteChaine | null),
+    // Préférences d'alerte du compte connecté (réussi / échoué).
+    supabase.rpc('mes_alertes'),
+    // Réglages des autres administrateurs (le super-admin seul y a droit :
+    // la fonction SQL lève une exception pour les autres, d'où `data` nulle).
+    supabase.rpc('admin_alertes_liste'),
   ]);
 
   const pseudo =
@@ -150,6 +159,42 @@ export default async function PageAdmin() {
   const nbAdministrateurs = resultatComptes.comptes.filter((c) =>
     estAdmin(normaliserRole(c.role))
   ).length;
+
+  // -------- Alertes de paiement --------
+  const ligneAlertes = (Array.isArray(mesAlertesResultat.data)
+    ? mesAlertesResultat.data[0]
+    : mesAlertesResultat.data) as
+    | { paiement_reussi?: boolean; paiement_echoue?: boolean }
+    | null
+    | undefined;
+  const alertesMoi = {
+    reussi: ligneAlertes?.paiement_reussi ?? true,
+    echoue: ligneAlertes?.paiement_echoue ?? true,
+  };
+  const reglagesAlertes = new Map<string, { reussi: boolean; echoue: boolean }>();
+  for (const brut of Array.isArray(alertesAdminRows) ? alertesAdminRows : []) {
+    const ligne = brut as {
+      compte_id?: string;
+      paiement_reussi?: boolean;
+      paiement_echoue?: boolean;
+    };
+    if (typeof ligne.compte_id === 'string') {
+      reglagesAlertes.set(ligne.compte_id, {
+        reussi: ligne.paiement_reussi ?? true,
+        echoue: ligne.paiement_echoue ?? true,
+      });
+    }
+  }
+  const administrateursAlertes = superAdmin
+    ? resultatComptes.comptes
+        .filter((c) => estAdmin(normaliserRole(c.role)))
+        .map((c) => ({
+          id: c.id,
+          pseudo: c.pseudo,
+          reussi: reglagesAlertes.get(c.id)?.reussi ?? true,
+          echoue: reglagesAlertes.get(c.id)?.echoue ?? true,
+        }))
+    : [];
 
   const stats: StatsAdmin | null = resultatStats.stats;
   const abonnementsDisponibles = stats !== null && stats.abonnementsActifs !== null;
@@ -389,6 +434,19 @@ export default async function PageAdmin() {
         ]
       : []),
     {
+      // Alertes de paiement : reçues dans la cloche, y compris la nuit.
+      // Section délégable : le super-admin peut l'ouvrir à un autre admin.
+      id: 'notifications',
+      libelle: 'Alertes',
+      contenu: (
+        <AlertesPaiements
+          moi={alertesMoi}
+          superAdmin={superAdmin}
+          administrateurs={administrateursAlertes}
+        />
+      ),
+    },
+    {
       id: 'systeme',
       libelle: 'Système',
       contenu: (
@@ -419,6 +477,7 @@ export default async function PageAdmin() {
     comptes: 'comptes',
     abonnements: 'abonnements',
     paiements: 'paiements',
+    notifications: 'notifications',
     systeme: 'systeme',
   };
   const ongletsAutorises = onglets.filter((onglet) => {

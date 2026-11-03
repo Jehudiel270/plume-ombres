@@ -14,6 +14,7 @@ import SectionPublique from '@/components/public/SectionPublique';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/conditions' },
   title: 'Conditions générales (CGU/CGV)',
   description:
     'Conditions générales d’utilisation et de vente du studio Plume d’Ombres : compte, âge minimum, usages, droits sur les textes, offres payantes, paiement Mobile Money, durée, résiliation, rétractation, responsabilité et litiges.',

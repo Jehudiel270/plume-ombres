@@ -9,6 +9,7 @@ import Link from 'next/link';
 import SectionPublique from '@/components/public/SectionPublique';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/contact' },
   title: 'Contact',
   description:
     'Écrire à VICE LYNX, exploitant du studio Plume d’Ombres : question, bug, demande d’effacement de données ou signalement d’un contenu. Adresse e-mail et téléphone.',

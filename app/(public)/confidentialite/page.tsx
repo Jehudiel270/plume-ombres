@@ -10,6 +10,7 @@ import SectionPublique from '@/components/public/SectionPublique';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/confidentialite' },
   title: 'Politique de confidentialité',
   description:
     'Quelles données Plume d’Ombres conserve, quel moteur de traduction voit votre texte, ce qui est journalisé, quels sous-traitants interviennent et comment exercer vos droits (accès, effacement).',

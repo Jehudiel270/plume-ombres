@@ -14,6 +14,7 @@ import SectionPublique from '@/components/public/SectionPublique';
 import SommaireLegal from '@/components/public/SommaireLegal';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/mentions-legales' },
   title: 'Mentions légales',
   description:
     'Éditeur (VICE LYNX), responsable de la publication, hébergeurs (Vercel, Supabase), traitement des paiements (FedaPay), propriété intellectuelle, signalement et accessibilité du studio de traduction Plume d’Ombres.',

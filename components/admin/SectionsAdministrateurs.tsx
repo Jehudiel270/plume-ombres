@@ -23,6 +23,7 @@ const SECTIONS: { cle: string; libelle: string; detail: string }[] = [
   { cle: 'paiements', libelle: 'Paiements', detail: 'journal des transactions, filtres, export' },
   { cle: 'audience', libelle: 'Audience', detail: 'visites, pages vues, provenance' },
   { cle: 'systeme', libelle: 'Système', detail: 'santé des moteurs, journal, exports' },
+  { cle: 'notifications', libelle: 'Alertes', detail: 'notifications de paiement réussi ou échoué' },
 ];
 
 interface Props {

@@ -29,6 +29,7 @@ const SECTIONS_CONNUES = [
   'abonnements',
   'paiements',
   'audience',
+  'notifications',
   'systeme',
 ] as const;
 

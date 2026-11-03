@@ -5,6 +5,9 @@ import BarreNavigation from '@/components/BarreNavigation';
 import BibliothequeClient from '@/components/BibliothequeClient';
 import type { Livre, Segment, StatutChapitre } from '@/lib/types';
 import { chapitreEntierementTraduit } from '@/lib/types';
+import { prive } from '@/lib/metadata';
+
+export const metadata = prive('Bibliothèque');
 
 export const dynamic = 'force-dynamic';
 
