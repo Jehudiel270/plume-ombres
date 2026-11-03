@@ -18,7 +18,7 @@ import { fournisseurActif } from '../lib/paiement/fournisseur';
 
 const URL_SB = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const CLE = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE)!;
-const BASE = process.env.SITE_URL ?? 'https://plume-ombres.vercel.app';
+const BASE = process.env.SITE_URL ?? 'https://plumedombres.kodelyza.com';
 
 // Compte de test (abonnement « essai » expiré) — jamais le compte de l'exploitant.
 const PROPRIETAIRE = process.argv[2] ?? '04096074-3310-444f-9a64-0fb3841e3a88';

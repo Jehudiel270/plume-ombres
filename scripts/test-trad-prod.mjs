@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 const contenu = readFileSync(".env.local", "utf8");
 const ligne = (c) => contenu.split("\n").find(l => l.trim().startsWith(c + "=")).split("=").slice(1).join("=").trim();
-const BASE = "https://plume-ombres.vercel.app";
+const BASE = "https://plumedombres.kodelyza.com";
 const URL = ligne("NEXT_PUBLIC_SUPABASE_URL");
 const ANON = ligne("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 

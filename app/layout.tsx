@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   // app/opengraph-image.tsx soit servie avec une URL complète aux robots
   // de WhatsApp, Facebook et Telegram.
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://plume-ombres.vercel.app'
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://plumedombres.kodelyza.com'
   ),
   openGraph: {
     type: 'website',

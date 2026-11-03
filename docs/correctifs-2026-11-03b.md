@@ -61,3 +61,28 @@ changement nécessaire.
 `plumedombres.kodelyza.com` répond déjà **200** sur le projet Vercel ;
 `NEXT_PUBLIC_SITE_URL` a été basculé sur ce domaine en production, donc les
 canoniques, l'image de partage et les retours de paiement pointent dessus.
+
+## 4. Ancien domaine dans la miniature
+
+La vignette de partage contenait l’adresse Vercel **en dur** dans l’image
+(`app/opengraph-image.tsx`). Elle est maintenant dérivée de
+`NEXT_PUBLIC_SITE_URL` (repli `plumedombres.kodelyza.com`), et les replis de
+`layout.tsx`, `robots.ts`, `sitemap.ts` et des scripts pointent vers le domaine
+définitif.
+
+Supabase Auth : `site_url` pointait encore vers Netlify (mort) → remis sur
+`https://plumedombres.kodelyza.com`, domaine ajouté aux URL autorisées
+(`scripts/configurer-domaine-supabase.mjs`).
+
+## 5. PWA : fermer et installer plus tard
+
+Le bandeau « Installer l’application » a un bouton **×**. Le refus est mémorisé
+(`plume-install-reporte`) et l’installation reste possible depuis
+**Compte → Application** (`components/InstallationApplication.tsx`), avec la
+marche à suivre sur iPhone et Firefox, où le navigateur n’expose pas de bouton.
+
+## 6. FedaPay
+
+Rien à ajouter côté FedaPay : le webhook (9136) et les URL de retour pointent
+sur le même projet Vercel, joignable depuis les deux domaines. Les URL de retour
+de chaque transaction suivent désormais le domaine définitif.

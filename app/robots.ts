@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const BASE = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://plume-ombres.vercel.app').replace(
+const BASE = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://plumedombres.kodelyza.com').replace(
   /\/$/,
   ''
 );

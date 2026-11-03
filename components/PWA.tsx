@@ -52,6 +52,16 @@ export default function PWA() {
   const [evenement, setEvenement] = useState<EvenementInstall | null>(null);
   const [installable, setInstallable] = useState(false);
   const [installe, setInstalle] = useState(estInstalleStandalone);
+  // L'utilisateur a déjà dit « plus tard » : on ne le relance pas tout
+  // seul. Le bouton reste accessible dans les réglages du compte.
+  const [refuse, setRefuse] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('plume-install-reporte') === '1';
+    } catch {
+      return false;
+    }
+  });
 
   // Enregistrement du service worker + écoute des événements
   // d'installation (Chromium / Android). Le body de l'effet ne fait que
@@ -124,6 +134,9 @@ export default function PWA() {
 
       const surAjout = (e: Event) => {
         e.preventDefault();
+        // Le réglage du compte réutilise le même événement différé.
+        (window as unknown as { __plumeInstall?: Event }).__plumeInstall = e;
+        window.dispatchEvent(new Event('plume-install-disponible'));
         setEvenement(e as unknown as EvenementInstall);
         setInstallable(true);
       };
@@ -145,6 +158,9 @@ export default function PWA() {
 
     const surAjout = (e: Event) => {
       e.preventDefault();
+      // Le réglage du compte réutilise le même événement différé.
+      (window as unknown as { __plumeInstall?: Event }).__plumeInstall = e;
+      window.dispatchEvent(new Event('plume-install-disponible'));
       setEvenement(e as unknown as EvenementInstall);
       setInstallable(true);
     };
@@ -160,8 +176,9 @@ export default function PWA() {
     };
   }, []);
 
-  // Rendu nul si rien à montrer (desktop sans prompt, ou déjà installé).
-  if (installe || !installable) return null;
+  // Rendu nul si rien à montrer (desktop sans prompt, déjà installé,
+  // ou l'utilisateur a déjà répondu « plus tard »).
+  if (installe || !installable || refuse) return null;
 
   async function installer() {
     if (!evenement) return;
@@ -174,15 +191,36 @@ export default function PWA() {
     setEvenement(null);
   }
 
+  function reporter() {
+    setRefuse(true);
+    setInstallable(false);
+    try {
+      localStorage.setItem('plume-install-reporte', '1');
+    } catch {
+      // Navigation privée stricte : le bouton se cache pour cette visite.
+    }
+  }
+
   return (
-    <button
-      type="button"
-      onClick={installer}
-      className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full bg-grenat-700 hover:bg-grenat-600 text-white text-sm px-4 py-2.5 shadow-lg shadow-black/40 transition-all animate-fondu-monte cursor-pointer"
-      title="Installer Plume d’Ombres comme application"
-    >
-      <span aria-hidden>⤓</span>
-      Installer l&rsquo;application
-    </button>
+    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1 rounded-full bg-grenat-700 pl-4 pr-1.5 py-1.5 text-white text-sm shadow-lg shadow-black/40 animate-fondu-monte">
+      <button
+        type="button"
+        onClick={installer}
+        className="flex items-center gap-2 hover:underline cursor-pointer"
+        title="Installer Plume d’Ombres comme application"
+      >
+        <span aria-hidden>⤓</span>
+        Installer l&rsquo;application
+      </button>
+      <button
+        type="button"
+        onClick={reporter}
+        aria-label="Fermer et installer plus tard (Réglages du compte)"
+        title="Plus tard — installable depuis les réglages du compte"
+        className="ml-1 rounded-full w-7 h-7 flex items-center justify-center hover:bg-grenat-600 text-white/80 hover:text-white cursor-pointer"
+      >
+        <span aria-hidden>×</span>
+      </button>
+    </div>
   );
 }

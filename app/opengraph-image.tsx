@@ -7,6 +7,18 @@ export const alt = 'Plume d’Ombres — traduction de dark romance, chapitre pa
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
+// Le domaine affiché DANS l'image : sans ça, le visuel de partage
+// continuait d'annoncer l'ancienne adresse Vercel.
+const HOTE = (() => {
+  const brut = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!brut) return 'plumedombres.kodelyza.com';
+  try {
+    return new URL(brut).host;
+  } catch {
+    return 'plumedombres.kodelyza.com';
+  }
+})();
+
 export default function Image() {
   return new ImageResponse(
     (
@@ -61,7 +73,7 @@ export default function Image() {
           >
             Essai gratuit au lancement
           </div>
-          <div style={{ color: '#b98b9c' }}>plume-ombres.vercel.app</div>
+          <div style={{ color: '#b98b9c' }}>{HOTE}</div>
         </div>
       </div>
     ),

@@ -60,8 +60,8 @@ async function principal(): Promise<void> {
     prenom: 'Preuve',
     nom: 'Technique',
     description: 'Preuve technique — transaction non payée',
-    urlRetour: 'https://plume-ombres.vercel.app/paiement/succes',
-    urlNotification: 'https://plume-ombres.vercel.app/api/paiement/webhook',
+    urlRetour: 'https://plumedombres.kodelyza.com/paiement/succes',
+    urlNotification: 'https://plumedombres.kodelyza.com/api/paiement/webhook',
   });
   ligne(
     resultat.url.startsWith('https://process.fedapay.com/'),

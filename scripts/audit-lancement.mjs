@@ -1,6 +1,6 @@
 // Audit de lancement — ce que voit un visiteur non connecté, sur le site réel.
 // Pour chaque route publique : statut, <h1> unique, restes de gabarit, erreurs.
-const BASE = 'https://plume-ombres.vercel.app';
+const BASE = 'https://plumedombres.kodelyza.com';
 
 const ROUTES = [
   '/', '/tarifs', '/faq', '/contact', '/conditions', '/confidentialite',

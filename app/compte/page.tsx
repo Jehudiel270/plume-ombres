@@ -17,6 +17,7 @@ import BarreNavigation from '@/components/BarreNavigation';
 import CarteIdentite from '@/components/profil/CarteIdentite';
 import ReglagesApparence from '@/components/profil/ReglagesApparence';
 import ActionsCompte from '@/components/profil/ActionsCompte';
+import InstallationApplication from '@/components/InstallationApplication';
 import type { Livre, StatutLivre } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -271,6 +272,15 @@ export default async function PageCompte() {
           </section>
 
           {/* ---------------- Textes du cadre légal ---------------- */}
+          <section className="velours p-6" aria-label="Application">
+            <p className="sur-titre text-encre-300">Application</p>
+            <p className="text-sm text-encre-400 mt-2">
+              Plume d’Ombres s’installe comme une application : icône sur l’écran d’accueil, lecture
+              hors ligne des chapitres déjà ouverts.
+            </p>
+            <InstallationApplication />
+          </section>
+
           <section className="velours p-6" aria-label="Textes légaux">
             <p className="sur-titre text-encre-300">Documents</p>
             <div className="flex flex-wrap gap-3 mt-4 text-sm">

@@ -4,7 +4,7 @@
 // 3. signature valide -> 200 (HMAC accepte, re-verification API OK)
 import { createHmac } from 'node:crypto';
 
-const BASE = 'https://plume-ombres.vercel.app/api/paiement/webhook';
+const BASE = 'https://plumedombres.kodelyza.com/api/paiement/webhook';
 const secret = process.env.WH;
 
 async function ping() {
