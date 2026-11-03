@@ -81,8 +81,16 @@ Le bandeau « Installer l’application » a un bouton **×**. Le refus est mém
 **Compte → Application** (`components/InstallationApplication.tsx`), avec la
 marche à suivre sur iPhone et Firefox, où le navigateur n’expose pas de bouton.
 
-## 6. FedaPay
+## 6. FedaPay — réglage vérifié
 
-Rien à ajouter côté FedaPay : le webhook (9136) et les URL de retour pointent
-sur le même projet Vercel, joignable depuis les deux domaines. Les URL de retour
-de chaque transaction suivent désormais le domaine définitif.
+Endpoint : https://plumedombres.kodelyza.com/api/paiement/webhook
+
+- « Désactiver la vérification SSL » : **décoché** (donc SSL vérifié) — correct, le
+  certificat du domaine est valide.
+- « Désactiver le webhook en cas d'erreur » : **décoché** — correct : le webhook
+  reste actif, FedaPay peut rejouer.
+- La clé `wh_live_…` du tableau de bord **différait** de celle déployée :
+  `FEDAPAY_WEBHOOK_SECRET` a été remplacée sur Vercel (Production) puis
+  redéployée. Preuve : ping 200, sans signature 401, signature valide 200.
+
+Les paiements restent sur le domaine kodelyza uniquement (choix retenu).
