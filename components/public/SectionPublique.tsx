@@ -32,6 +32,7 @@ export default function SectionPublique({
   return (
     <section
       id={id}
+      data-reveler="haut"
       className={`mx-auto px-4 sm:px-6 py-12 sm:py-16 ${
         gabarit === 'etroit' ? 'max-w-3xl' : 'max-w-5xl'
       }`}

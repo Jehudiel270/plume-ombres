@@ -44,3 +44,12 @@ Contrainte tenue : **zéro nouvelle dépendance npm**, SVG maison, tout en fran�
   demande une action (leçon du brief : la couleur est une décision, pas un
   décor).
 - Ajouter un graphique là où un chiffre suffit.
+
+## État au 2026-11-03
+
+Implémenté : points 1 à 5 (avec, pour le n° 1, « caractères traduits du mois »
+au lieu des essais : la donnée existait déjà, l'essai n'a pas de série
+journalière en base), 6, 7 (densité), 8, 9 (squelette de chargement) et 10.
+Reste hors périmètre pour l'instant : colonnes masquables du journal des
+paiements, et la prévisualisation des animations (reportée à la version 2).
+Détail technique : `docs/correctifs-2026-11-03b.md` § 11 et § 12.

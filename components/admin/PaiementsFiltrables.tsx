@@ -9,7 +9,7 @@
 // Aucune requête réseau supplémentaire, donc aucun coût Supabase.
 // ============================================================
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { formaterDateHeure, formaterMontant, type PaiementAdmin } from '@/lib/admin-stats';
 import {
@@ -61,6 +61,79 @@ export default function PaiementsFiltrables({ paiements, erreur }: Props) {
   const [filtres, setFiltres] = useState<FiltresPaiements>(FILTRES_VIDES);
   const [page, setPage] = useState(0);
   const [copie, setCopie] = useState<string | null>(null);
+
+  // --- Densité d'affichage (mémorisée par navigateur) ----------------
+  const [dense, setDense] = useState(false);
+  useEffect(() => {
+    // Lecture après hydratation (localStorage n'existe pas au rendu
+    // serveur) ; différée pour ne pas déclencher de rendu en cascade.
+    const t = window.setTimeout(
+      () => setDense(window.localStorage.getItem('plume-densite') === 'compacte'),
+      0
+    );
+    return () => window.clearTimeout(t);
+  }, []);
+  function basculerDensite() {
+    setDense((actuel) => {
+      const suivant = !actuel;
+      window.localStorage.setItem('plume-densite', suivant ? 'compacte' : 'confort');
+      return suivant;
+    });
+  }
+
+  // --- Filtres conservés dans l'URL ---------------------------------
+  // Un filtre qu'on ne peut pas partager ni retrouver après un
+  // rechargement se perd. On écrit donc les quatre filtres dans l'URL
+  // avec window.history.replaceState : AUCUNE navigation, donc aucun
+  // rechargement du composant serveur (le router de Next relancerait la
+  // page et refermerait l'onglet ouvert).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lecture: Partial<FiltresPaiements> = {};
+    const q = params.get('pay_q');
+    const statut = params.get('pay_statut');
+    const fournisseur = params.get('pay_fournisseur');
+    const periode = params.get('pay_periode');
+    if (q) lecture.recherche = q;
+    if (statut) lecture.statut = statut;
+    if (fournisseur) lecture.fournisseur = fournisseur;
+    if (periode === 'aujourd_hui' || periode === 'sept_jours' || periode === 'trente_jours' || periode === 'tout') {
+      lecture.periode = periode;
+    }
+    if (Object.keys(lecture).length === 0) return;
+    const t = window.setTimeout(() => setFiltres((actuel) => ({ ...actuel, ...lecture })), 0);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const poser = (cle: string, valeur: string, defaut: string) => {
+      if (valeur !== '' && valeur !== defaut) params.set(cle, valeur);
+      else params.delete(cle);
+    };
+    poser('pay_q', filtres.recherche.trim(), '');
+    poser('pay_statut', filtres.statut, 'tous');
+    poser('pay_fournisseur', filtres.fournisseur, 'tous');
+    poser('pay_periode', filtres.periode, 'tout');
+    const requete = params.toString();
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${requete === '' ? '' : `?${requete}`}`
+    );
+  }, [filtres]);
+
+  // Recherche déposée par la palette Ctrl+K.
+  useEffect(() => {
+    function surRecherche(evenement: Event) {
+      const detail = (evenement as CustomEvent<{ onglet?: string; texte?: string }>).detail;
+      if (!detail || detail.onglet !== 'paiements' || typeof detail.texte !== 'string') return;
+      setFiltres((actuel) => ({ ...actuel, recherche: detail.texte as string }));
+      setPage(0);
+    }
+    window.addEventListener('plume:recherche', surRecherche);
+    return () => window.removeEventListener('plume:recherche', surRecherche);
+  }, []);
 
   const disponibles = useMemo(() => valeursDisponibles(paiements), [paiements]);
   const filtres_ = useMemo(() => filtrerPaiements(paiements, filtres), [paiements, filtres]);
@@ -249,6 +322,19 @@ export default function PaiementsFiltrables({ paiements, erreur }: Props) {
               Réinitialiser
             </button>
           )}
+          <button
+            type="button"
+            onClick={basculerDensite}
+            aria-pressed={dense}
+            className={`ml-2 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+              dense
+                ? 'border-grenat-500/60 bg-grenat-500/15 text-grenat-300'
+                : 'border-nuit-700 text-encre-500 hover:text-encre-300'
+            }`}
+            title="Affiche plus de lignes à l’écran (mémorisé sur cet appareil)"
+          >
+            Vue compacte
+          </button>
         </div>
       </div>
 
@@ -300,8 +386,8 @@ export default function PaiementsFiltrables({ paiements, erreur }: Props) {
         </p>
       ) : (
         <>
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+          <div className={`mt-5 overflow-x-auto ${dense ? 'densite-compacte' : ''}`}>
+            <table className="w-full min-w-[720px] text-sm chiffres-tabulaires">
               <caption className="sr-only">
                 Paiements filtrés : compte, plan, montant, statut, fournisseur et date.
               </caption>

@@ -170,3 +170,74 @@ Chaque administrateur est désormais un bloc replié par défaut (balise
 `<details>`, sans JavaScript) dont le résumé affiche déjà l'essentiel : pseudo,
 rôle et « 3/6 sections ». Pistes de modernisation du tableau de bord :
 `docs/idees-dashboard.md`.
+
+## 11. Animations au défilement — public et tableau de bord
+
+**Demande** : « ajoute des animations au scroll côté admin comme public aussi ».
+
+**Mise en œuvre — un seul mécanisme pour les deux mondes.**
+`components/RevelerAuScroll.tsx` est monté une fois dans `app/layout.tsx`. Il découvre
+les blocs portant `data-reveler`, leur pose une classe, puis la retire quand ils
+entrent dans la fenêtre (`IntersectionObserver`, marge basse −8 %, seuil 8 %).
+Aucune page n'a été enveloppée dans un composant : le serveur pose un attribut,
+le client anime. Conséquence directe : **aucun composant serveur n'est devenu
+client** (pas de JavaScript ajouté aux pages).
+
+**Où** : toutes les pages publiques via `SectionPublique` (une retouche, neuf
+pages), les deux sections basses de l'accueil, les quatre packs de `/tarifs`,
+les questions de la FAQ, les cartes du tableau de bord, et tout contenu d'onglet
+admin (`OngletsAdmin`) — y compris ce qui est monté après coup (changement
+d'onglet, filtrage, pagination) grâce à un `MutationObserver` débattu à 80 ms.
+
+**Accessibilité et sobriété.** Si `prefers-reduced-motion: reduce` est actif, ou si
+le navigateur signale une connexion en économie de données / 2G, on pose
+`html[data-economie="1"]` et **rien n'est animé** : les blocs sont visibles sans
+transition. Le mouvement est aussi neutralisé en CSS, ce qui couvre le cas où
+JavaScript n'aurait pas encore parlé.
+
+**Prévisualisation** : volontairement absent de cette passe (décision du
+2026-11-03) — elle viendra dans la version avec prévisualisation.
+
+## 12. Tableau de bord — lisibilité et réactivité
+
+Huit améliorations issues de `docs/idees-dashboard.md`, toutes sans nouvelle
+dépendance npm.
+
+1. **Trois chiffres en tête** (`BandeauAujourdhui`) : encaissé du jour, pages vues
+   du jour, caractères traduits du mois — avec variation par rapport à la
+   période précédente et courbe d'allure SVG maison. Calculés à partir de données
+   **déjà chargées** : aucune requête Supabase supplémentaire.
+2. **Voyants d'exploitation** (`BandeauSante`) : base de données (lectures en
+   échec), encaissements (aucun depuis sept jours), traduction, disponibilité des
+   moteurs. Chaque voyant cliquable ouvre l'onglet qui traite le problème. Un
+   voyant rouge se voit sans ouvrir un onglet. Réserve assumée : la santé du
+   **webhook FedaPay** n'est pas sondable depuis le navigateur — elle reste
+   prouvée côté serveur par `scripts/verif-webhook-prod.mjs`.
+3. **Palette de recherche `Ctrl+K` / `⌘K`** (`CommandPalette`) : onglets autorisés,
+   comptes, références de paiement. Entrée → l'onglet s'ouvre et la recherche est
+   **déposée dans le filtre** de la section cible. Le raccourci respecte les
+   sections que l'administrateur a le droit de voir.
+4. **Blocs repliables** (`BlocRepliable`, `<details>` natif) : l'onglet Système
+   empilait quatre panneaux entiers. Chaque résumé affiche son compte, donc replié
+   n'est pas muet. Zéro JavaScript.
+5. **Filtres de paiements dans l'URL** (`?pay_q=`, `?pay_statut=`, `?pay_fournisseur=`,
+   `?pay_periode=`) : un filtre devient partageable et survit au rechargement.
+   Écriture par `history.replaceState` — surtout pas par le routeur : un
+   `router.replace` relancerait le composant serveur et refermerait l'onglet.
+6. **Densité d'affichage** : bouton « Vue compacte » mémorisé par navigateur
+   (`localStorage`), sans toucher au contenu.
+7. **Chiffres tabulaires** (`font-variant-numeric: tabular-nums`) sur les tableaux
+   et les cartes : les montants ne dansent plus d'une ligne à l'autre.
+8. **États vides explicites** : la palette dit quoi taper (« un pseudo, une
+   référence PLU-… ou un nom d'onglet »), les cartes disent « aucun paiement
+   encaissé » plutôt que d'afficher un zéro muet.
+
+9. **Squelette de chargement** (`app/admin/loading.tsx`) : la forme de la page
+   pendant les lectures Supabase, sans inventer de chiffres, avec `role="status"`
+   pour les lecteurs d'écran.
+
+**Pièges rencontrés** — la base de code refuse les composants non purs :
+`Date.now()` pendant le rendu et `setState` synchrone dans un effet sont des
+erreurs de lint bloquantes. La fraîcheur des encaissements se juge donc sur la
+série déjà agrégée, et les lectures après hydratation (`localStorage`, URL) sont
+différées d'un tour de boucle.

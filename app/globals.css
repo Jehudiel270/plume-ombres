@@ -1229,3 +1229,72 @@ input[type='range'].regl-lecture:focus-visible {
   outline-offset: 4px;
   border-radius: 6px;
 }
+
+/* ============================================================
+   RÉVÉLATION AU DÉFILEMENT — public et tableau de bord
+   Le JS (components/RevelerAuScroll.tsx) ne fait que basculer la
+   classe .revele ; l'apparence reste ici, donc elle suit les 18
+   palettes sans duplication. Coupée net si l'utilisateur demande
+   moins de mouvement ou si l'économie de données est active.
+   ============================================================ */
+.reveler {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: opacity, transform;
+}
+.reveler.revele {
+  opacity: 1;
+  transform: none;
+}
+/* Variantes : bloc qui vient de la gauche / léger zoom */
+.reveler[data-reveler='gauche'] {
+  transform: translateX(-18px);
+}
+.reveler[data-reveler='zoom'] {
+  transform: scale(0.97);
+}
+/* Décalage en cascade pour les grilles de cartes */
+.reveler[data-delai='1'] { transition-delay: 60ms; }
+.reveler[data-delai='2'] { transition-delay: 120ms; }
+.reveler[data-delai='3'] { transition-delay: 180ms; }
+.reveler[data-delai='4'] { transition-delay: 240ms; }
+.reveler[data-delai='5'] { transition-delay: 300ms; }
+.reveler[data-delai='6'] { transition-delay: 360ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveler,
+  .reveler.revele {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+html[data-economie='1'] .reveler {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+/* ============================================================
+   TABLEAU DE BORD — lisibilité des chiffres et densité
+   ============================================================ */
+/* Chiffres alignés en colonne (prix, compteurs, dates) : sans cela
+   les valeurs dansent d'une ligne à l'autre. */
+.chiffres-tabulaires {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+/* Densité « compacte » : même contenu, lignes plus serrées.
+   Portée par une classe sur le conteneur, mémorisée par le navigateur. */
+.densite-compacte table td,
+.densite-compacte table th {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+.densite-compacte .ligne-dense {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}

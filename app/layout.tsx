@@ -8,6 +8,7 @@ import PanneauApparence from '@/components/PanneauApparence';
 import BanniereAnnonce from '@/components/BanniereAnnonce';
 import PWA from '@/components/PWA';
 import SuiviVisites from '@/components/SuiviVisites';
+import RevelerAuScroll from '@/components/RevelerAuScroll';
 
 export const metadata: Metadata = {
   title: {
@@ -115,6 +116,10 @@ export default function RacineLayout({
         {/* Mesure d'audience anonyme (aucun cookie) : une balise, un POST
             par page vue, rien sur l'identité du visiteur. */}
         <SuiviVisites />
+        {/* Révélation au défilement : découvre les blocs portant
+            data-reveler et les fait apparaître une fois. Ne fait rien
+            si l'utilisateur a demandé moins de mouvement. */}
+        <RevelerAuScroll />
       </body>
     </html>
   );

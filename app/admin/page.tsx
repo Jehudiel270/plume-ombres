@@ -37,6 +37,10 @@ import TableauVisites from '@/components/admin/TableauVisites';
 import { agregerPaiements } from '@/lib/admin-paiements';
 import SectionsAdministrateurs from '@/components/admin/SectionsAdministrateurs';
 import AlertesPaiements from '@/components/admin/AlertesPaiements';
+import BandeauAujourdhui, { type CarteKpi } from '@/components/admin/BandeauAujourdhui';
+import BandeauSante, { type VoyantSante } from '@/components/admin/BandeauSante';
+import CommandPalette, { type EntreePalette } from '@/components/admin/CommandPalette';
+import BlocRepliable from '@/components/admin/BlocRepliable';
 import { normaliserVisites } from '@/lib/visites';
 import JournalActions from '@/components/admin/JournalActions';
 import AnomaliesComptes from '@/components/admin/AnomaliesComptes';
@@ -47,6 +51,7 @@ import {
   collecterStatsAdmin,
   comptesEnAnomalie,
   formaterNombre,
+  formaterMontant,
   formaterPeriode,
   listerComptesAdmin,
   listerCourrielsAdmin,
@@ -227,6 +232,122 @@ export default async function PageAdmin() {
   const paiementsEncaisse30 = agregatsPaiements30.parStatut
     .filter((ligne) => ligne.statut === 'reussi')
     .reduce((total, ligne) => total + ligne.nombre, 0);
+
+  // ------------------------------------------------------------
+  // Trois chiffres d'aujourd'hui + voyants d'exploitation.
+  // Tout provient de données DÉJÀ chargées : aucune requête de plus,
+  // donc aucun coût Supabase supplémentaire.
+  // ------------------------------------------------------------
+  const serieEncaisse = agregatsPaiements30.serie.map((point) => point.encaisse);
+  const encaisseJour = serieEncaisse[serieEncaisse.length - 1] ?? 0;
+  const encaisseHier = serieEncaisse[serieEncaisse.length - 2] ?? 0;
+  const nbPaiementsJour = agregatsPaiements30.serie[agregatsPaiements30.serie.length - 1]?.nombre ?? 0;
+  const serieVisites = visites.parJour.slice(-14).map((point) => point.visites);
+  const moisTraduits = stats?.periodes ?? [];
+  const caracteresMois = moisTraduits[moisTraduits.length - 1]?.caracteres ?? 0;
+  const caracteresMoisPrecedent = moisTraduits[moisTraduits.length - 2]?.caracteres ?? 0;
+
+  /** Variation en % ; null quand la comparaison n'a pas de sens (0 → n). */
+  const variation = (actuel: number, precedent: number): number | null => {
+    if (precedent === 0) return actuel === 0 ? 0 : null;
+    return ((actuel - precedent) / precedent) * 100;
+  };
+
+  const cartesKpi: CarteKpi[] = [
+    {
+      cle: 'encaisse',
+      libelle: 'Encaissé aujourd’hui',
+      valeur: formaterNombre(encaisseJour),
+      unite: 'F CFA',
+      detail:
+        nbPaiementsJour === 0
+          ? 'aucun paiement encaissé'
+          : `${nbPaiementsJour} paiement${nbPaiementsJour > 1 ? 's' : ''} encaissé${nbPaiementsJour > 1 ? 's' : ''}`,
+      delta: variation(encaisseJour, encaisseHier),
+      serie: serieEncaisse.slice(-14),
+      ton: 'grenat',
+    },
+    {
+      cle: 'visites',
+      libelle: 'Pages vues aujourd’hui',
+      valeur: formaterNombre(visites.totaux.aujourdhui),
+      unite: 'vues',
+      detail: `${formaterNombre(visites.totaux.uniques)} visiteurs uniques sur 30 jours`,
+      delta: variation(visites.totaux.aujourdhui, visites.totaux.hier),
+      serie: serieVisites,
+      ton: 'violet',
+    },
+    {
+      cle: 'traduction',
+      libelle: 'Caractères traduits',
+      valeur: formaterNombre(caracteresMois),
+      unite: 'ce mois',
+      detail:
+        moisTraduits.length > 0
+          ? `${formaterPeriode(moisTraduits[moisTraduits.length - 1].periode)} — ${formaterNombre(
+              stats?.chapitresTraduits ?? 0
+            )} chapitres au total`
+          : 'aucune traduction enregistrée',
+      delta: variation(caracteresMois, caracteresMoisPrecedent),
+      serie: moisTraduits.slice(-6).map((point) => point.caracteres),
+      ton: 'or',
+    },
+  ];
+
+  const erreursLecture = [
+    resultatStats.erreur,
+    resultatComptes.erreur,
+    resultatPaiements.erreur,
+  ].filter((valeur): valeur is string => typeof valeur === 'string' && valeur !== '');
+
+  const derniersEncaissements = resultatPaiements.paiements
+    .filter((paiement) => paiement.statut === 'reussi' && paiement.creeLe)
+    .map((paiement) => paiement.creeLe as string)
+    .sort();
+  const dernierEncaissement = derniersEncaissements[derniersEncaissements.length - 1] ?? null;
+  // Fraîcheur jugée sur la série déjà agrégée (7 derniers jours) plutôt
+  // qu'avec Date.now() : le rendu reste pur et l'information est la même.
+  const encaissementCetteSemaine = serieEncaisse.slice(-7).some((montant) => montant > 0);
+  const dateCourte = (iso: string) => iso.slice(0, 10).split('-').reverse().join('/');
+
+  const voyants: VoyantSante[] = [
+    {
+      cle: 'base',
+      libelle: 'Base de données',
+      etat: erreursLecture.length > 0 ? 'panne' : 'ok',
+      detail:
+        erreursLecture.length > 0
+          ? `${erreursLecture.length} lecture${erreursLecture.length > 1 ? 's' : ''} en échec`
+          : 'lectures OK',
+    },
+    {
+      cle: 'paiements',
+      libelle: 'Encaissements',
+      etat: encaissementCetteSemaine ? 'ok' : 'attention',
+      detail:
+        dernierEncaissement === null
+          ? 'aucun encaissement enregistré'
+          : `dernier le ${dateCourte(dernierEncaissement)}`,
+      onglet: 'paiements',
+    },
+    {
+      cle: 'traduction',
+      libelle: 'Traduction',
+      etat: (stats?.chapitresTraduits ?? 0) > 0 ? 'ok' : 'attention',
+      detail: `${formaterNombre(stats?.chapitresTraduits ?? 0)} chapitres traduits`,
+      onglet: 'systeme',
+    },
+    {
+      cle: 'moteurs',
+      libelle: 'Moteurs',
+      etat: !sante || (sante.moteurs ?? []).every((moteur) => moteur.etat !== 'ok') ? 'panne' : 'ok',
+      detail:
+        sante?.moteurActif !== null && sante?.moteurActif !== undefined
+          ? `${sante.moteurActif.nom} disponible`
+          : 'aucun moteur disponible',
+      onglet: 'systeme',
+    },
+  ];
 
   // ------------------------------------------------------------
   // Regroupement en SIX onglets. Chaque panneau conserve son
@@ -453,17 +574,25 @@ export default async function PageAdmin() {
       contenu: (
         <>
           {sante && <SanteMoteurs sante={sante} />}
-          {/* AJOUT : réordonnancement des moteurs de traduction depuis
-              l'admin (persisté en base, sans redéploiement). Le composant
-              existait mais n'était monté nulle part : il est désormais
-              accessible dans l'onglet Système. */}
-          <OrdreChaine />
-          <JournalActions
-            actions={actions}
-            pseudos={pseudos}
-            erreur={actionsErreur ? actionsErreur.message : null}
-          />
-          <ExportsAdmin />
+          {/* Blocs repliables : l'onglet Système empilait quatre panneaux
+              entiers (moteurs, ordre, journal, exports). Replié n'est pas
+              muet : chaque résumé affiche son compte. */}
+          <BlocRepliable titre="Ordre des moteurs de traduction" resume="modifiable sans redéploiement">
+            <OrdreChaine />
+          </BlocRepliable>
+          <BlocRepliable
+            titre="Journal des actions d’administration"
+            resume={`${actions.length} entrée${actions.length > 1 ? 's' : ''}`}
+          >
+            <JournalActions
+              actions={actions}
+              pseudos={pseudos}
+              erreur={actionsErreur ? actionsErreur.message : null}
+            />
+          </BlocRepliable>
+          <BlocRepliable titre="Exports" resume="CSV des comptes et paiements">
+            <ExportsAdmin />
+          </BlocRepliable>
         </>
       ),
     },
@@ -486,14 +615,50 @@ export default async function PageAdmin() {
     return section === undefined || peutVoir(section);
   });
 
+  // ------------------------------------------------------------
+  // Entrées de la palette Ctrl+K : onglets autorisés, comptes et
+  // paiements récents. Plafonnées pour ne pas transporter 5 000 lignes
+  // dans le HTML de la page ; la recherche serveur reste le chemin
+  // complet (onglet Comptes).
+  // ------------------------------------------------------------
+  const entreesPalette: EntreePalette[] = [
+    ...ongletsAutorises.map((onglet) => ({
+      id: `onglet-${onglet.id}`,
+      libelle: onglet.libelle,
+      groupe: 'Onglets' as const,
+      onglet: onglet.id,
+    })),
+    ...resultatComptes.comptes.slice(0, 400).map((compte) => ({
+      id: `compte-${compte.id}`,
+      libelle: compte.pseudo,
+      detail: `${normaliserRole(compte.role)}${compte.abonnementPlan ? ` · ${compte.abonnementPlan}` : ''}`,
+      groupe: 'Comptes' as const,
+      onglet: 'comptes',
+      recherche: compte.pseudo,
+    })),
+    ...resultatPaiements.paiements.slice(0, 300).map((paiement) => ({
+      id: `paiement-${paiement.reference}`,
+      libelle: paiement.reference,
+      detail: `${formaterMontant(paiement.montant, paiement.devise)} · ${paiement.pseudo}`,
+      groupe: 'Paiements' as const,
+      onglet: 'paiements',
+      recherche: paiement.reference,
+    })),
+  ];
+
   return (
     <>
       <BarreNavigation email={user?.email ?? ''} pseudo={pseudo} role={role} />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fondu-monte">
         <header>
-          <p className="sur-titre text-grenat-400">Administration</p>
-          <h1 className="font-display text-3xl text-encre-100 mt-2">Tableau de bord</h1>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="sur-titre text-grenat-400">Administration</p>
+              <h1 className="font-display text-3xl text-encre-100 mt-2">Tableau de bord</h1>
+            </div>
+            <CommandPalette entrees={entreesPalette} />
+          </div>
           <div className="liseret mt-3" />
           <p className="text-encre-500 text-sm mt-3 italic">
             Comptes, usage, abonnements et paiements. Aucun contenu de livre d’autrui n’est
@@ -506,6 +671,10 @@ export default async function PageAdmin() {
             Statistiques indisponibles : {resultatStats.erreur}
           </p>
         )}
+
+        {/* Voyants d'abord : on veut voir une panne sans ouvrir d'onglet. */}
+        <BandeauSante voyants={voyants} />
+        <BandeauAujourdhui cartes={cartesKpi} />
 
         <OngletsAdmin
           libelleBarre="Sections du tableau de bord d’administration"

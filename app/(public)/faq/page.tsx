@@ -166,7 +166,7 @@ export default function PageFaq() {
     >
       <div className="space-y-3">
         {QUESTIONS.map((item) => (
-          <details key={item.q} className="velours p-5 group">
+          <details key={item.q} data-reveler="bas" className="velours p-5 group">
             <summary className="cursor-pointer list-none flex items-start justify-between gap-4 text-encre-100 font-display text-lg leading-snug focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 rounded-md">
               {item.q}
               <span

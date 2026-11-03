@@ -95,7 +95,7 @@ export default async function Accueil() {
   return (
     <>
       {/* ---------------- Héros ---------------- */}
-      <section className="mx-auto max-w-4xl px-4 sm:px-6 pt-14 sm:pt-20 pb-4 text-center">
+      <section data-reveler="haut" className="mx-auto max-w-4xl px-4 sm:px-6 pt-14 sm:pt-20 pb-4 text-center">
         <Image
           src="/logo.png"
           alt="Plume d’Ombres"
@@ -278,7 +278,7 @@ export default async function Accueil() {
       </SectionPublique>
 
       {/* ---------------- Rappel final ---------------- */}
-      <section className="mx-auto max-w-3xl px-4 sm:px-6 pb-16 text-center">
+      <section data-reveler="haut" className="mx-auto max-w-3xl px-4 sm:px-6 pb-16 text-center">
         <div className="velours p-8">
           <p className="font-display text-2xl text-encre-100">
             Une romance attend que quelqu’un la fasse parler français.

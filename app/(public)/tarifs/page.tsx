@@ -134,7 +134,7 @@ export default async function PageTarifs() {
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 list-none p-0 m-0">
             {g.packs.map((pack) => (
               <li key={pack.code} className="flex">
-                <article className="velours p-5 flex flex-col w-full">
+                <article data-reveler="bas" className="velours p-5 flex flex-col w-full">
                   <h3 className="font-display text-lg text-encre-100">{pack.nom}</h3>
                   <p className="text-sm text-encre-300 leading-relaxed mt-2">{pack.resume}</p>
                   <p className="font-display text-xl text-encre-100 mt-3">
@@ -171,7 +171,7 @@ export default async function PageTarifs() {
           <ul className="grid gap-4 sm:grid-cols-3 list-none p-0 m-0">
             {g.horsLigne.map((offre) => (
               <li key={offre.code} className="flex">
-                <article className="velours p-5 flex flex-col w-full">
+                <article data-reveler="bas" className="velours p-5 flex flex-col w-full">
                   <h3 className="font-display text-lg text-encre-100">{offre.nom}</h3>
                   <p className="text-sm text-encre-300 leading-relaxed mt-2">{offre.resume}</p>
                   <p className="font-display text-xl text-encre-100 mt-3">

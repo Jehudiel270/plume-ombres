@@ -21,7 +21,7 @@
 // alignée sur un en-tête masqué pour les petits écrans.
 // ============================================================
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DUREES_ADMIN,
@@ -113,6 +113,18 @@ export default function TableauComptes({
 
   // --- confirmation d'action destructrice ---
   const [aRetirer, setARetirer] = useState<CompteAdmin | null>(null);
+
+  // Recherche déposée par la palette Ctrl+K (onglet « Comptes »).
+  useEffect(() => {
+    function surRecherche(evenement: Event) {
+      const detail = (evenement as CustomEvent<{ onglet?: string; texte?: string }>).detail;
+      if (!detail || detail.onglet !== 'comptes' || typeof detail.texte !== 'string') return;
+      setRecherche(detail.texte as string);
+      setPage(1);
+    }
+    window.addEventListener('plume:recherche', surRecherche);
+    return () => window.removeEventListener('plume:recherche', surRecherche);
+  }, []);
 
   /** Liste enrichie (courriel + anomalies) puis filtrée et triée. */
   const comptesFiltres = useMemo(() => {

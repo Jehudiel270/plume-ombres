@@ -19,7 +19,7 @@
 // pour chaque onglet, le JSX déjà rendu (éléments React en props).
 // ============================================================
 
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 export interface PastilleOnglet {
   /** Nombre affiché dans la pastille. */
@@ -82,6 +82,24 @@ export default function OngletsAdmin({
       aller(onglets.length - 1);
     }
   }
+
+  // Ouverture d'un onglet depuis l'extérieur (palette Ctrl+K, voyants
+  // d'exploitation du bandeau de santé) : ces composants n'ont pas accès
+  // à l'état interne de la barre, ils publient donc l'identifiant de
+  // l'onglet et la barre s'en charge.
+  useEffect(() => {
+    function surDemande(evenement: Event) {
+      const slug = String((evenement as CustomEvent<string>).detail ?? '');
+      const index = onglets.findIndex((onglet) => onglet.id === slug);
+      if (index < 0) return;
+      setActif(index);
+      const bouton = boutons.current[index];
+      bouton?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      bouton?.focus({ preventScroll: true });
+    }
+    window.addEventListener('plume:onglet', surDemande);
+    return () => window.removeEventListener('plume:onglet', surDemande);
+  }, [onglets]);
 
   if (onglets.length === 0) return null;
 
@@ -149,6 +167,7 @@ export default function OngletsAdmin({
             id={idPanneau(o)}
             aria-labelledby={idOnglet(o)}
             tabIndex={0}
+            data-reveler="haut"
             className="rounded-[12px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-grenat-400 focus-visible:outline-offset-2"
           >
             <h2 className="sr-only">{o.libelle}</h2>
