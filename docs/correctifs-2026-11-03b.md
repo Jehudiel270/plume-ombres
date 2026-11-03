@@ -241,3 +241,17 @@ dépendance npm.
 erreurs de lint bloquantes. La fraîcheur des encaissements se juge donc sur la
 série déjà agrégée, et les lectures après hydratation (`localStorage`, URL) sont
 différées d'un tour de boucle.
+
+### Preuve d'exécution (Edge headless, JS activé, production)
+
+| Contrôle | Résultat |
+|---|---|
+| `data-reveler` servis par la production (accueil / tarifs / FAQ) | 6 / 11 / 12 éléments |
+| Blocs armés puis révélés au chargement | accueil 6/6, tarifs 11/11, FAQ 12/12 |
+| `--force-prefers-reduced-motion` | **0 bloc armé**, contenu intégralement visible |
+| Feuille de style servie | `.revele` présent dans le CSS de production |
+
+Commande reproductible : `--headless=new --dump-dom` d'Edge sur l'URL publique, puis
+comptage des classes `reveler`/`revele` dans le DOM final. Le tableau de bord
+partage le même composant et la même feuille de style ; il n'est pas vérifiable
+en headless car `/admin` exige une session (307 vers `/connexion`).
