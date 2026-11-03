@@ -94,3 +94,20 @@ Endpoint : https://plumedombres.kodelyza.com/api/paiement/webhook
   redéployée. Preuve : ping 200, sans signature 401, signature valide 200.
 
 Les paiements restent sur le domaine kodelyza uniquement (choix retenu).
+
+## 7. Épreuve de paiement et QR codes (3/11 au soir)
+
+- Transaction live réelle créée **par l'application** (script `preuve-achat-live.ts`) :
+  `114030253`, 500 XOF, statut `pending`, aucun franc débité, expire seule. Son
+  `callback_url` vaut `https://plumedombres.kodelyza.com/paiement/succes?reference=…`
+  → le client revient bien sur le domaine définitif.
+- Historique live : dernière transaction **approuvée** `113989054`, 500 XOF, le
+  1/11 à 11:21 (avant le changement de domaine). Aucun paiement réel n'a encore
+  été encaissé *depuis* le domaine kodelyza : il faut une confirmation Mobile
+  Money, donc un achat réel de 500 F par l'exploitant.
+- QR codes de `D:\compressed\archivedwl-776` décodés (`zxing-wasm`) :
+  `qrcode-1.jpeg` et `qrcode-2.png` encodent tous deux
+  `https://plumedombres.kodelyza.com/` — valides. ⚠️ Les décodeurs JS classiques
+  (`jsQR`, `@zxing/library`) échouent sur ce QR stylisé (points arrondis + logo) :
+  prévoir un essai sur 2–3 téléphones avant impression, et garder au moins
+  8 px par module dans la taille finale.
