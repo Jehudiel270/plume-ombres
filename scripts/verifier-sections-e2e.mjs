@@ -63,7 +63,11 @@ try {
     headers: { ...json, Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify({ id: idCompte, pseudo: 'test-sections', role: 'admin' }),
   });
-  verifier('profil administrateur écrit', profil.status === 201 || profil.status === 204, String(profil.status));
+  verifier(
+    'profil administrateur écrit',
+    [200, 201, 204].includes(profil.status),
+    String(profil.status)
+  );
 
   // 3. Réglage : une seule section ouverte (fonction de réglage, service_role).
   const ouverture = await appelRpc(json, 'definir_sections_admin', {
