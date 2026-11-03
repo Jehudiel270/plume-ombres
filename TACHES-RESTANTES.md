@@ -1,6 +1,8 @@
 # Plume d'Ombres — Tâches restantes
 > Mise à jour du 1er octobre 2026 (v2) : intègre l'audit complet (`AUDIT-PLUME-OMBRES.md`) et les deux recherches menées sur le stockage des livres et TeraBox.
 > Chaque tâche a un identifiant : dis-moi « fais A2, B1, C3 » et j'enchaîne.
+>
+> **3 novembre 2026 —** titres de chapitres corrigés à l'import EPUB : ils sont désormais lus dans le texte (fin des « Chapitre 3, 6, 8 » hérités du spine), et les livres déjà en base ont été réparés (`scripts/reparer-titres-chapitres.ts` : 67 titres + 11 numérotations). Détails : `docs/pipeline-traduction-2026-11-03.md` et `docs/abonnement-renouvellement-2026-11-03.md`.
 
 ---
 

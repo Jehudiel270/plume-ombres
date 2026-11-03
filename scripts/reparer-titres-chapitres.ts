@@ -42,6 +42,7 @@ async function main() {
     `);
 
     let corriges = 0;
+    let renumerotes = 0;
     let inconnus = 0;
     let livreCourant = '';
     for (const ligne of rows) {
@@ -52,8 +53,22 @@ async function main() {
         console.log(`\n${livreCourant}`);
       }
       if (!titre || TITRE_PLACEHOLDER.test(titre)) {
-        inconnus += 1;
-        console.log(`  #${ligne.position}  « ${ligne.titre} »  → (titre illisible)`);
+        // Aucun titre lisible (page de copyright, épigraphe, sommaire…) :
+        // on au moins rend la numérotation cohérente avec l'ordre de lecture.
+        const secours = `Chapitre ${Number(ligne.position) + 1}`;
+        if (secours === ligne.titre) {
+          inconnus += 1;
+          console.log(`  #${ligne.position}  « ${ligne.titre} »  → (inchangé)`);
+          continue;
+        }
+        renumerotes += 1;
+        console.log(`  #${ligne.position}  « ${ligne.titre} »  →  « ${secours} » (sans titre)`);
+        if (appliquer) {
+          await client.query('update chapitres set titre = $1 where id = $2', [
+            secours,
+            ligne.id,
+          ]);
+        }
         continue;
       }
       corriges += 1;
@@ -68,9 +83,10 @@ async function main() {
 
     console.log(
       `\n${corriges} titre(s) ${appliquer ? 'corrigé(s)' : 'à corriger'}, ` +
+        `${renumerotes} numérotation(s) ${appliquer ? 'alignée(s)' : 'à aligner'}, ` +
         `${inconnus} inchangé(s).`
     );
-    if (!appliquer && corriges > 0) {
+    if (!appliquer && corriges + renumerotes > 0) {
       console.log('Relance avec --appliquer pour écrire en base.');
     }
   } finally {
