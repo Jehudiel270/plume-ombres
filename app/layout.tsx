@@ -26,6 +26,10 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'fr_FR',
     siteName: 'Plume d’Ombres',
+    // Adresse canonique de l'aperçu : les plateformes s'en servent pour
+    // rattacher la vignette au bon domaine.
+    url:
+      process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://plumedombres.kodelyza.com',
     title: 'Plume d’Ombres — traduire la dark romance',
     description:
       'Importez une romance sombre, laissez-la se découper en chapitres et lisez-la en français. Essai gratuit pendant le lancement.',
