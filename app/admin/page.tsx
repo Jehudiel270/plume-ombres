@@ -32,7 +32,11 @@ import GestionRoles from '@/components/admin/GestionRoles';
 import OrdreChaine from '@/components/admin/OrdreChaine';
 import SanteMoteurs from '@/components/admin/SanteMoteurs';
 import RepartitionAbonnements from '@/components/admin/RepartitionAbonnements';
-import JournalPaiements from '@/components/admin/JournalPaiements';
+import PaiementsFiltrables from '@/components/admin/PaiementsFiltrables';
+import TableauVisites from '@/components/admin/TableauVisites';
+import { agregerPaiements } from '@/lib/admin-paiements';
+import SectionsAdministrateurs from '@/components/admin/SectionsAdministrateurs';
+import { normaliserVisites } from '@/lib/visites';
 import JournalActions from '@/components/admin/JournalActions';
 import AnomaliesComptes from '@/components/admin/AnomaliesComptes';
 import ExportsAdmin from '@/components/admin/ExportsAdmin';
@@ -88,6 +92,15 @@ export default async function PageAdmin() {
 
   const clientRpc: ClientRpc = { rpc: (nom, args) => supabase.rpc(nom, args) };
 
+  // Sections du tableau de bord ouvertes à ce compte. Le super-admin
+  // reçoit toutes les sections ; un administrateur nommé reçoit celles
+  // que le super-admin lui a ouvertes (toutes par défaut).
+  const { data: sectionsBrutes } = await supabase.rpc('mes_sections');
+  const sectionsAutorisees: string[] = Array.isArray(sectionsBrutes)
+    ? (sectionsBrutes as string[])
+    : [];
+  const peutVoir = (section: string): boolean => sectionsAutorisees.includes(section);
+
   const [
     { data: profil },
     resultatStats,
@@ -97,6 +110,8 @@ export default async function PageAdmin() {
     resultatPaiements,
     { data: plansBruts },
     { data: actionsBrutes, error: actionsErreur },
+    { data: visitesBrutes, error: visitesErreur },
+    { data: sectionsRows },
     sante,
   ] = await Promise.all([
     supabase.from('profiles').select('pseudo, role').eq('id', user?.id ?? '').maybeSingle(),
@@ -104,7 +119,7 @@ export default async function PageAdmin() {
     listerComptesAdmin(clientRpc),
     listerCourrielsAdmin(clientRpc),
     collecterStatsAbonnements(clientRpc),
-    listerPaiementsAdmin(clientRpc, 25),
+    listerPaiementsAdmin(clientRpc, 200),
     // Catalogue public (lecture autorisée à tout compte connecté).
     supabase.from('plans_abonnement').select('code, nom').order('ordre'),
     // Journal des actions : lisible par le SEUL rôle admin (RLS est_admin).
@@ -113,6 +128,11 @@ export default async function PageAdmin() {
       .select('id, admin_id, cible_id, action, duree, periode_fin, motif, cree_le')
       .order('cree_le', { ascending: false })
       .limit(20),
+    // Audience anonyme (comptages seuls, 30 jours).
+    supabase.rpc('admin_stats_visites', { p_jours: 30 }),
+    // Réglages de sections par administrateur (lisible du seul super-admin
+    // par la politique RLS de la table).
+    supabase.from('admin_sections').select('proprietaire_id, sections'),
     // Contrôle de santé RÉEL des moteurs (sondes courtes mises en cache).
     // En cas d'erreur inattendue, l'admin reste affiché sans ce bloc.
     verifierChaine().catch(() => null as SanteChaine | null),
@@ -141,7 +161,30 @@ export default async function PageAdmin() {
   const anomalies = comptesEnAnomalie(resultatComptes.comptes, plans);
 
   // ------------------------------------------------------------
-  // Regroupement en CINQ onglets. Chaque panneau conserve son
+  // Audience et conversions : tout est calculé à partir de données
+  // déjà chargées (aucune requête supplémentaire).
+  // ------------------------------------------------------------
+  const visites = normaliserVisites(visitesBrutes);
+
+  // Réglages de sections déjà enregistrés (les autres comptes suivent
+  // le comportement par défaut : toutes les sections d'exploitation).
+  const sectionsParCompte: Record<string, string[] | null> = {};
+  for (const ligne of sectionsRows ?? []) {
+    const brut = ligne as { proprietaire_id?: unknown; sections?: unknown };
+    if (typeof brut.proprietaire_id === 'string' && Array.isArray(brut.sections)) {
+      sectionsParCompte[brut.proprietaire_id] = brut.sections.filter(
+        (valeur): valeur is string => typeof valeur === 'string'
+      );
+    }
+  }
+
+  const agregatsPaiements30 = agregerPaiements(resultatPaiements.paiements, 30);
+  const paiementsEncaisse30 = agregatsPaiements30.parStatut
+    .filter((ligne) => ligne.statut === 'reussi')
+    .reduce((total, ligne) => total + ligne.nombre, 0);
+
+  // ------------------------------------------------------------
+  // Regroupement en SIX onglets. Chaque panneau conserve son
   // contenu d'origine à l'identique : aucun bloc n'est retiré, seul
   // l'affichage change (un seul panneau monté à la fois).
   // Les pastilles n'utilisent que des données déjà chargées.
@@ -243,6 +286,24 @@ export default async function PageAdmin() {
       ),
     },
     {
+      // Audience anonyme : comptages seuls (voir lib/tracking.ts).
+      id: 'audience',
+      libelle: 'Audience',
+      pastille: { nombre: visites.totaux.visites, libelle: 'pages vues (30 j)' },
+      contenu: (
+        <TableauVisites
+          stats={visitesErreur ? null : visites}
+          erreur={visitesErreur ? visitesErreur.message : null}
+          conversions={{
+            comptes: stats ? stats.comptes : 0,
+            paiements: paiementsEncaisse30,
+            volume: agregatsPaiements30.volume,
+            devise: 'XOF',
+          }}
+        />
+      ),
+    },
+    {
       id: 'comptes',
       libelle: 'Comptes',
       pastille: { nombre: resultatComptes.comptes.length, libelle: 'comptes listés' },
@@ -295,7 +356,7 @@ export default async function PageAdmin() {
         libelle: 'paiements récents',
       },
       contenu: (
-        <JournalPaiements
+        <PaiementsFiltrables
           paiements={resultatPaiements.paiements}
           erreur={resultatPaiements.erreur}
         />
@@ -311,12 +372,18 @@ export default async function PageAdmin() {
             libelle: 'Rôles',
             pastille: { nombre: nbAdministrateurs, libelle: 'comptes avec droits' },
             contenu: (
-              <GestionRoles
-                comptes={resultatComptes.comptes}
-                emails={resultatCourriels.courriels}
-                moiId={user?.id ?? ''}
-                roleCourant={roleCourant}
-              />
+              <>
+                <GestionRoles
+                  comptes={resultatComptes.comptes}
+                  emails={resultatCourriels.courriels}
+                  moiId={user?.id ?? ''}
+                  roleCourant={roleCourant}
+                />
+                <SectionsAdministrateurs
+                  comptes={resultatComptes.comptes}
+                  sectionsInitiales={sectionsParCompte}
+                />
+              </>
             ),
           } satisfies OngletAdmin,
         ]
@@ -343,6 +410,22 @@ export default async function PageAdmin() {
     },
   ];
 
+  // ------------------------------------------------------------
+  // Délimitation par section : chaque onglet porte une section ; un
+  // onglet sans section (Vue d'ensemble) reste toujours visible.
+  // ------------------------------------------------------------
+  const SECTION_PAR_ONGLET: Record<string, string> = {
+    audience: 'audience',
+    comptes: 'comptes',
+    abonnements: 'abonnements',
+    paiements: 'paiements',
+    systeme: 'systeme',
+  };
+  const ongletsAutorises = onglets.filter((onglet) => {
+    const section = SECTION_PAR_ONGLET[onglet.id];
+    return section === undefined || peutVoir(section);
+  });
+
   return (
     <>
       <BarreNavigation email={user?.email ?? ''} pseudo={pseudo} role={role} />
@@ -366,7 +449,7 @@ export default async function PageAdmin() {
 
         <OngletsAdmin
           libelleBarre="Sections du tableau de bord d’administration"
-          onglets={onglets}
+          onglets={ongletsAutorises}
         />
       </main>
     </>

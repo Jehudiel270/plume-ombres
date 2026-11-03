@@ -7,6 +7,7 @@ import FondAmbiance from '@/components/FondAmbiance';
 import PanneauApparence from '@/components/PanneauApparence';
 import BanniereAnnonce from '@/components/BanniereAnnonce';
 import PWA from '@/components/PWA';
+import SuiviVisites from '@/components/SuiviVisites';
 
 export const metadata: Metadata = {
   title: {
@@ -74,6 +75,9 @@ export default function RacineLayout({
           <PanneauApparence />
         </ProviderTheme>
         <PWA />
+        {/* Mesure d'audience anonyme (aucun cookie) : une balise, un POST
+            par page vue, rien sur l'identité du visiteur. */}
+        <SuiviVisites />
       </body>
     </html>
   );

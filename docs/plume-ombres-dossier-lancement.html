@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plume d’Ombres — Dossier de lancement</title>
+<style>
+  @font-face { font-family: 'Bodoni'; src: url('../app/fonts/BodoniModa-normal.woff2') format('woff2'); font-weight: 400; }
+  @font-face { font-family: 'Bodoni'; src: url('../app/fonts/BodoniModa-italic.woff2') format('woff2'); font-style: italic; }
+  @font-face { font-family: 'Cormorant'; src: url('../app/fonts/CormorantGaramond-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Literata'; src: url('../app/fonts/Literata-normal.woff2') format('woff2'); }
+
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Literata', Georgia, serif; font-size: 10.2pt; line-height: 1.62; color: #1b1216; background: #f7f1ec; }
+
+  .page { width: 210mm; min-height: 297mm; padding: 20mm 18mm 16mm; page-break-after: always; position: relative; }
+  .page:last-child { page-break-after: auto; }
+
+  /* ---------- Couverture ---------- */
+  .cover { background: #0a0608; color: #f2e6eb; padding: 26mm 20mm; display: flex; flex-direction: column; justify-content: space-between; }
+  .cover .grain { position: absolute; inset: 0; background:
+      radial-gradient(circle at 22% 18%, rgba(193,61,92,.30), transparent 45%),
+      radial-gradient(circle at 78% 72%, rgba(138,91,196,.24), transparent 48%); }
+  .cover .inner { position: relative; z-index: 2; }
+  .cover img.logo { width: 88mm; height: 88mm; object-fit: contain; display: block; margin: 0 auto 14mm; }
+  .cover .surtitre { text-align: center; color: #e0607f; letter-spacing: .45em; text-transform: uppercase; font-size: 8.5pt; margin: 0 0 8mm; }
+  .cover h1 { font-family: 'Bodoni', serif; font-weight: 400; font-size: 40pt; text-align: center; margin: 0 0 6mm; line-height: 1.05; }
+  .cover h1 em { color: #f0a5b4; }
+  .cover .liseret { width: 60mm; height: 1px; margin: 0 auto 8mm; background: linear-gradient(90deg, transparent, #c13d5c, transparent); }
+  .cover .sous { text-align: center; color: #c8b6c0; font-size: 12pt; max-width: 130mm; margin: 0 auto; line-height: 1.5; }
+  .cover .meta { position: relative; z-index: 2; color: #a89aa3; font-size: 8.5pt; display: flex; justify-content: space-between; border-top: 1px solid #2e1f27; padding-top: 5mm; }
+
+  /* ---------- Structure ---------- */
+  h2.chap { font-family: 'Bodoni', serif; font-weight: 400; font-size: 22pt; color: #6b1e2d; margin: 0 0 2mm; line-height: 1.15; }
+  .num { display: block; font-size: 8.5pt; letter-spacing: .3em; text-transform: uppercase; color: #a32b4b; margin-bottom: 3mm; }
+  .filet { width: 42mm; height: 2px; background: #c13d5c; margin: 4mm 0 7mm; }
+  h3 { font-family: 'Bodoni', serif; font-weight: 400; font-size: 13.5pt; color: #1b1216; margin: 7mm 0 2mm; }
+  h4 { font-size: 10pt; text-transform: uppercase; letter-spacing: .12em; color: #6b1e2d; margin: 5mm 0 1.5mm; }
+  p { margin: 0 0 2.6mm; }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1.3mm; }
+  li::marker { color: #c13d5c; }
+  strong { color: #6b1e2d; }
+  em { color: #3a2630; }
+  .lead { font-family: 'Cormorant', serif; font-size: 12.5pt; line-height: 1.5; color: #3a2630; }
+  .note { border-left: 3px solid #c13d5c; background: #f0e5e6; padding: 3.5mm 4mm; margin: 4mm 0; font-size: 9.4pt; }
+  .note b { color: #6b1e2d; }
+  .warn { border-left: 3px solid #8a5bc4; background: #ece4f2; padding: 3.5mm 4mm; margin: 4mm 0; font-size: 9.4pt; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; font-size: 8.9pt; }
+  th { background: #1b1216; color: #f2e6eb; text-align: left; padding: 2mm 2.5mm; font-weight: 500; font-size: 8.3pt; letter-spacing: .04em; }
+  td { padding: 1.9mm 2.5mm; border-bottom: 1px solid #e0d2d5; vertical-align: top; }
+  tr:nth-child(even) td { background: #f0e6e6; }
+  td.prix { white-space: nowrap; font-weight: 700; color: #6b1e2d; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+  .carte { border: 1px solid #ddc9cd; background: #fdfaf8; padding: 4mm; }
+  .carte h4 { margin-top: 0; }
+  .carte p { font-size: 9.2pt; margin-bottom: 0; }
+
+  .palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2.5mm; margin: 3mm 0 4mm; }
+  .pastille { height: 16mm; border: 1px solid rgba(0,0,0,.12); }
+  .pastille span { display: block; font-size: 7.3pt; padding: 1mm; }
+  .code { font-family: ui-monospace, Consolas, monospace; font-size: 8.2pt; }
+
+  .plan-video { border: 1px solid #ddc9cd; margin: 0 0 3mm; }
+  .plan-video .entete { background: #1b1216; color: #f2e6eb; padding: 1.8mm 3mm; font-size: 8.6pt; letter-spacing: .05em; display: flex; justify-content: space-between; }
+  .plan-video .corps { padding: 3mm; font-size: 9.2pt; }
+  .plan-video .corps p { margin: 0 0 1.2mm; }
+  .etiquette { display: inline-block; background: #c13d5c; color: #fff; font-size: 7.6pt; padding: .6mm 2mm; letter-spacing: .08em; text-transform: uppercase; }
+  .footer { position: absolute; bottom: 9mm; left: 18mm; right: 18mm; border-top: 1px solid #ddc9cd; padding-top: 2.5mm; font-size: 7.8pt; color: #8d7b84; display: flex; justify-content: space-between; }
+  .kpi { display: flex; gap: 4mm; margin: 4mm 0; }
+  .kpi div { flex: 1; border: 1px solid #ddc9cd; background: #fdfaf8; padding: 3mm; text-align: center; }
+  .kpi b { display: block; font-family: 'Bodoni', serif; font-size: 17pt; color: #6b1e2d; font-weight: 400; }
+  .kpi span { font-size: 8pt; color: #6d5a63; }
+</style>
+</head>
+<body>
+
+<!-- ======================= COUVERTURE ======================= -->
+<div class="page cover">
+  <div class="grain"></div>
+  <div class="inner">
+    <img class="logo" src="../public/logo.png" alt="Plume d’Ombres">
+    <p class="surtitre">✦ Dossier de lancement ✦</p>
+    <h1>Plume <em>d’Ombres</em></h1>
+    <div class="liseret"></div>
+    <p class="sous">Importer un roman en anglais, le traduire en français<br>dans une langue qui garde la morsure du texte.</p>
+  </div>
+  <div class="meta">
+    <span>Studio de traduction littéraire — dark romance</span>
+    <span>Édition du 27 octobre 2026</span>
+  </div>
+</div>
+
+<!-- ======================= 1. EN UNE PAGE ======================= -->
+<div class="page">
+  <span class="num">01</span>
+  <h2 class="chap">Le projet en une page</h2>
+  <div class="filet"></div>
+
+  <p class="lead">Plume d’Ombres est un atelier de traduction littéraire en ligne : on y dépose un roman en anglais, l’atelier le découpe en chapitres, le traduit en français et le rend dans un lecteur confortable — exportable en Markdown, Word ou PDF.</p>
+
+  <p>L’outil ne vise pas la traduction juridique ou technique. Il vise un seul public, exigeant : <strong>les lectrices et lecteurs francophones de dark romance et de romance</strong>, qui trouvent les livres en anglais, qui savent lire en anglais, mais qui veulent vivre l’histoire dans leur langue — sans perdre la tension, les dialogues et le rythme.</p>
+
+  <div class="kpi">
+    <div><b>4</b><span>formats d’import<br>.txt · .md · .pdf · .epub</span></div>
+    <div><b>6</b><span>formats d’export<br>Markdown, Word, 4 PDF</span></div>
+    <div><b>18</b><span>palettes de lecture</span></div>
+    <div><b>0 F</b><span>pour commencer<br>400 000 caractères/mois</span></div>
+  </div>
+
+  <h3>Ce qui existe aujourd’hui, réellement</h3>
+  <ul>
+    <li><strong>Le produit est en ligne et fonctionne</strong> : import, découpage, traduction, lecture, export, comptes, quotas.</li>
+    <li><strong>Le paiement encaisse de vrais francs CFA</strong> via FedaPay (Mobile Money), avec un achat réel validé et une activation automatique du compte par webhook.</li>
+    <li><strong>Le travail ne s’arrête plus quand le client ferme son onglet</strong> : le moteur enchaîne les passages côté serveur jusqu’à la fin du livre.</li>
+    <li><strong>Un tableau de bord d’administration</strong> suit les comptes, les abonnements, les paiements, les rôles et la santé des moteurs.</li>
+    <li><strong>Les pages légales sont complètes</strong> : conditions, confidentialité, cookies, remboursement, mentions légales, contact.</li>
+  </ul>
+
+  <div class="note"><b>Positionnement en une phrase.</b> « Le seul atelier qui rend un roman dark romance anglais en français lisible, dans un lecteur qui respecte la mise en page du texte — pas une traduction Google collée dans un fichier texte. »</div>
+
+  <h3>Les trois promesses à répéter partout</h3>
+  <ul>
+    <li><strong>La structure est respectée</strong> : paragraphes, lignes vides et numérotation des chapitres reviennent à l’identique — du premier au dernier caractère.</li>
+    <li><strong>On garde la main</strong> : on choisit son confort de lecture (police, thème, largeur), on reprend sa lecture où on l’avait laissée, on exporte pour lire ailleurs.</li>
+    <li><strong>On paie en francs CFA, par Mobile Money</strong>, sans carte bancaire — 1 500 F pour trois livres dans le mois, ou 500 F de crédits à l’unité.</li>
+  </ul>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>1</span></div>
+</div>
+
+<!-- ======================= 2. LE PROBLÈME ======================= -->
+<div class="page">
+  <span class="num">02</span>
+  <h2 class="chap">Le problème, et pourquoi personne ne le règle</h2>
+  <div class="filet"></div>
+
+  <p>La dark romance est un genre massivement anglophone. Les lectrices francophones voulues par le genre se heurtent à trois murs :</p>
+
+  <div class="grid3">
+    <div class="carte"><h4>Le mur de la langue</h4><p>Lire 400 pages en anglais quand on lit pour l’émotion, pas pour la performance : le rythme se perd, les sous-entendus passent à côté.</p></div>
+    <div class="carte"><h4>Le mur du bricolage</h4><p>Copier-coller paragraphe par paragraphe dans un traducteur en ligne : la mise en page est détruite, les noms propres changent au milieu du livre, la lecture devient un travail.</p></div>
+    <div class="carte"><h4>Le mur du prix</h4><p>Les services existants sont pensés pour l’Occident : carte bancaire obligatoire, abonnements en euros, aucune traduction littéraire.</p></div>
+  </div>
+
+  <h3>Ce que fait Plume d’Ombres à la place</h3>
+  <p>Le livre entier entre d’un bloc. Chaque <strong>paragraphe entier</strong> devient une unité de traduction — pas une phrase, pas une ligne : un paragraphe, avec son contexte, ses dialogues, ses ruptures. Le texte traduit est ensuite réassemblé dans la structure d’origine, ligne pour ligne. Le lecteur n’a plus qu’à lire.</p>
+
+  <div class="note"><b>La règle du un-pour-un.</b> Chaque saut de ligne du texte source est stocké séparément du texte traduit. C’est ce détail invisible qui permet de promettre « la mise en page d’origine, à l’identique » — et c’est ce que les traducteurs grand public ne savent pas faire.</p></div>
+
+  <h3>Concurrence — ce qui nous distingue</h3>
+  <table>
+    <tr><th>Ce que le lecteur veut</th><th>Un traducteur en ligne classique</th><th>Plume d’Ombres</th></tr>
+    <tr><td>Traduire un livre entier</td><td>Copier-coller morceau par morceau</td><td>Import d’un fichier, le livre entier est traité</td></tr>
+    <tr><td>Garder la mise en page</td><td>Perdue</td><td>Assemblage 1:1 vérifié</td></tr>
+    <tr><td>Reprendre si ça casse</td><td>On recommence</td><td>Progression enregistrée, reprise automatique</td></tr>
+    <tr><td>Lire confortablement</td><td>Rien</td><td>Lecteur réglable, 18 palettes, favoris, recherche</td></tr>
+    <tr><td>Payer depuis le Bénin</td><td>Carte bancaire</td><td>Mobile Money en francs CFA</td></tr>
+  </table>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>2</span></div>
+</div>
+
+<!-- ======================= 3. PUBLIC ======================= -->
+<div class="page">
+  <span class="num">03</span>
+  <h2 class="chap">À qui ça parle</h2>
+  <div class="filet"></div>
+
+  <h3>Persona 1 — La lectrice de dark romance (cœur de cible)</h3>
+  <p>18-34 ans. Lit 2 à 6 romans par mois, souvent en anglais par obligation. Très active sur TikTok et Instagram (BookTok, #darkromance). Achète par Mobile Money. Elle ne veut pas « un outil » : elle veut <strong>lire ce soir</strong>. Ce qu’elle déteste : les traductions qui font perdre la tension, les interfaces compliquées, les abonnements en euros.</p>
+
+  <h3>Persona 2 — L’étudiante en lettres ou en langues</h3>
+  <p>Elle traduit des extraits pour ses cours et son mémoire. Elle a besoin d’exporter en Markdown ou Word pour citer et annoter. Le tarif étudiant à 1 200 F est fait pour elle.</p>
+
+  <h3>Persona 3 — Le club de lecture / la communauté</h3>
+  <p>Un groupe WhatsApp ou Discord de 5 à 30 personnes qui veut lire le même roman en français. Un seul payeur, 2 400 F par personne, glossaire partagé pour que les prénoms et les surnoms restent cohérents d’un tome à l’autre.</p>
+
+  <h3>Persona 4 — L’école / l’atelier de traduction</h3>
+  <p>11 personnes minimum, 1 800 F par personne et par mois facturés à l’année. Le professeur vérifie la traduction, les élèves exportent en Word.</p>
+
+  <h3>Ce que ces quatre publics ont en commun</h3>
+  <ul>
+    <li>Ils paient en <strong>francs CFA par Mobile Money</strong>, pas en euros par carte.</li>
+    <li>Ils jugent un service sur <strong>la qualité de la langue</strong>, pas sur le nombre de fonctionnalités.</li>
+    <li>Ils arrivent par <strong>la recommandation et les réseaux</strong> (TikTok, Instagram, WhatsApp), pas par la publicité.</li>
+    <li>Ils abandonnent au premier obstacle technique : l’inscription doit tenir en une minute.</li>
+  </ul>
+
+  <div class="warn"><b>Conséquence pour le lancement.</b> Chaque vidéo doit montrer <em>un livre qui entre et une page qui se lit</em> — pas un catalogue de fonctionnalités. Le produit se vend par la démonstration, pas par la liste.</div>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>3</span></div>
+</div>
+
+<!-- ======================= 4. PARCOURS ======================= -->
+<div class="page">
+  <span class="num">04</span>
+  <h2 class="chap">Le parcours client, en quatre temps</h2>
+  <div class="filet"></div>
+
+  <p class="lead">C’est ce rituel qu’il faut filmer. Chaque étape est courte, visuelle, et se raconte en une phrase.</p>
+
+  <h3>1 — Importer</h3>
+  <p>Le lecteur dépose son fichier (<span class="code">.txt</span>, <span class="code">.md</span>, <span class="code">.pdf</span> texte ou <span class="code">.epub</span>) dans la zone d’import par glisser-déposer. Les chapitres sont détectés automatiquement (<em>Chapter</em>, <em>Chapitre</em>, <em>Prologue</em>, numérotation). Aucune découpe manuelle, aucun copier-coller.</p>
+
+  <h3>2 — Découper</h3>
+  <p>Le livre est vérifié et rangé : chapitres, paragraphes, nombre de caractères. L’écran annonce le coût <em>avant</em> de lancer : « 1 842 segments · 96 400 caractères à traduire ». Le lecteur sait exactement ce qu’il consomme.</p>
+
+  <h3>3 — Traduire</h3>
+  <p>Le moteur travaille paragraphe par paragraphe, garde la file, réessaie en cas d’échec, et <strong>continue même si le lecteur ferme son onglet</strong>. La progression est visible : segments faits, restants, pourcentage, état chapitre par chapitre. Un livre peut être laissé à traduire la nuit et être prêt au matin.</p>
+
+  <h3>4 — Lire et exporter</h3>
+  <p>Le livre s’ouvre dans le lecteur : sommaire, recherche dans le chapitre et dans tout le livre, favoris, reprise de lecture. Puis export : Markdown du chapitre, Markdown du livre entier, Word, impression PDF, PDF re-paginé, PDF fidèle à la source.</p>
+
+  <h3>Les écrans à connaître (à utiliser tels quels dans les visuels)</h3>
+  <table>
+    <tr><th>Écran</th><th>Ce qu’on y voit</th><th>Usage vidéo</th></tr>
+    <tr><td>Accueil</td><td>Le titre, la promesse, l’entrée vers l’import</td><td>Plan d’ouverture, 2 s</td></tr>
+    <tr><td>Bibliothèque</td><td>La grille des livres importés, leur état</td><td>Preuve « je gère plusieurs livres »</td></tr>
+    <tr><td>Espace livre</td><td>Chapitres, progression, boutons de traduction</td><td>Preuve « ça travaille tout seul »</td></tr>
+    <tr><td>Lecteur</td><td>Le texte traduit, réglages, sommaire</td><td>Plan final, le plus important</td></tr>
+    <tr><td>Abonnement</td><td>Quota, solde, historique de paiement</td><td>Preuve « je vois ce que j’ai payé »</td></tr>
+    <tr><td>Tarifs</td><td>Les formules et les prix en francs CFA</td><td>Fin de vidéo, appel à l’action</td></tr>
+  </table>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>4</span></div>
+</div>
+
+<!-- ======================= 5. FONCTIONNALITÉS ======================= -->
+<div class="page">
+  <span class="num">05</span>
+  <h2 class="chap">Fonctionnalités — le détail complet</h2>
+  <div class="filet"></div>
+
+  <h3>Import et découpage</h3>
+  <ul>
+    <li>Glisser-déposer d’un fichier <strong>.txt, .md, .pdf (couche texte) ou .epub</strong>.</li>
+    <li>Détection automatique des chapitres (<em>Chapter</em>, <em>Chapitre</em>, <em>Prologue</em>, numérotation), avec possibilité de corriger.</li>
+    <li><strong>Un paragraphe entier = une unité de traduction</strong>. Le paragraphe n’est éclaté en phrases complètes qu’au-delà de 6 000 caractères ; chaque moteur re-découpe ensuite selon sa propre limite.</li>
+    <li>Assemblage <strong>1:1 garanti</strong> : les retours à la ligne sont stockés séparément du texte traduit, donc la structure revient à l’identique.</li>
+    <li>Comptage avant lancement : nombre de segments et de caractères, pour connaître le coût en quota.</li>
+  </ul>
+
+  <h3>Moteur de traduction</h3>
+  <ul>
+    <li><strong>Plusieurs moteurs</strong> derrière une même interface, ordre défini côté administration, <strong>repli automatique</strong> si l’un répond mal ou sature. Aucun fournisseur n’est codé en dur dans le produit.</li>
+    <li><strong>File d’attente par segment</strong> avec quatre états (en attente, en cours, fait, erreur), nouvelle tentative avec délai croissant, annulation propre.</li>
+    <li><strong>Reprise sans perte</strong> : la progression est écrite en base à chaque lot ; rien n’est perdu si la connexion tombe.</li>
+    <li><strong>Enchaînement serveur</strong> : chaque passage qui laisse du travail relance le suivant, jusqu’à la fin du livre, plafonné et protégé contre les boucles à vide. Le livre avance onglet fermé, sans service tiers. <em>Preuve réelle : un livre de 1 643 segments, un seul déclenchement, 1 643/1 643 traduits, 0 erreur.</em></li>
+    <li><strong>Glossaire de personnages</strong> (formules Passionné et au-dessus) pour garder les prénoms et surnoms cohérents d’un tome à l’autre.</li>
+    <li><strong>File prioritaire</strong> pour les formules payantes quand la file est chargée.</li>
+  </ul>
+
+  <h3>Lecteur</h3>
+  <ul>
+    <li><strong>18 palettes</strong> commutables, trois ambiances de fond : Nuit, Encre, Parchemin.</li>
+    <li>Typographies <strong>auto-hébergées</strong> : Bodoni Moda (titres), Literata (corps de texte), Cormorant Garamond, et Atkinson Hyperlegible pour la lisibilité (troubles visuels).</li>
+    <li>Réglages persistés : taille du texte, interligne, largeur de colonne, justification, police.</li>
+    <li>Sommaire, <strong>recherche dans le chapitre et dans tout le livre</strong> avec extraits de contexte et saut direct.</li>
+    <li>Favoris et <strong>reprise de lecture</strong> à la position exacte.</li>
+    <li>Contraste vérifié par script sur les valeurs réelles du thème (AA minimum sur le texte).</li>
+  </ul>
+
+  <h3>Exports</h3>
+  <ul>
+    <li>Chapitre courant en <strong>Markdown</strong>, livre entier en <strong>Markdown</strong>.</li>
+    <li><strong>Word (.docx)</strong> avec les styles de base.</li>
+    <li><strong>Impression PDF</strong>, <strong>PDF re-paginé</strong> (propre, avec page de titre) et <strong>PDF fidèle</strong> à la mise en page source.</li>
+    <li>Export du texte source si la traduction n’est pas encore faite.</li>
+  </ul>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>5</span></div>
+</div>
+
+<div class="page">
+  <span class="num">05</span>
+  <h2 class="chap">Fonctionnalités (suite)</h2>
+  <div class="filet"></div>
+
+  <h3>Comptes et données</h3>
+  <ul>
+    <li>Inscription et connexion <strong>email + mot de passe</strong>, réinitialisation par lien envoyé par email.</li>
+    <li><strong>Isolation stricte</strong> : chaque compte ne voit que ses propres livres, ses propres traductions et son propre historique (règles d’accès au niveau de la base, pas seulement de l’interface).</li>
+    <li>Quota mensuel exprimé en <strong>caractères</strong>, lisible à tout moment ; jauge de consommation ; solde de crédits.</li>
+    <li>Rôles : utilisateur, administrateur, super administrateur — avec journal des actions administratives.</li>
+  </ul>
+
+  <h3>Paiement et revenus</h3>
+  <ul>
+    <li><strong>FedaPay / Mobile Money</strong> en francs CFA (MTN, Moov, Wave selon opérateur). Aucune carte bancaire demandée.</li>
+    <li>Deux familles d’offres : <strong>abonnements</strong> (mensuels et annuels) et <strong>packs de crédits prépayés</strong> (pay-as-you-go, sans engagement).</li>
+    <li>Tunnel de paiement dédié par formule (<span class="code">/paiement/&lt;code&gt;</span>), pages de succès et d’échec explicites.</li>
+    <li><strong>Webhook signé</strong> : la confirmation vient du prestataire, jamais du navigateur. Activation <strong>idempotente</strong> (un même paiement ne peut pas activer deux fois), vérification de signature, journal des rejets.</li>
+    <li>Historique de paiement côté client : formule, montant, statut en clair (« Réussi », « Échoué », « En attente »), date.</li>
+  </ul>
+
+  <h3>Confort et diffusion</h3>
+  <ul>
+    <li><strong>Application installable (PWA)</strong> : icône sur l’écran d’accueil du téléphone, ouverture plein écran.</li>
+    <li>Notifications dans l’application (cloche) : fin de traduction, paiement validé, renouvellement proche.</li>
+    <li>Mode sombre par défaut, contrastes mesurés, navigation clavier, libellés ARIA sur les formulaires et les boutons d’action.</li>
+    <li>Interface entièrement en français, y compris les messages d’erreur.</li>
+  </ul>
+
+  <h3>Administration (tableau de bord)</h3>
+  <table>
+    <tr><th>Section</th><th>Contenu</th></tr>
+    <tr><td>Vue d’ensemble</td><td>Chiffres clés : comptes, abonnements actifs, revenus, paiements récents, alertes.</td></tr>
+    <tr><td>Comptes</td><td>Liste paginée, recherche, rôle, statut, dernière connexion, actions encadrées par confirmation.</td></tr>
+    <tr><td>Abonnements</td><td>Répartition par formule, anomalies détectées (quota dépassé, période incohérente).</td></tr>
+    <tr><td>Paiements</td><td>Journal des transactions : montant, formule, statut, référence, moyen de paiement.</td></tr>
+    <tr><td>Rôles</td><td>Attribution et retrait des droits administratifs, avec garde-fous.</td></tr>
+    <tr><td>Système</td><td>Santé des moteurs de traduction, ordre de la chaîne, exports, journal des actions.</td></tr>
+  </table>
+
+  <div class="note"><b>Ce que le client ne voit jamais.</b> Aucun nom de moteur ou de fournisseur de traduction, aucune mention d’environnement technique, aucune référence interne n’apparaît côté public. Le client voit un atelier, pas une plomberie. Les sous-traitants restent nommés uniquement dans la politique de confidentialité, comme la loi l’exige.</div>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>6</span></div>
+</div>
+
+<!-- ======================= 6. TARIFS ======================= -->
+<div class="page">
+  <span class="num">06</span>
+  <h2 class="chap">La grille tarifaire</h2>
+  <div class="filet"></div>
+
+  <p>Prix en francs CFA (XOF), payables par Mobile Money. La grille ci-dessous est celle du catalogue en vigueur, engagée par les conditions générales.</p>
+
+  <h3>Abonnements</h3>
+  <table>
+    <tr><th>Formule</th><th>Prix</th><th>Ce qu’elle donne</th></tr>
+    <tr><td><strong>Gratuit</strong></td><td class="prix">0 F</td><td>400 000 caractères par mois (≈ un livre) · import tous formats · lecture complète · favoris, recherche, exports</td></tr>
+    <tr><td><strong>Essai — 7 jours</strong></td><td class="prix">0 F</td><td>Le confort du plan Passionné pendant 7 jours, plafonné à 3 livres</td></tr>
+    <tr><td><strong>Lecteur — mensuel</strong></td><td class="prix">1 500 F</td><td>3 livres par mois · confort de lecture complet · exports</td></tr>
+    <tr><td><strong>Lecteur — annuel</strong></td><td class="prix">14 400 F</td><td>Les mêmes droits à l’année, soit 1 200 F/mois (−20 %)</td></tr>
+    <tr><td><strong>Passionné — mensuel</strong></td><td class="prix">3 500 F</td><td>10 livres par mois · 2 traductions en parallèle · file prioritaire · glossaire de personnages</td></tr>
+    <tr><td><strong>Passionné — annuel</strong></td><td class="prix">33 600 F</td><td>Les mêmes droits à l’année, soit 2 800 F/mois (−20 %)</td></tr>
+    <tr><td><strong>Illimité — mensuel</strong></td><td class="prix">9 000 F</td><td>Volume illimité sous usage raisonnable (jusqu’à 25 000 000 caractères/mois) · 3 traductions en parallèle</td></tr>
+    <tr><td><strong>Illimité — annuel</strong></td><td class="prix">90 000 F</td><td>Les mêmes droits à l’année, soit 7 500 F/mois</td></tr>
+    <tr><td><strong>Étudiant — mensuel</strong></td><td class="prix">1 200 F</td><td>3 livres par mois · justificatif de statut demandé</td></tr>
+    <tr><td><strong>Groupe — mensuel</strong></td><td class="prix">2 400 F / pers.</td><td>3 personnes minimum, un seul payeur · 3 livres/mois par personne · glossaire partagé</td></tr>
+    <tr><td><strong>École — annuel</strong></td><td class="prix">21 600 F / pers.</td><td>11 personnes minimum · 10 livres/mois par personne · facturé à l’année</td></tr>
+  </table>
+
+  <h3>Packs de crédits (sans engagement)</h3>
+  <table>
+    <tr><th>Pack</th><th>Prix</th><th>Crédits</th><th>Équivalent</th></tr>
+    <tr><td>Découverte</td><td class="prix">500 F</td><td>250 000 caractères</td><td>Une novella</td></tr>
+    <tr><td>Lecteur</td><td class="prix">1 000 F</td><td>600 000 caractères</td><td>Un roman complet</td></tr>
+    <tr><td>Bibliothèque</td><td class="prix">2 500 F</td><td>1 800 000 caractères</td><td>Trois romans</td></tr>
+    <tr><td>Collection</td><td class="prix">5 000 F</td><td>4 000 000 caractères</td><td>Une saga</td></tr>
+  </table>
+
+  <div class="warn"><b>Règle commerciale à ne pas casser.</b> Les crédits achetés ne doivent jamais être présentés comme « illimités » : la page Tarifs affiche des caractères, pas des promesses. Toute nouvelle remise ou condition doit être validée avant publication — le minimum de transaction du prestataire est d’environ 500 F.</div>
+
+  <h3>Le message prix, côté marketing</h3>
+  <ul>
+    <li><strong>Entrée :</strong> « 500 F pour un livre. Sans carte bancaire. »</li>
+    <li><strong>Récurrence :</strong> « 1 500 F par mois pour trois romans — le prix d’un café par semaine. »</li>
+    <li><strong>Fidélité :</strong> « L’année à 14 400 F au lieu de 18 000 : deux mois offerts. »</li>
+    <li><strong>Communauté :</strong> « 2 400 F chacun, on lit le même tome le même soir. »</li>
+  </ul>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>7</span></div>
+</div>
+
+<!-- ======================= 7. TECHNIQUE ======================= -->
+<div class="page">
+  <span class="num">07</span>
+  <h2 class="chap">Le socle technique (à ne pas mettre dans les visuels)</h2>
+  <div class="filet"></div>
+
+  <p class="lead">Cette page sert à rassurer les partenaires, pas à nourrir la communication : le client n’a pas besoin de savoir comment c’est construit.</p>
+
+  <table>
+    <tr><th>Brique</th><th>Choix</th><th>Pourquoi</th></tr>
+    <tr><td>Application</td><td>Next.js 16 (App Router), TypeScript, Tailwind CSS 4</td><td>Rendu serveur rapide, pages publiques indexables, une seule base de code</td></tr>
+    <tr><td>Données</td><td>PostgreSQL managé (Supabase) avec règles d’accès par ligne</td><td>Chaque compte est isolé dans la base elle-même, pas seulement dans l’interface</td></tr>
+    <tr><td>Authentification</td><td>Email + mot de passe, liens signés, réinitialisation</td><td>Simple pour le public visé, sans dépendance à un réseau social</td></tr>
+    <tr><td>Hébergement</td><td>Vercel (offre gratuite) + un moteur auto-hébergé</td><td>Coût quasi nul tant que le volume reste maîtrisé</td></tr>
+    <tr><td>Paiement</td><td>FedaPay (Mobile Money), webhook signé, activation idempotente</td><td>Encaisse en francs CFA sans carte bancaire</td></tr>
+    <tr><td>Qualité</td><td>Plus de 120 tests automatisés, typage strict, analyse statique</td><td>Les règles critiques (assemblage 1:1, activation de paiement, reprise) sont prouvées à chaque modification</td></tr>
+  </table>
+
+  <h3>Les trois mécanismes qui font la différence</h3>
+  <p><strong>1. Le découpage.</strong> Le programme ne coupe pas au hasard : le paragraphe entier est l’unité, et l’éclatement ne se fait qu’en phrases complètes, au-delà d’une taille limite. C’est ce qui donne au moteur assez de contexte pour traduire correctement.</p>
+  <p><strong>2. L’assemblage.</strong> Chaque saut de ligne du fichier d’origine est conservé à part. Le texte traduit revient donc exactement dans la même structure, ce qu’aucun copier-coller ne permet.</p>
+  <p><strong>3. L’enchaînement.</strong> Le serveur reprend le travail là où il s’est arrêté, tout seul, et ne s’arrête que quand le livre est fini — ou quand quelque chose ne va vraiment plus, auquel cas il prévient plutôt que de tourner à vide.</p>
+
+  <div class="note"><b>Transparence.</b> La politique de confidentialité nomme les sous-traitants techniques, comme la loi l’exige. Cette mention légale est le seul endroit où ils apparaissent : ni la FAQ, ni les pages de vente, ni les visuels ne les citent.</div>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>8</span></div>
+</div>
+
+<!-- ======================= 8. IDENTITÉ VISUELLE ======================= -->
+<div class="page">
+  <span class="num">08</span>
+  <h2 class="chap">L’identité visuelle — la base de tous les visuels</h2>
+  <div class="filet"></div>
+
+  <p class="lead">Tout ce qui sera produit (images, vidéos, stories) doit sortir de cette palette et de cette typographie. C’est ce qui rendra les publications reconnaissables avant même de lire le nom.</p>
+
+  <h3>Palette — « Brume &amp; braises »</h3>
+  <div class="palette">
+    <div class="pastille" style="background:#0a0608;color:#f2e6eb"><span>#0a0608<br>nuit 950 · fond</span></div>
+    <div class="pastille" style="background:#1b1216;color:#f2e6eb"><span>#1b1216<br>nuit 800 · cartes</span></div>
+    <div class="pastille" style="background:#2e1f27;color:#f2e6eb"><span>#2e1f27<br>nuit 700 · bordures</span></div>
+    <div class="pastille" style="background:#c13d5c;color:#fff"><span>#c13d5c<br>grenat 500 · accent</span></div>
+    <div class="pastille" style="background:#a32b4b;color:#fff"><span>#a32b4b<br>grenat 600 · boutons</span></div>
+    <div class="pastille" style="background:#8a5bc4;color:#fff"><span>#8a5bc4<br>violet 500 · second</span></div>
+  </div>
+  <div class="palette">
+    <div class="pastille" style="background:#6b1e2d;color:#fff"><span>#6b1e2d<br>bordeaux vieilli</span></div>
+    <div class="pastille" style="background:#f0a5b4;color:#1b1216"><span>#f0a5b4<br>grenat 300 · texte</span></div>
+    <div class="pastille" style="background:#e8c4a0;color:#1b1216"><span>#e8c4a0<br>or rosé · détails</span></div>
+    <div class="pastille" style="background:#f2e6eb;color:#1b1216"><span>#f2e6eb<br>encre 100 · ivoire</span></div>
+    <div class="pastille" style="background:#c8b6c0;color:#1b1216"><span>#c8b6c0<br>encre 300 · texte 2</span></div>
+    <div class="pastille" style="background:#a89aa3;color:#1b1216"><span>#a89aa3<br>encre 500 · discret</span></div>
+  </div>
+
+  <h3>Typographie</h3>
+  <ul>
+    <li><strong>Bodoni Moda</strong> — titres et chiffres. Haute, fine, un peu dramatique : c’est la voix du genre.</li>
+    <li><strong>Literata</strong> — corps de texte et paragraphes. Pensée pour la lecture longue à l’écran.</li>
+    <li><strong>Cormorant Garamond</strong> — citations, accroches, phrases manifestes.</li>
+    <li><strong>Atkinson Hyperlegible</strong> — utilisé pour l’accessibilité dans le lecteur.</li>
+  </ul>
+
+  <h3>Vocabulaire graphique</h3>
+  <ul>
+    <li><strong>La plume et l’encre</strong> : le logo, les liserés fins, les filets qui se terminent en dégradé.</li>
+    <li><strong>La brume</strong> : dégradés radiaux flous, jamais de couleur unie en fond de visuel.</li>
+    <li><strong>Les braises</strong> : un seul point chaud par image (grenat), le reste en nuit.</li>
+    <li><strong>L’ivoire, jamais le blanc pur</strong> : le texte clair est toujours #f2e6eb.</li>
+    <li><strong>Le grain</strong> : une texture fine, très légère, sur les fonds sombres.</li>
+  </ul>
+
+  <h3>Les cinq règles à ne pas enfreindre</h3>
+  <ul>
+    <li>Un visuel = <strong>une seule idée</strong> et <strong>une seule couleur chaude</strong>.</li>
+    <li><strong>Jamais de blanc pur</strong> ni de noir pur : l’ivoire et la nuit.</li>
+    <li><strong>Jamais plus de deux polices</strong> dans un même visuel.</li>
+    <li><strong>Aucune capture d’écran floue</strong> : si l’interface apparaît, elle est nette, droite, sans barre d’adresse.</li>
+    <li><strong>Aucun nom de moteur, aucun prix inventé, aucune promesse d’illimité.</strong></li>
+  </ul>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>9</span></div>
+</div>
+
+<!-- ======================= 9. VISUELS ======================= -->
+<div class="page">
+  <span class="num">09</span>
+  <h2 class="chap">Les visuels à produire</h2>
+  <div class="filet"></div>
+  <p>Douze visuels suffisent pour couvrir tout le lancement. Pour chacun : format, sujet, texte exact, usage.</p>
+
+  <h3>1 · Logo et icône</h3>
+  <p><span class="etiquette">1080×1080 · PNG transparent</span> Le logo existant, sur fond nuit. Variante carrée pour l’icône d’application, variante horizontale pour l’en-tête. <em>Usage : profil Instagram, TikTok, WhatsApp Business, favicon.</em></p>
+
+  <h3>2 · Bannière de profil</h3>
+  <p><span class="etiquette">1500×500</span> Fond nuit avec brume grenat à gauche, logo à droite. Texte : <strong>« Traduire la nuit, chapitre par chapitre »</strong>. <em>Usage : bannière Instagram et TikTok.</em></p>
+
+  <h3>3 · Visuel manifeste (post d’ouverture)</h3>
+  <p><span class="etiquette">1080×1350</span> Fond nuit, une plume unique en or rosé, gros titre Bodoni : <strong>« Ce livre, tu vas le lire en français. »</strong> Sous-titre Literata : « Importe-le. On s’occupe du reste. » <em>Usage : premier post, épingle du profil.</em></p>
+
+  <h3>4 · Les quatre temps (carrousel de 4)</h3>
+  <p><span class="etiquette">1080×1350 ×4</span> Une carte par étape, même gabarit : chiffre romain en filigrane, un titre court, une ligne d’explication. <strong>I · Importer — II · Découper — III · Traduire — IV · Lire.</strong> <em>Usage : carrousel Instagram, fil LinkedIn.</em></p>
+
+  <h3>5 · Preuve du lecteur</h3>
+  <p><span class="etiquette">1080×1350</span> Capture nette du lecteur, texte traduit visible, cadre fin grenat, légende : <strong>« 18 palettes. Ta police. Ta lumière. »</strong> <em>Usage : post + story « swipe up ».</em></p>
+
+  <h3>6 · Preuve de la traduction qui continue</h3>
+  <p><span class="etiquette">1080×1350</span> Capture de l’écran de progression, avec la ligne de statut. Légende : <strong>« Ferme l’onglet. On continue. »</strong> <em>Usage : post technique-grand-public, très différenciant.</em></p>
+
+  <h3>7 · Grille tarifaire</h3>
+  <p><span class="etiquette">1080×1350</span> Quatre blocs : Gratuit 0 F · Lecteur 1 500 F · Passionné 3 500 F · Illimité 9 000 F, avec le nombre de livres. Bas de visuel : <strong>« Mobile Money · francs CFA · sans carte bancaire »</strong>. <em>Usage : post enregistrable, story à la demande.</em></p>
+
+  <h3>8 · Pack découverte</h3>
+  <p><span class="etiquette">1080×1080</span> Un livre fermé, une pièce de 500 F stylisée en or rosé. Texte : <strong>« 500 F. Un livre. Ce soir. »</strong> <em>Usage : post de conversion, publicité légère.</em></p>
+
+  <h3>9 · Formats supportés</h3>
+  <p><span class="etiquette">1080×1080</span> Quatre silhouettes de fichiers (.txt .md .pdf .epub) alignées, dans la palette. Texte : <strong>« Ton fichier, tel quel. »</strong> <em>Usage : réponse aux questions fréquentes.</em></p>
+
+  <h3>10 · Export</h3>
+  <p><span class="etiquette">1080×1080</span> Trois feuilles qui s’empilent : Markdown, Word, PDF. Texte : <strong>« Emporte-le avec toi. »</strong> <em>Usage : public étudiant et club de lecture.</em></p>
+
+  <h3>11 · Témoignage (gabarit réutilisable)</h3>
+  <p><span class="etiquette">1080×1350</span> Citation en Cormorant, guillemets immenses en filigrane, prénom + type de lectrice en bas. <strong>Gabarit à dupliquer</strong> pour chaque retour client réel — jamais de faux témoignage.</p>
+
+  <h3>12 · Écran de fin / appel à l’action</h3>
+  <p><span class="etiquette">1080×1920 (story)</span> Fond nuit, logo centré, une ligne : <strong>« Ton premier livre est offert. 400 000 caractères par mois. »</strong> puis l’adresse du site. <em>Usage : dernière story de chaque série.</em></p>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>10</span></div>
+</div>
+
+<!-- ======================= 10. VIDÉOS ======================= -->
+<div class="page">
+  <span class="num">10</span>
+  <h2 class="chap">Les vidéos — plans, textes, durées</h2>
+  <div class="filet"></div>
+
+  <p class="lead">Une vidéo manifeste (45 s) pour le site et YouTube, trois verticales courtes pour TikTok et Reels, une démonstration de 90 s pour les curieux. Toutes suivent la même règle : on montre l’écran, on ne le raconte pas.</p>
+
+  <h3>Film manifeste — 45 secondes, 16:9</h3>
+
+  <div class="plan-video">
+    <div class="entete"><span>Plan 1 · 0:00 – 0:05</span><span>Ambiance</span></div>
+    <div class="corps">
+      <p><strong>Image :</strong> noir presque total, une fumée grenat qui monte, une plume qui tombe lentement.</p>
+      <p><strong>Texte à l’écran :</strong> « Tu l’as trouvé en anglais. »</p>
+      <p><strong>Son :</strong> nappe grave, pas de musique rythmée.</p>
+    </div>
+  </div>
+
+  <div class="plan-video">
+    <div class="entete"><span>Plan 2 · 0:05 – 0:11</span><span>Problème</span></div>
+    <div class="corps">
+      <p><strong>Image :</strong> un livre anglais ouvert, la page se floute sur les mots difficiles ; la souris copie un paragraphe, le colle, la mise en page explose.</p>
+      <p><strong>Texte :</strong> « Et tu as arrêté au chapitre 3. »</p>
+    </div>
+  </div>
+
+  <div class="plan-video">
+    <div class="entete"><span>Plan 3 · 0:11 – 0:17</span><span>Import</span></div>
+    <div class="corps">
+      <p><strong>Image :</strong> capture nette. Le fichier est glissé dans la zone d’import ; les chapitres apparaissent un par un.</p>
+      <p><strong>Texte :</strong> « Ton fichier. Entier. »</p>
+      <p><strong>Détail à soigner :</strong> le curseur qui soulève le fichier, la zone qui s’illumine en grenat.</p>
+    </div>
+  </div>
+
+  <div class="plan-video">
+    <div class="entete"><span>Plan 4 · 0:17 – 0:24</span><span>Traduction</span></div>
+    <div class="corps">
+      <p><strong>Image :</strong> l’écran de progression ; la barre avance, le pourcentage monte, les chapitres passent en vert.</p>
+      <p><strong>Texte :</strong> « Tu peux fermer l’onglet. »</p>
+      <p><strong>Note :</strong> accélérer légèrement l’image (×1,5) pour donner le sentiment de fluidité.</p>
+    </div>
+  </div>
+
+  <div class="plan-video">
+    <div class="entete"><span>Plan 5 · 0:24 – 0:33</span><span>Récompense</span></div>
+    <div class="corps">
+      <p><strong>Image :</strong> le lecteur s’ouvre sur une page traduite. On change la palette (nuit → parchemin), la police grossit.</p>
+      <p><strong>Texte :</strong> « En français. Dans ta lumière. »</p>
+      <p><strong>Point clé :</strong> c’est le plan le plus important de la vidéo — il doit être lisible, net, sans reflet.</p>
+    </div>
+  </div>
+
+  <div class="plan-video">
+    <div class="entete"><span>Plan 6 · 0:33 – 0:39</span><span>Preuve de paiement</span></div>
+    <div class="corps">
+      <p><strong>Image :</strong> la page Tarifs, puis un paiement Mobile Money qui se valide, puis l’historique avec la ligne « Réussi ».</p>
+      <p><strong>Texte :</strong> « 500 F. Mobile Money. Sans carte. »</p>
+    </div>
+  </div>
+
+  <div class="plan-video">
+    <div class="entete"><span>Plan 7 · 0:39 – 0:45</span><span>Signature</span></div>
+    <div class="corps">
+      <p><strong>Image :</strong> retour au noir, le logo apparaît en fondu, le liséré grenat se trace.</p>
+      <p><strong>Texte :</strong> « Plume d’Ombres — traduire la nuit, chapitre par chapitre. » puis l’adresse du site.</p>
+      <p><strong>Son :</strong> la nappe se coupe net sur le logo.</p>
+    </div>
+  </div>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>11</span></div>
+</div>
+
+<div class="page">
+  <span class="num">10</span>
+  <h2 class="chap">Vidéos courtes et démonstration</h2>
+  <div class="filet"></div>
+
+  <h3>Verticale A — « Ferme l’onglet » — 18 s (TikTok, Reels, Shorts)</h3>
+  <p><strong>0-3 s :</strong> face caméra ou texte plein écran : « J’ai arrêté 12 romans anglais au chapitre 3. »<br>
+  <strong>3-8 s :</strong> capture de l’import du fichier, accélérée.<br>
+  <strong>8-13 s :</strong> l’écran de progression, puis on <em>ferme l’onglet</em> visiblement.<br>
+  <strong>13-18 s :</strong> on rouvre : la traduction est finie, le lecteur s’affiche. Texte : « Plume d’Ombres · lien en bio ».</p>
+
+  <h3>Verticale B — « Le test du paragraphe » — 20 s</h3>
+  <p>Comparaison côte à côte : à gauche un paragraphe traduit à la va-vite qui a perdu le rythme, à droite la traduction sortie de Plume d’Ombres avec sa mise en page. Commentaire à l’écran : « Même paragraphe. Pas le même livre. » Fin sur l’offre gratuite.</p>
+
+  <h3>Verticale C — « 500 F » — 15 s</h3>
+  <p>Plan unique, très sobre : le téléphone qui affiche le paiement Mobile Money à 500 F, puis le lecteur. Texte plein écran : « Un livre. 500 F. Sans carte bancaire. » Aucune voix, uniquement la musique et les gestes. <em>C’est la vidéo de conversion à pousser en publicité.</em></p>
+
+  <h3>Démonstration complète — 90 s (site + YouTube)</h3>
+  <p>Structure en cinq chapitres avec titres à l’écran : <strong>Importer (0:00) · Vérifier (0:15) · Traduire (0:30) · Lire (1:00) · Exporter (1:15)</strong>. Voix off posée, phrases courtes, aucune promesse technique. Se termine sur la page Tarifs avec le curseur qui clique sur « Commencer gratuitement ».</p>
+
+  <h3>Boucle de 6 s pour la page d’accueil</h3>
+  <p>Très court, silencieux, en boucle : les chapitres qui se remplissent un par un, puis le lecteur qui s’ouvre. Format 16:9, moins de 2 Mo, sans texte (le texte est déjà sur la page).</p>
+
+  <h3>Règles de tournage et de montage</h3>
+  <ul>
+    <li><strong>1920×1080</strong> pour l’horizontal, <strong>1080×1920</strong> pour le vertical. Jamais de vidéo en 720p.</li>
+    <li><strong>Captures réelles uniquement</strong> : un vrai fichier, un vrai livre, une vraie traduction. Aucun écran maquetté.</li>
+    <li>Flouter <strong>tout nom de fichier personnel</strong> et tout titre de livre soumis à droits avant publication.</li>
+    <li>Durée de la vidéo manifeste : <strong>45 s maximum</strong>. Au-delà, la lecture décroche.</li>
+    <li>Sous-titres obligatoires (85 % des vues se font sans son) — en Literata, ivoire sur bandeau nuit à 80 % d’opacité.</li>
+    <li>Le mot « gratuit » doit toujours être accompagné de sa limite : « 400 000 caractères par mois ».</li>
+    <li>Ne jamais montrer le tableau de bord d’administration, ni un email de client, ni un montant autre que les prix publics.</li>
+  </ul>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>12</span></div>
+</div>
+
+<!-- ======================= 11. TEXTES ======================= -->
+<div class="page">
+  <span class="num">11</span>
+  <h2 class="chap">Les textes du lancement</h2>
+  <div class="filet"></div>
+
+  <h3>Baseline et accroches</h3>
+  <ul>
+    <li><strong>Baseline</strong> : Traduire la nuit, chapitre par chapitre.</li>
+    <li><strong>Accroche courte</strong> : Ton roman anglais, en français, ce soir.</li>
+    <li><strong>Accroche preuve</strong> : Ferme l’onglet. On continue.</li>
+    <li><strong>Accroche prix</strong> : 500 F un livre. Sans carte bancaire.</li>
+    <li><strong>Accroche lecteur</strong> : En français, dans ta lumière.</li>
+  </ul>
+
+  <h3>Bio de profil</h3>
+  <p><strong>Instagram / TikTok :</strong> « Tes romans anglais, en français — importe, on traduit, tu lis. ✦ 400 000 caractères offerts chaque mois ✦ Mobile Money · francs CFA »</p>
+  <p><strong>WhatsApp Business :</strong> « Plume d’Ombres — atelier de traduction littéraire. Importe ton roman en anglais, reçois-le en français dans un lecteur confortable. Paiement Mobile Money. »</p>
+
+  <h3>Post d’ouverture (texte long)</h3>
+  <p>« Il y a un moment précis où on abandonne un livre : quand on réalise qu’on lit trois pages sans avoir rien ressenti, parce qu’on traduit dans sa tête au lieu de lire.<br><br>
+  Plume d’Ombres existe pour ça. Tu déposes ton fichier — le roman entier, pas un extrait. Il est découpé, traduit, remis dans sa mise en page d’origine, et tu le lis dans un lecteur qui ressemble à une vraie page.<br><br>
+  Ce soir, tu peux commencer le roman que tu repousses depuis six mois. 400 000 caractères offerts chaque mois, sans carte bancaire. »</p>
+
+  <h3>Légendes courtes prêtes à publier</h3>
+  <ul>
+    <li>« Ce livre, tu vas le lire en français. »</li>
+    <li>« La mise en page d’origine. À l’identique. »</li>
+    <li>« Tu fermes l’onglet, on continue la traduction. »</li>
+    <li>« 18 palettes. Ta police. Ta lumière. »</li>
+    <li>« Importe. On s’occupe du reste. »</li>
+  </ul>
+
+  <h3>Hashtags</h3>
+  <p><span class="code">#darkromance #booktok #booktokfrance #romancefr #lecture #traductionlitteraire #mobimoney #abidjan #cotonou #lome #dakar #yaounde #bookaddict</span></p>
+
+  <h3>Email d’annonce</h3>
+  <p><strong>Objet :</strong> Ton roman anglais, en français, ce soir<br>
+  <strong>Corps :</strong> « Plume d’Ombres est ouvert. Dépose un roman en anglais, il revient en français — chapitres, paragraphes et mise en page intacts — prêt à lire ou à exporter. Tu peux commencer sans payer : 400 000 caractères offerts chaque mois, soit environ un livre. Quand tu veux aller plus loin, 500 F pour un livre, ou 1 500 F pour trois livres dans le mois. Mobile Money, sans carte bancaire. »</p>
+
+  <h3>Message de relance (J+3)</h3>
+  <p><strong>Objet :</strong> Il reste des pages à toi<br>
+  <strong>Corps :</strong> « Tu as importé <em>[titre]</em> mais tu ne l’as pas encore traduit. Il t’attend. Le compte gratuit couvre environ un livre par mois — de quoi finir celui-là. »</p>
+
+  <h3>Réponses préparées aux questions fréquentes</h3>
+  <table>
+    <tr><th>Question</th><th>Réponse à utiliser</th></tr>
+    <tr><td>« C’est fiable ? Ça garde la mise en page ? »</td><td>Oui : chaque ligne du fichier d’origine est conservée séparément, donc le texte revient exactement dans la même structure.</td></tr>
+    <tr><td>« Ça marche pour un PDF ? »</td><td>Oui pour un PDF avec du texte sélectionnable. Un PDF scanné (photo de pages) ne contient pas de texte : il faut d’abord le passer en texte.</td></tr>
+    <tr><td>« Combien de temps pour un livre ? »</td><td>Quelques minutes à quelques heures selon la taille et l’affluence. On peut fermer l’onglet : la traduction continue.</td></tr>
+    <tr><td>« Je peux payer sans carte ? »</td><td>Oui, Mobile Money en francs CFA. Aucune carte bancaire n’est demandée.</td></tr>
+    <tr><td>« Et la confidentialité de mes textes ? »</td><td>Chaque compte est isolé dans la base ; les sous-traitants techniques sont listés dans la politique de confidentialité.</td></tr>
+  </table>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>13</span></div>
+</div>
+
+<!-- ======================= 12. CHECKLIST ======================= -->
+<div class="page">
+  <span class="num">12</span>
+  <h2 class="chap">Checklist de lancement</h2>
+  <div class="filet"></div>
+
+  <h3>Avant publication</h3>
+  <ul>
+    <li>Page d’accueil, Tarifs, FAQ, Contact : textes relus, aucun nom de fournisseur visible.</li>
+    <li>Pages légales complètes : conditions, confidentialité, cookies, remboursement, mentions légales — siège social sans adresse personnelle.</li>
+    <li>Un compte neuf fait le parcours complet sans erreur : inscription → import → traduction → lecture → export.</li>
+    <li>Un paiement réel a été encaissé et le compte a été activé automatiquement.</li>
+    <li>Les visuels 1 à 12 sont produits et rangés dans un dossier daté.</li>
+    <li>La vidéo manifeste et les trois verticales sont montées, sous-titrées, exportées.</li>
+    <li>Le profil Instagram, TikTok et WhatsApp est habillé (logo, bannière, bio, lien).</li>
+  </ul>
+
+  <h3>Le jour J</h3>
+  <ul>
+    <li>Publier le post d’ouverture (visuel 3) et la vidéo manifeste en même temps.</li>
+    <li>Publier la verticale C (« 500 F ») en story avec le lien direct vers l’offre découverte.</li>
+    <li>Envoyer l’email d’annonce à la liste existante.</li>
+    <li>Répondre à chaque commentaire dans l’heure : les trois premières heures décident de la portée.</li>
+    <li>Surveiller le tableau de bord : inscriptions, premiers imports, paiements.</li>
+  </ul>
+
+  <h3>Les sept jours suivants</h3>
+  <ul>
+    <li>Une publication par jour : alterner preuve (capture) et promesse (visuel manifeste).</li>
+    <li>Récupérer les vrais retours clients et remplir le gabarit témoignage (visuel 11).</li>
+    <li>Envoyer le message de relance J+3 aux comptes qui ont importé sans traduire.</li>
+    <li>Consigner chaque question posée : les cinq plus fréquentes deviennent la FAQ publique.</li>
+  </ul>
+
+  <h3>Les indicateurs à regarder (pas ceux qui flattent)</h3>
+  <table>
+    <tr><th>Indicateur</th><th>Ce qu’il dit vraiment</th><th>Cible des 30 premiers jours</th></tr>
+    <tr><td>Comptes créés / visiteurs</td><td>La promesse de la page d’accueil convainc</td><td>≥ 8 %</td></tr>
+    <tr><td>Premier import réussi</td><td>L’outil est compris, l’entrée n’est pas bloquante</td><td>≥ 60 % des inscrits</td></tr>
+    <tr><td>Première traduction terminée</td><td>La promesse est tenue pour de vrai</td><td>≥ 40 % des inscrits</td></tr>
+    <tr><td>Passage au payant</td><td>Le prix est juste et la valeur perçue réelle</td><td>≥ 5 %</td></tr>
+    <tr><td>Deuxième livre traduit</td><td>Le service entre dans les habitudes</td><td>≥ 50 % des payants</td></tr>
+  </table>
+
+  <div class="note"><b>La règle d’or du lancement.</b> Ne jamais promettre plus que ce qui est vrai. Une capture d’écran honnête convainc mieux qu’une promesse large : le produit fait déjà ce que les autres ne font pas — il rend un livre entier, lisible, dans sa mise en page.</div>
+  <div class="footer"><span>Plume d’Ombres — dossier de lancement</span><span>14</span></div>
+</div>
+
+</body>
+</html>

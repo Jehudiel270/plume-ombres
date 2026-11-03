@@ -707,6 +707,18 @@ async function passer(request: NextRequest): Promise<NextResponse> {
     return reponse({ erreur: 'Non autorisé.' }, 401);
   }
 
+  // Entretien quotidien des données d'audience : on ne conserve que
+  // 180 jours de visites. Le nettoyage profite de ce passage déjà
+  // authentifié pour ne pas ajouter un second cron (plan Hobby : un
+  // seul passage par jour autorisé par projet).
+  const clientEntretien = clientServeur();
+  if (clientEntretien) {
+    const { error: erreurPurge } = await clientEntretien.rpc('purger_visites');
+    if (erreurPurge) {
+      console.warn('purge_visites :', erreurPurge.message);
+    }
+  }
+
   // Budget d'exécution : 45 s par défaut. Un déclencheur externe peut
   // l'abaisser via `?budget=25000` (cron-job.org coupe à 30 s).
   const demande = Number(request.nextUrl.searchParams.get('budget') ?? '');

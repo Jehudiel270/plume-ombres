@@ -59,7 +59,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const destination = suivant.startsWith('/') ? suivant : '/nouveau-mot-de-passe';
+    // Chemins internes uniquement. `//exemple.com` et `/\exemple.com` sont
+    // des URL relatives au protocole : le navigateur les traite comme un
+    // domaine EXTERNE (redirection ouverte, hameçonnage post-connexion).
+    const interne =
+      suivant.startsWith('/') && !suivant.startsWith('//') && !suivant.startsWith('/\\');
+    const destination = interne ? suivant : '/nouveau-mot-de-passe';
     return NextResponse.redirect(new URL(destination, url.origin));
   } catch {
     return NextResponse.redirect(new URL('/connexion?erreur=lien-expire', url.origin));

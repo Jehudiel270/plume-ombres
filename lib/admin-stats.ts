@@ -611,10 +611,30 @@ export function comptesEnAnomalie(
  * Échappe une cellule CSV. Séparateur « ; » (défaut du tableur
  * français) : on entoure de guillemets dès qu'une cellule contient un
  * point-virgule, un guillemet, un saut de ligne ou une virgule.
+ *
+ * Neutralise aussi les FORMULES : un tableur interprète une cellule qui
+ * commence par « = », « + », « - », « @ », une tabulation ou un retour
+ * chariot. Un compte dont l'adresse commence par « =cmd|… » pourrait
+ * exécuter du code chez l'administrateur qui ouvre l'export. On préfixe
+ * d'une apostrophe (affichée telle quelle, jamais évaluée).
  */
 export function echapperCsv(valeur: unknown): string {
-  const s = valeur === null || valeur === undefined ? '' : String(valeur);
-  return /[";\n\r,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  const brut = valeur === null || valeur === undefined ? '' : String(valeur);
+  const c0 = brut.charCodeAt(0);
+  // = + - @ tabulation retour-chariot : un tableur y voit une formule.
+  const formule = c0 === 61 || c0 === 43 || c0 === 45 || c0 === 64 || c0 === 9 || c0 === 13;
+  const s = formule ? `'${brut}` : brut;
+
+  let aEncadrer = false;
+  for (let i = 0; i < s.length; i += 1) {
+    const c = s.charCodeAt(i);
+    if (c === 34 || c === 59 || c === 44 || c === 10 || c === 13) {
+      aEncadrer = true;
+      break;
+    }
+  }
+  if (!aEncadrer) return s;
+  return `"${s.split('"').join('""')}"`;
 }
 
 /** Une colonne d'export : clef technique + en-tête lisible. */

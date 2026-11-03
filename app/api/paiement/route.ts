@@ -19,6 +19,16 @@ import {
 } from '@/lib/paiement/magasin';
 import { initierPaiement } from '@/lib/paiement/service';
 import { origineSite, utilisateurRequete } from '@/lib/paiement/serveur';
+import {
+  CODE_RATE_LIMIT_DEPASSE,
+  MagasinRateLimitSupabase,
+  entetesRateLimit,
+  extraireIp,
+  limiterRequete,
+  optionsRateLimit,
+  type ClientRpc,
+  type EtatRateLimit,
+} from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -30,6 +40,38 @@ export async function POST(request: NextRequest) {
   const { supabase, user } = await utilisateurRequete(request);
   if (!user) {
     return NextResponse.json({ erreur: 'Non autorisé.' }, { status: 401 });
+  }
+
+  // Chaque création de paiement ouvre une transaction chez le fournisseur :
+  // sans plafond, un compte valide pourrait saturer la ligne et enchaîner
+  // des demandes de prélèvement. On limite donc par compte ET par IP.
+  const ip = extraireIp(request);
+  let etatDebit: EtatRateLimit | null = null;
+  try {
+    const clientRpc: ClientRpc = {
+      rpc: (nom, args) => supabase.rpc(nom, args),
+    };
+    etatDebit = await limiterRequete(
+      new MagasinRateLimitSupabase(clientRpc),
+      { userId: user.id, ip },
+      optionsRateLimit()
+    );
+  } catch (erreur) {
+    // Magasin de débit indisponible : on laisse passer (disponibilité) mais
+    // on signale l'incident. L'authentification reste la barrière d'accès.
+    console.warn(
+      '[rate-limit] magasin indisponible sur /api/paiement :',
+      erreur instanceof Error ? erreur.message : erreur
+    );
+  }
+  if (etatDebit && !etatDebit.autorise) {
+    return NextResponse.json(
+      {
+        erreur: 'Trop de tentatives de paiement : réessayez dans un instant.',
+        code: CODE_RATE_LIMIT_DEPASSE,
+      },
+      { status: 429, headers: entetesRateLimit(etatDebit) }
+    );
   }
 
   let corps: Record<string, unknown>;

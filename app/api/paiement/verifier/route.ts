@@ -18,6 +18,16 @@ import {
 } from '@/lib/paiement/magasin';
 import { lireStatutAbonnement, verifierAuRetour } from '@/lib/paiement/service';
 import { utilisateurRequete } from '@/lib/paiement/serveur';
+import {
+  CODE_RATE_LIMIT_DEPASSE,
+  MagasinRateLimitSupabase,
+  entetesRateLimit,
+  extraireIp,
+  limiterRequete,
+  optionsRateLimit,
+  type ClientRpc,
+  type EtatRateLimit,
+} from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -25,6 +35,36 @@ export async function POST(request: NextRequest) {
   const { supabase, user } = await utilisateurRequete(request);
   if (!user) {
     return NextResponse.json({ erreur: 'Non autorisé.' }, { status: 401 });
+  }
+
+  // Chaque appel interroge l'API du fournisseur : sans plafond, un compte
+  // pourrait s'en servir comme relais de sondage. Même barème que la
+  // création de paiement.
+  const ip = extraireIp(request);
+  let etatDebit: EtatRateLimit | null = null;
+  try {
+    const clientRpc: ClientRpc = {
+      rpc: (nom, args) => supabase.rpc(nom, args),
+    };
+    etatDebit = await limiterRequete(
+      new MagasinRateLimitSupabase(clientRpc),
+      { userId: user.id, ip },
+      optionsRateLimit()
+    );
+  } catch (erreur) {
+    console.warn(
+      '[rate-limit] magasin indisponible sur /api/paiement/verifier :',
+      erreur instanceof Error ? erreur.message : erreur
+    );
+  }
+  if (etatDebit && !etatDebit.autorise) {
+    return NextResponse.json(
+      {
+        erreur: 'Trop de vérifications : réessayez dans un instant.',
+        code: CODE_RATE_LIMIT_DEPASSE,
+      },
+      { status: 429, headers: entetesRateLimit(etatDebit) }
+    );
   }
 
   let corps: { reference?: unknown };

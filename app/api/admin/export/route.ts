@@ -112,6 +112,29 @@ export async function GET(request: NextRequest) {
   const supabase = await creerClientServeur();
   const clientRpc: ClientRpc = { rpc: (nom, args) => supabase.rpc(nom, args) };
 
+  // Deuxième verrou : la SECTION ouverte à cet administrateur (voir la
+  // table admin_sections). La permission dit « ce rôle a le droit de
+  // lister les comptes » ; la section dit « ce compte-là a le droit de
+  // voir CETTE partie du tableau de bord ». Sans ce contrôle, un admin
+  // limité aux paiements pourrait exporter la liste des comptes par
+  // l'URL directe.
+  const SECTION_PAR_EXPORT: Record<TypeExport, string> = {
+    comptes: 'comptes',
+    anomalies: 'comptes',
+    paiements: 'paiements',
+    abonnements: 'abonnements',
+    stats: 'paiements',
+  };
+  const { data: sectionOuverte } = await supabase.rpc('section_autorisee', {
+    p_section: SECTION_PAR_EXPORT[type],
+  });
+  if (sectionOuverte !== true) {
+    return NextResponse.json(
+      { erreur: 'Cette section du tableau de bord ne vous est pas ouverte.' },
+      { status: 403 }
+    );
+  }
+
   // ------- comptes + anomalies (même source) -------
   if (type === 'comptes' || type === 'anomalies') {
     const [{ data: plansBruts }, resultatComptes, resultatCourriels] = await Promise.all([
