@@ -83,6 +83,10 @@ export const config = {
   // un service worker qui redirige en 307 est invalidé par le navigateur,
   // ce qui fait échouer l'installation PWA.
   matcher: [
-    '/((?!api/|auth/|_next/static|_next/image|favicon.ico|service-worker\\.js|sw\\.js|manifest\\.webmanifest|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    // ⚠ Les images générées par Next (opengraph-image, twitter-image,
+    // apple-icon) n'ont pas d'extension : sans exclusion explicite, le
+    // proxy les renvoie en 307 vers /connexion et les robots de
+    // WhatsApp, Facebook et X n'affichent aucune vignette de partage.
+    '/((?!api/|auth/|_next/static|_next/image|favicon.ico|opengraph-image|twitter-image|apple-icon|robots\\.txt|sitemap\\.xml|service-worker\\.js|sw\\.js|manifest\\.webmanifest|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
