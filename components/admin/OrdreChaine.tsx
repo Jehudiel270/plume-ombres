@@ -52,6 +52,12 @@ interface EtatChaine {
   moteurActif: { id: IdFournisseur; nom: string; prive: boolean } | null;
 }
 
+// Résultat brut du chargement de la chaîne : l'état React n'est écrit
+// qu'après résolution de la promesse (voir `appliquer`).
+type ResultatChaine =
+  | { ok: true; donnees: EtatChaine }
+  | { ok: false; erreur: string };
+
 const LIBELLES_ETAT: Record<EtatMoteur, string> = {
   ok: 'Disponible',
   indisponible: 'Indisponible',
@@ -80,31 +86,53 @@ export default function OrdreChaine() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [succes, setSucces] = useState<string | null>(null);
 
-  const charger = useCallback(async () => {
-    setChargement(true);
-    setErreur(null);
+  // `charger` ne touche à aucun état : elle rend le résultat du réseau et
+  // c'est `appliquer` qui écrit l'état, appelé depuis une promesse (jamais
+  // synchronement dans l'effet — règle react-hooks/set-state-in-effect).
+  const charger = useCallback(async (): Promise<ResultatChaine> => {
     try {
       const r = await fetch('/api/admin/chaine', { cache: 'no-store' });
       if (!r.ok) {
         const corps = (await r.json().catch(() => ({}))) as { erreur?: string };
-        setErreur(corps.erreur ?? `Chargement impossible (HTTP ${r.status}).`);
-        setEtat(null);
-        return;
+        return {
+          ok: false,
+          erreur: corps.erreur ?? `Chargement impossible (HTTP ${r.status}).`,
+        };
       }
-      const donnees = (await r.json()) as EtatChaine;
-      setEtat(donnees);
-      setOrdre(donnees.ordreEditable);
+      return { ok: true, donnees: (await r.json()) as EtatChaine };
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Chargement impossible.');
-      setEtat(null);
-    } finally {
-      setChargement(false);
+      return { ok: false, erreur: e instanceof Error ? e.message : 'Chargement impossible.' };
     }
   }, []);
 
+  const appliquer = useCallback((resultat: ResultatChaine) => {
+    if (resultat.ok) {
+      setEtat(resultat.donnees);
+      setOrdre(resultat.donnees.ordreEditable);
+      setErreur(null);
+    } else {
+      setErreur(resultat.erreur);
+      setEtat(null);
+    }
+    setChargement(false);
+  }, []);
+
   useEffect(() => {
-    void charger();
-  }, [charger]);
+    let vivant = true;
+    void charger().then((resultat) => {
+      if (vivant) appliquer(resultat);
+    });
+    return () => {
+      vivant = false;
+    };
+  }, [charger, appliquer]);
+
+  const recharger = useCallback(() => {
+    setChargement(true);
+    setErreur(null);
+    setSucces(null);
+    void charger().then(appliquer);
+  }, [charger, appliquer]);
 
   const deplacer = (index: number, delta: number) => {
     setSucces(null);
@@ -293,7 +321,7 @@ export default function OrdreChaine() {
         </button>
         <button
           type="button"
-          onClick={() => void charger()}
+          onClick={recharger}
           disabled={enregistrement}
           className="rounded-lg border border-nuit-700 px-4 py-2 text-encre-300 text-sm hover:border-violet-rom-500/60 disabled:opacity-40"
         >

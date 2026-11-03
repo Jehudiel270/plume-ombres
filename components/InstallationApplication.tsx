@@ -11,7 +11,7 @@
 // à suivre au lieu de simuler un bouton qui ne ferait rien.
 // ============================================================
 
-import { useEffect, useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 
 interface EvenementInstall {
   prompt: () => Promise<void>;
@@ -20,29 +20,44 @@ interface EvenementInstall {
 
 type FenetreAvecInstall = Window & { __plumeInstall?: EvenementInstall | null };
 
+const MODE_STANDALONE = '(display-mode: standalone)';
+const EVENEMENT_DISPONIBLE = 'plume-install-disponible';
+
+// Lecture directe de l'état du navigateur (mode d'affichage, événement
+// d'installation capté par PWA.tsx) : `useSyncExternalStore` remplace l'effet
+// qui appelait setState au montage — pas de rendu en cascade, et l'état reste
+// abonné aux changements extérieurs.
+function lireInstallee(): boolean {
+  return (
+    window.matchMedia(MODE_STANDALONE).matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
+function lireDisponible(): boolean {
+  return Boolean((window as FenetreAvecInstall).__plumeInstall);
+}
+
+function abonner(rappel: () => void): () => void {
+  const media = window.matchMedia(MODE_STANDALONE);
+  media.addEventListener('change', rappel);
+  window.addEventListener('appinstalled', rappel);
+  window.addEventListener(EVENEMENT_DISPONIBLE, rappel);
+  return () => {
+    media.removeEventListener('change', rappel);
+    window.removeEventListener('appinstalled', rappel);
+    window.removeEventListener(EVENEMENT_DISPONIBLE, rappel);
+  };
+}
+
 export default function InstallationApplication() {
-  const [installe, setInstalle] = useState(false);
-  const [disponible, setDisponible] = useState(false);
+  const dejaInstallee = useSyncExternalStore(abonner, lireInstallee, () => false);
+  const disponible = useSyncExternalStore(abonner, lireDisponible, () => false);
+  // Installation acceptée à l'instant : le mode d'affichage ne bascule qu'au
+  // prochain lancement de l'application, on garde donc une trace locale.
+  const [justeInstallee, setJusteInstallee] = useState(false);
   const [conseil, setConseil] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fenetre = window as FenetreAvecInstall;
-    const maj = () => setDisponible(Boolean(fenetre.__plumeInstall));
-    const surInstalle = () => setInstalle(true);
-
-    setInstalle(
-      window.matchMedia('(display-mode: standalone)').matches ||
-        (navigator as unknown as { standalone?: boolean }).standalone === true
-    );
-    maj();
-
-    window.addEventListener('plume-install-disponible', maj);
-    window.addEventListener('appinstalled', surInstalle);
-    return () => {
-      window.removeEventListener('plume-install-disponible', maj);
-      window.removeEventListener('appinstalled', surInstalle);
-    };
-  }, []);
+  const installe = dejaInstallee || justeInstallee;
 
   async function installer() {
     const fenetre = window as FenetreAvecInstall;
@@ -63,9 +78,10 @@ export default function InstallationApplication() {
     await evenement.prompt();
     const choix = await evenement.userChoice;
     fenetre.__plumeInstall = null;
-    setDisponible(false);
+    // Prévient les abonnés (le bouton repasse en « Comment installer ? »).
+    window.dispatchEvent(new Event(EVENEMENT_DISPONIBLE));
     if (choix.outcome === 'accepted') {
-      setInstalle(true);
+      setJusteInstallee(true);
       try {
         localStorage.removeItem('plume-install-reporte');
       } catch {

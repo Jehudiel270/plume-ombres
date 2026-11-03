@@ -7,7 +7,7 @@
 // Plume d'Ombres). AUCUN import depuis une page : namespace isolé.
 // Adaptations requises : voir TODO-COMPOSANTS-REUTILISABLES.md §2.
 // ============================================================
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,7 +15,6 @@ import {
   MapPin,
   Phone,
   Users,
-  TrendingUp,
   Leaf,
   Calendar,
   DollarSign,
@@ -23,20 +22,6 @@ import {
 
 const Presentation = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
-  const prevSlide = () =>
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-
-  // Keyboard navigation
-  React.useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "ArrowRight") nextSlide();
-      if (e.key === "ArrowLeft") prevSlide();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   const slides = [
     // Slide 1
@@ -54,7 +39,7 @@ const Presentation = () => {
             <span className="text-yellow-400 font-semibold">Diel Lynx</span>
           </p>
           <p className="text-xl text-gray-400 italic mt-8">
-            "La vision qui révèle ce que les autres ne voient pas"
+            &quot;La vision qui révèle ce que les autres ne voient pas&quot;
           </p>
         </div>
       ),
@@ -136,7 +121,7 @@ const Presentation = () => {
             <h3 className="text-lg font-bold text-white mb-2">
               Choix conducteur
             </h3>
-            <p className="text-gray-300">Temps d'arrivée estimé (ETA)</p>
+            <p className="text-gray-300">Temps d&apos;arrivée estimé (ETA)</p>
           </div>
           <div className="bg-gradient-to-br from-yellow-900/40 to-yellow-800/20 p-6 rounded-lg">
             <Phone className="w-10 h-10 text-yellow-400 mb-3" />
@@ -207,7 +192,7 @@ const Presentation = () => {
                 🔧 Technique & vision terrain
               </p>
               <p className="text-xl text-gray-200">
-                👥 Fédération de talents autour d'un projet social et numérique
+                👥 Fédération de talents autour d&apos;un projet social et numérique
               </p>
             </div>
           </div>
@@ -241,7 +226,7 @@ const Presentation = () => {
               Future entreprise de freelance professionnel
             </p>
             <p className="text-lg text-gray-400 italic">
-              "La vision qui révèle ce que les autres ne voient pas"
+              &quot;La vision qui révèle ce que les autres ne voient pas&quot;
             </p>
           </div>
           <p className="text-xl text-gray-300 mt-8">
@@ -270,7 +255,7 @@ const Presentation = () => {
           ))}
           <div className="bg-green-900/30 p-5 rounded-lg border-l-4 border-green-500">
             <p className="text-lg text-green-400 font-semibold">
-              ✅ Page d'accueil déjà codée pour démonstration
+              ✅ Page d&apos;accueil déjà codée pour démonstration
             </p>
           </div>
         </div>
@@ -396,7 +381,7 @@ const Presentation = () => {
             </h3>
             <p className="text-lg text-gray-300">
               Augmentation légère des émissions liée à la croissance de
-              l'activité
+              l&apos;activité
             </p>
           </div>
           <div className="bg-green-900/30 p-6 rounded-lg">
@@ -424,7 +409,7 @@ const Presentation = () => {
           <div className="bg-gradient-to-br from-yellow-900/40 to-orange-900/40 p-12 rounded-lg border-2 border-yellow-500 text-center max-w-3xl">
             <Zap className="w-24 h-24 text-yellow-400 mx-auto mb-6" />
             <h3 className="text-4xl font-bold text-white mb-6">
-              Page d'accueil codée
+              Page d&apos;accueil codée
             </h3>
             <p className="text-2xl text-gray-300 mb-6">
               Démonstration fonctionnelle disponible
@@ -502,7 +487,7 @@ const Presentation = () => {
             </div>
             <p className="text-gray-400 mb-4">Email / réseaux sociaux</p>
             <p className="text-2xl text-yellow-400 font-semibold mt-8">
-              "Rejoignez-nous pour transformer le transport urbain au Bénin"
+              &quot;Rejoignez-nous pour transformer le transport urbain au Bénin&quot;
             </p>
           </div>
         </div>
@@ -533,7 +518,7 @@ const Presentation = () => {
             </div>
             <div className="bg-green-900/30 p-6 rounded-lg">
               <p className="text-xl text-gray-200">
-                👥 Création d'opportunités économiques pour les tokpa-tokpa
+                👥 Création d&apos;opportunités économiques pour les tokpa-tokpa
               </p>
             </div>
             <div className="bg-yellow-900/30 p-6 rounded-lg">
@@ -549,6 +534,29 @@ const Presentation = () => {
       ),
     },
   ];
+
+  // `slides` est reconstruit à chaque rendu, mais son nombre d'éléments ne
+  // change pas : les rappels restent donc stables et les raccourcis clavier
+  // ne sont réenregistrés qu'une fois.
+  const nombreSlides = slides.length;
+  const nextSlide = useCallback(
+    () => setCurrentSlide((prev) => (prev + 1) % nombreSlides),
+    [nombreSlides]
+  );
+  const prevSlide = useCallback(
+    () => setCurrentSlide((prev) => (prev - 1 + nombreSlides) % nombreSlides),
+    [nombreSlides]
+  );
+
+  // Keyboard navigation
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowRight") nextSlide();
+      if (e.key === "ArrowLeft") prevSlide();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [nextSlide, prevSlide]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
