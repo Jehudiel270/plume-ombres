@@ -52,6 +52,11 @@ export type Permission =
   | 'admin.tableau_de_bord.voir'
   | 'admin.stats.voir'
   | 'admin.comptes.lister'
+  // Suppression DÉFINITIVE d'un compte `utilisateur` (irréversible).
+  // Supprimer un compte `admin` ou `super_admin` exige en plus la
+  // permission forte `admin.roles.super_admin` : voir
+  // permissionPourSupprimerCompte().
+  | 'admin.comptes.supprimer'
   | 'admin.abonnements.lire'
   | 'admin.abonnements.attribuer'
   | 'admin.abonnements.revoquer'
@@ -74,6 +79,7 @@ export const PERMISSIONS: readonly Permission[] = [
   'admin.tableau_de_bord.voir',
   'admin.stats.voir',
   'admin.comptes.lister',
+  'admin.comptes.supprimer',
   'admin.abonnements.lire',
   'admin.abonnements.attribuer',
   'admin.abonnements.revoquer',
@@ -94,6 +100,7 @@ const PERMISSIONS_ADMIN: readonly Permission[] = [
   'admin.tableau_de_bord.voir',
   'admin.stats.voir',
   'admin.comptes.lister',
+  'admin.comptes.supprimer',
   'admin.abonnements.lire',
   'admin.abonnements.attribuer',
   'admin.abonnements.revoquer',
@@ -161,6 +168,21 @@ export function permissionPourChangerRole(roleActuel: Role, roleVise: Role): Per
   return roleActuel === 'super_admin' || roleVise === 'super_admin'
     ? 'admin.roles.super_admin'
     : 'admin.roles.attribuer';
+}
+
+/**
+ * Permission EXIGÉE pour SUPPRIMER un compte, selon le rôle de la cible :
+ *   * cible administrateur (`admin` / `super_admin`) → la permission
+ *     forte `admin.roles.super_admin` (un simple admin ne décapite pas
+ *     la hiérarchie dont il dépend) ;
+ *   * cible `utilisateur` → `admin.comptes.supprimer`.
+ * Même logique que permissionPourChangerRole : une seule source, lue
+ * par la route serveur, l'interface et le test.
+ */
+export function permissionPourSupprimerCompte(roleCible: Role): Permission {
+  return roleCible === 'admin' || roleCible === 'super_admin'
+    ? 'admin.roles.super_admin'
+    : 'admin.comptes.supprimer';
 }
 
 /**

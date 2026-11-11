@@ -34,8 +34,10 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   LIBELLES_ROLES,
   ROLES,
+  aLaPermission,
   estSuperAdmin,
   normaliserRole,
+  permissionPourSupprimerCompte,
   type Role,
 } from '@/lib/roles';
 import type { CompteAdmin } from '@/lib/admin-stats';
@@ -107,6 +109,12 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
    * à la prochaine navigation.
    */
   const [roleApplique, setRoleApplique] = useState<Record<string, Role>>({});
+  /** Comptes SUPPRIMÉS pendant cette session : masqués immédiatement, sans RSC. */
+  const [supprimes, setSupprimes] = useState<string[]>([]);
+  /** Cible en attente de confirmation de SUPPRESSION DÉFINITIVE. */
+  const [aSupprimer, setASupprimer] = useState<CompteAdmin | null>(null);
+  /** Bilan d'une suppression réussie (la ligne concernée a disparu). */
+  const [bilan, setBilan] = useState<string | null>(null);
 
   const autorise = estSuperAdmin(roleCourant);
 
@@ -119,6 +127,7 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
         courriel: emails[compte.id] ?? '',
       }))
       .filter(({ compte, roleActuel, courriel }) => {
+        if (supprimes.includes(compte.id)) return false;
         if (filtreRole !== 'tous' && roleActuel !== filtreRole) return false;
         if (requete) {
           const moisson = normaliser(`${compte.pseudo} ${courriel} ${roleActuel}`);
@@ -126,7 +135,7 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
         }
         return true;
       });
-  }, [comptes, emails, recherche, filtreRole, roleApplique]);
+  }, [comptes, emails, recherche, filtreRole, roleApplique, supprimes]);
 
   const nbAdmins = comptes.filter(
     (c) => (roleApplique[c.id] ?? normaliserRole(c.role)) !== 'utilisateur'
@@ -174,18 +183,41 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
     }
   }
 
-  if (!autorise) {
-    return (
-      <section className="velours p-5 sm:p-6">
-        <h2 className="sur-titre text-encre-300">Rôles et permissions</h2>
-        <div className="liseret mt-3" />
-        <p className="text-encre-500 text-sm mt-3 italic">
-          La gestion des rôles est réservée au super-administrateur.
-        </p>
-      </section>
-    );
+  async function supprimer(compte: CompteAdmin): Promise<void> {
+    setEnCours(compte.id);
+    setMessage(null);
+    setBilan(null);
+    try {
+      const reponse = await fetch('/api/admin/comptes/supprimer', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ utilisateurId: compte.id }),
+      });
+      const corps = (await reponse.json().catch(() => ({}))) as { erreur?: string };
+      if (!reponse.ok) {
+        setMessage({
+          id: compte.id,
+          texte: corps.erreur ?? `Échec (${reponse.status}).`,
+          ok: false,
+        });
+      } else {
+        setSupprimes((liste) => [...liste, compte.id]);
+        setBilan(
+          `Compte « ${compte.pseudo} » supprimé définitivement, avec ses livres, ` +
+            'traductions, favoris, abonnements, crédits et paiements. Action journalisée.'
+        );
+      }
+    } catch {
+      setMessage({ id: compte.id, texte: 'Réseau indisponible.', ok: false });
+    } finally {
+      setEnCours(null);
+      setASupprimer(null);
+    }
   }
 
+  // Un simple administrateur voit ce panneau pour pouvoir SUPPRIMER un
+  // compte utilisateur ; la nomination des rôles reste réservée au
+  // super-administrateur (contrôlée par `autorise`, ligne par ligne).
   return (
     <section className="velours p-5 sm:p-6" aria-labelledby="titre-roles">
       <h2 id="titre-roles" className="sur-titre text-encre-300">
@@ -198,6 +230,12 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
         <strong>super-administrateur</strong> a, en plus, ce pouvoir de nomination. Chaque
         changement est journalisé dans <code>admin_actions</code>.
       </p>
+
+      {bilan && (
+        <p role="status" className="text-violet-rom-300 text-xs mt-3">
+          {bilan}
+        </p>
+      )}
 
       {/* ----- Recherche / filtre ----- */}
       <div className="grid gap-3 sm:grid-cols-2 mt-5">
@@ -258,6 +296,10 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
               const choix = vise(compte.id, roleActuel);
               const inchange = choix === roleActuel;
               const promotionSuper = choix === 'super_admin';
+              // Suppression : soi-même exclu ; un admin ne peut pas
+              // supprimer un autre administrateur (permission forte).
+              const peutSupprimer =
+                !soiMeme && aLaPermission(roleCourant, permissionPourSupprimerCompte(roleActuel));
               return (
                 <li
                   key={compte.id}
@@ -275,8 +317,13 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
                     <PastilleRole role={roleActuel} />
                   </Champ>
 
-                  <Champ libelle="Nommer / rétrograder">
-                    {soiMeme ? (
+                  <Champ libelle={autorise ? 'Nommer / rétrograder' : 'Rôle'}>
+                    {!autorise ? (
+                      <p className="text-encre-500 text-xs italic">
+                        La nomination et la rétrogradation sont réservées au
+                        super-administrateur.
+                      </p>
+                    ) : soiMeme ? (
                       <p className="text-encre-500 text-xs italic">
                         Vous ne pouvez pas modifier votre propre rôle (garde anti-verrouillage :
                         il reste toujours au moins un super-administrateur).
@@ -323,6 +370,22 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
                       </p>
                     )}
                   </Champ>
+
+                  {peutSupprimer && (
+                    <div className="md:col-start-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMessage(null);
+                          setASupprimer(compte);
+                        }}
+                        disabled={enCours !== null}
+                        className="text-grenat-300 hover:text-grenat-200 text-[11px] underline underline-offset-4 decoration-grenat-400/40 disabled:opacity-50"
+                      >
+                        Supprimer ce compte…
+                      </button>
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -350,6 +413,22 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
           if (aConfirmer) void appliquer(aConfirmer.compte.id, aConfirmer.role);
         }}
         onAnnuler={() => setAConfirmer(null)}
+      />
+
+      <ModaleConfirmation
+        ouvert={aSupprimer !== null}
+        titre="Supprimer définitivement ce compte ?"
+        description={
+          aSupprimer
+            ? `« ${aSupprimer.pseudo} » et toutes ses données seront effacés : livres, chapitres, traductions, favoris, abonnements, crédits et paiements. Cette action est IRRÉVERSIBLE ; seule la trace dans le journal d’administration subsiste.`
+            : ''
+        }
+        libelleConfirmer="Supprimer définitivement"
+        enCours={enCours !== null}
+        onConfirmer={() => {
+          if (aSupprimer) void supprimer(aSupprimer);
+        }}
+        onAnnuler={() => setASupprimer(null)}
       />
     </section>
   );
