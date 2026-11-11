@@ -27,6 +27,14 @@ Commit `4531ccd` sur `main`, déployé et vérifié en production.
 - Lecteur mobile : langues visibles sans rien ouvrir.
 - `tsc` propre, `eslint` propre, build webpack OK, 16 tests paiement OK.
 
+## Ajout du 11/11 (soir) — commits `6903985` et `fb834a3`
+
+- **Inscription** : le libellé texte « Voir » est remplacé par une **icône œil** dans le champ mot de passe (et un second œil sur la confirmation). Icône intégrée au champ, libellés accessibles « Afficher / Masquer le mot de passe ».
+- **Administration — suppression de comptes** : une **corbeille** « Supprimer ce compte… » apparaît sur chaque fiche de l'onglet *Rôles*, avec confirmation. Efface définitivement le compte (livres, traductions, favoris, abonnements, crédits, paiements — tout part en cascade).
+- **Règles** : un `admin` ne peut supprimer qu'un simple `utilisateur` ; supprimer un administrateur exige `super_admin` ; impossible de se supprimer soi-même ; le dernier super-admin est protégé. Chaque suppression est journalisée dans `admin_actions`.
+- **Base** : migration `20261111000002_suppression_comptes_admin.sql` appliquée (RPC `admin_supprimer_compte`).
+- **Preuves** : 21/21 tests unitaires ; 7/7 cas testés en base (refus admin→admin, admin→super, auto-suppression, utilisateur→admin) ; parcours réel en production avec un super-admin de test → compte effacé, journal `supprimer_compte` écrit, message de bilan affiché.
+
 ## Reste à faire (côté toi)
 
 - ⚠️ **Un vrai paiement carte** de bout en bout (500 F) depuis ton navigateur : je ne peux pas débiter une carte réelle.

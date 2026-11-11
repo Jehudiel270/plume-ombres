@@ -380,8 +380,21 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
                           setASupprimer(compte);
                         }}
                         disabled={enCours !== null}
-                        className="text-grenat-300 hover:text-grenat-200 text-[11px] underline underline-offset-4 decoration-grenat-400/40 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-grenat-400/40 px-3 py-1 text-[11px] text-grenat-300 hover:border-grenat-300 hover:bg-grenat-500/10 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
                       >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="12"
+                          height="12"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M4 7h16M9.5 7V5h5v2M6.5 7l1 13h9l1-13" />
+                        </svg>
                         Supprimer ce compte…
                       </button>
                     </div>
