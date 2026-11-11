@@ -31,6 +31,51 @@ function forceMotDePasse(valeur: string): { score: number; libelle: string } {
   return { score, libelle };
 }
 
+/** Icône œil — affichage/masquage d'un mot de passe. */
+function IconeOeil({ barre }: { barre: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2.2 12S5.6 5.9 12 5.9 21.8 12 21.8 12 18.4 18.1 12 18.1 2.2 12 2.2 12Z" />
+      <circle cx="12" cy="12" r="3.1" />
+      {barre && <path d="M4 20 20 4" />}
+    </svg>
+  );
+}
+
+/** Bouton œil posé dans un champ de mot de passe (aucun libellé texte). */
+function BoutonOeil({
+  visible,
+  basculer,
+  champ,
+}: {
+  visible: boolean;
+  basculer: () => void;
+  champ: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={basculer}
+      aria-label={visible ? `Masquer ${champ}` : `Afficher ${champ}`}
+      aria-pressed={visible}
+      title={visible ? 'Masquer' : 'Afficher'}
+      className="absolute right-2 top-1/2 -translate-y-1/2 grid h-8 w-8 place-items-center rounded-full text-encre-500 hover:text-encre-200 hover:bg-nuit-800/70 transition-colors cursor-pointer"
+    >
+      <IconeOeil barre={visible} />
+    </button>
+  );
+}
+
 export default function Connexion() {
   return (
     <Suspense>
@@ -54,6 +99,7 @@ function PageConnexion() {
   const [motDePasse, setMotDePasse] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [voirMotDePasse, setVoirMotDePasse] = useState(false);
+  const [voirConfirmation, setVoirConfirmation] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   // Message d'erreur éventuel transmis par /auth/confirmer (lien expiré).
   const [erreur, setErreur] = useState<string | null>(() => {
@@ -278,14 +324,11 @@ function PageConnexion() {
                   value={motDePasse}
                   onChange={(e) => setMotDePasse(e.target.value)}
                 />
-                <button
-                  type="button"
-                  onClick={() => setVoirMotDePasse((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-encre-500 hover:text-encre-300 transition-colors cursor-pointer"
-                  aria-label={voirMotDePasse ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                >
-                  {voirMotDePasse ? 'Masquer' : 'Voir'}
-                </button>
+                <BoutonOeil
+                  visible={voirMotDePasse}
+                  basculer={() => setVoirMotDePasse((v) => !v)}
+                  champ="le mot de passe"
+                />
               </div>
 
               {mode === 'inscription' && (
@@ -317,16 +360,23 @@ function PageConnexion() {
                 >
                   Confirmer le mot de passe
                 </label>
-                <input
-                  id="confirmation"
-                  type={voirMotDePasse ? 'text' : 'password'}
-                  required
-                  className="champ-sombre"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  value={confirmation}
-                  onChange={(e) => setConfirmation(e.target.value)}
-                />
+                <div className="relative">
+                  <input
+                    id="confirmation"
+                    type={voirConfirmation ? 'text' : 'password'}
+                    required
+                    className="champ-sombre pr-12"
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    value={confirmation}
+                    onChange={(e) => setConfirmation(e.target.value)}
+                  />
+                  <BoutonOeil
+                    visible={voirConfirmation}
+                    basculer={() => setVoirConfirmation((v) => !v)}
+                    champ="la confirmation"
+                  />
+                </div>
                 {confirmation.length > 0 && confirmation !== motDePasse && (
                   <p className="text-[11px] text-grenat-300 mt-1">
                     Les deux mots de passe ne correspondent pas.
