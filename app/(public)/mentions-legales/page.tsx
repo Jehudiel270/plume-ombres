@@ -31,7 +31,8 @@ export default function PageMentionsLegales() {
         intro="Ce que la loi impose de rendre lisible : qui édite le site, qui l’héberge, à qui appartiennent les textes, et comment signaler un contenu. Dernière mise à jour : 15 octobre 2026."
       >
         <SommaireLegal actif="mentions-legales" />
-
+
+
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="1" titre="Éditeur du site">
@@ -128,9 +129,10 @@ export default function PageMentionsLegales() {
           </p>
           <p>
             <strong className="text-encre-100">FedaPay</strong> — agrégateur de
-            paiement Mobile Money pour la zone UEMOA (Bénin). Il traite le paiement
-            des abonnements ; aucun numéro de carte bancaire n’est saisi sur le
-            site.
+            paiement Mobile Money (zone UEMOA) et de cartes Visa / Mastercard. Il
+            traite le paiement des abonnements ; aucun numéro de carte n’est saisi
+            ni conservé sur le site, la saisie se faisant sur la page sécurisée du
+            prestataire.
           </p>
           <p className="text-encre-500">
             Le projet prépare aussi un second hébergeur (Netlify) qui n’est pas

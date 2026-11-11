@@ -55,7 +55,7 @@ const SOUS_TRAITANTS: { nom: string; role: string; lieu: string }[] = [
   },
   {
     nom: 'FedaPay',
-    role: 'Paiement des abonnements (agrégateur Mobile Money, zone UEMOA).',
+    role: 'Paiement des abonnements (Mobile Money zone UEMOA et cartes Visa / Mastercard).',
     lieu: 'Bénin (zone UEMOA).',
   },
   {
@@ -81,7 +81,8 @@ export default function PageConfidentialite() {
         intro="Dernière mise à jour : 15 octobre 2026. Lisible sans compte. Résumé en une phrase : vos livres sont privés dans la base, mais pour les traduire, le texte passe par un moteur externe, et nous vous disons lequel."
       >
         <SommaireLegal actif="confidentialite" />
-
+
+
       </SectionPublique>
 
       <SectionPublique

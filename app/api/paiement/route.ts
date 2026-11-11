@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erreur: 'Plan inconnu.' }, { status: 400 });
   }
   const telephone = texte(corps.telephone);
-  if (!telephone || telephone.replace(/\D/g, '').length < 8) {
+  const moyen = corps.moyen === 'carte' ? 'carte' : 'mobile_money';
+  if (moyen === 'mobile_money' && (!telephone || telephone.replace(/\D/g, '').length < 8)) {
     return NextResponse.json(
       { erreur: 'Numéro Mobile Money invalide.' },
       { status: 400 }
@@ -119,6 +120,7 @@ export async function POST(request: NextRequest) {
         proprietaireId: user.id,
         plan: corps.plan,
         telephone,
+        moyen,
         pays: texte(corps.pays),
         prenom: texte(corps.prenom),
         nom: texte(corps.nom),

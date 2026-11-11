@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/conditions' },
   title: 'Conditions générales (CGU/CGV)',
   description:
-    'Conditions générales d’utilisation et de vente du studio Plume d’Ombres : compte, âge minimum, usages, droits sur les textes, offres payantes, paiement Mobile Money, durée, résiliation, rétractation, responsabilité et litiges.',
+    'Conditions générales d’utilisation et de vente du studio Plume d’Ombres : compte, âge minimum, usages, droits sur les textes, offres payantes, paiement Mobile Money ou carte bancaire, durée, résiliation, rétractation, responsabilité et litiges.',
 };
 
 const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
@@ -188,15 +188,18 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
     ),
   },
   {
-    titre: '9. Paiement (Mobile Money)',
+    titre: '9. Paiement (Mobile Money ou carte bancaire)',
     corps: (
       <>
         <p>
           Le règlement s’effectue par{' '}
-          <strong className="text-encre-100">Mobile Money</strong>, via un
-          prestataire agrégateur de paiement. Le débit est unique, du montant de
-          la formule choisie, au moment de la commande. Aucun numéro de carte
-          bancaire n’est demandé.
+          <strong className="text-encre-100">Mobile Money</strong> (MTN, Moov,
+          Orange, Wave, Airtel selon le pays) ou par{' '}
+          <strong className="text-encre-100">carte bancaire</strong> (Visa,
+          Mastercard, carte de débit), via un prestataire agrégateur de paiement.
+          Le débit est unique, du montant de la formule choisie, au moment de la
+          commande. Aucun numéro de carte n’est saisi ni conservé sur le site :
+          la saisie se fait sur la page sécurisée du prestataire.
         </p>
         <p className="mt-3">
           Une formule n’est considérée comme souscrite, et la période
@@ -207,10 +210,11 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
           prélevé et l’opération peut être reprise.
         </p>
         <p className="mt-3">
-          Prestataire de paiement mobile :{' '}
+          Prestataire de paiement :{' '}
           <strong className="text-encre-100">FedaPay</strong>, agrégateur de
           paiement <strong className="text-encre-100">Mobile Money</strong>{' '}
-          couvrant la zone UEMOA (Bénin et pays voisins). Les opérateurs pris en
+          couvrant la zone UEMOA (Bénin, Burkina Faso, Côte d’Ivoire, Mali, Niger,
+          Sénégal, Togo) et les cartes Visa / Mastercard. Les opérateurs pris en
           charge sont précisés au moment du paiement.
         </p>
       </>
@@ -387,10 +391,11 @@ export default function PageConditions() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Conditions générales d’utilisation et de vente"
-        intro="Dernière mise à jour : 15 octobre 2026. Elle s’applique à l’usage du studio et couvre la vente des formules payantes (prix, Mobile Money, durée, résiliation, rétractation). Lisible sans compte."
+        intro="Dernière mise à jour : 15 octobre 2026. Elle s’applique à l’usage du studio et couvre la vente des formules payantes (prix, Mobile Money ou carte bancaire, durée, résiliation, rétractation). Lisible sans compte."
       >
         <SommaireLegal actif="conditions" />
-
+
+
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="Articles" titre="Le texte">

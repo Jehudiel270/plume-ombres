@@ -22,6 +22,7 @@ import { caracteresPack, planParCode } from '../abonnement';
 import type {
   DemandeCredit,
   MagasinCredits,
+  MoyenPaiement,
   MouvementCredit,
   Paiement,
   StatutPaiement,
@@ -240,7 +241,8 @@ function ligneVersPaiement(ligne: Record<string, unknown>): Paiement {
     plan: ligne.plan as CodePlan,
     montant: Number(ligne.montant),
     devise: String(ligne.devise ?? 'XOF'),
-    telephone: String(ligne.telephone ?? ''),
+    telephone: (ligne.telephone as string | null) ?? null,
+    moyen: (ligne.moyen as MoyenPaiement) ?? 'mobile_money',
     statut: ligne.statut as StatutPaiement,
     fournisseur: String(ligne.fournisseur ?? ''),
     url_paiement: (ligne.url_paiement as string | null) ?? null,

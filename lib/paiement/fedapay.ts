@@ -275,10 +275,16 @@ export class FedaPayFournisseur {
         ...(demande.prenom ? { firstname: demande.prenom } : {}),
         ...(demande.nom ? { lastname: demande.nom } : {}),
         ...(demande.email ? { email: demande.email } : {}),
-        phone_number: {
-          number: demande.telephone,
-          ...(demande.pays ? { country: demande.pays } : {}),
-        },
+        // Le numéro n'est joint que pour Mobile Money : une carte bancaire
+        // se paie sans téléphone (FedaPay n'exige pas ce champ).
+        ...(demande.telephone
+          ? {
+              phone_number: {
+                number: demande.telephone,
+                ...(demande.pays ? { country: demande.pays } : {}),
+              },
+            }
+          : {}),
       },
     };
 

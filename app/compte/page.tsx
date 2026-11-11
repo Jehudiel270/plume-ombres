@@ -201,9 +201,9 @@ export default async function PageCompte() {
               <span className="rounded-full px-3 py-1 text-[11px] uppercase tracking-wider bg-grenat-500/15 text-grenat-300">
                 offre de lancement
               </span>
-              <span className="font-display text-2xl text-encre-100">0 €</span>
+              <span className="font-display text-2xl text-encre-100">0 F CFA</span>
               <span className="text-encre-500 text-xs">
-                aucun moyen de paiement demandé
+                sans carte ni Mobile Money
               </span>
             </div>
             <p className="text-encre-300 text-sm mt-4 leading-relaxed">
@@ -236,10 +236,10 @@ export default async function PageCompte() {
             </p>
             <div className="flex flex-wrap items-center gap-3 mt-5">
               <span className="rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
-                premium — bientôt disponible
+                formules payantes ouvertes
               </span>
               <Link href="/tarifs" className="lien-discret text-sm underline">
-                Voir ce que le Premium contiendra
+                Voir les formules et les prix
               </Link>
             </div>
           </section>

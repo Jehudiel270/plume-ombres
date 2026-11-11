@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
   title: 'Paiement',
   description:
-    'Acheter des crédits de traduction ou souscrire à un abonnement, par Mobile Money.',
+    'Acheter des crédits de traduction ou souscrire à un abonnement, par Mobile Money ou carte bancaire.',
 };
 
 export default async function PagePaiementPlan({
@@ -125,7 +125,7 @@ export default async function PagePaiementPlan({
                   etatPaiement.fournisseur === 'fedapay'
                     ? 'FedaPay'
                     : etatPaiement.fournisseur
-                } (Mobile Money).`}
+                } (Mobile Money ou carte bancaire).`}
           </p>
 
           <div className="mt-6">

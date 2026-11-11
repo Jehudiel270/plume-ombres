@@ -90,9 +90,42 @@ function BarreActions({
         </p>
       </div>
 
-      {/* Bandeau condensé : le repli n'existe que sur petit écran.
-          (Le bouton ne porte pas `sm:hidden` lui-même : `.bouton-fantome`
-          est du CSS hors couche, son `display` l'emporterait.) */}
+      {/* Langues toujours visibles : sur mobile, elles étaient repliées
+          derrière « Options », ce qui donnait l'impression que l'anglais
+          ne pouvait pas être changé. */}
+      <div className="flex items-center gap-2 w-full sm:w-auto order-last sm:order-none">
+        <select
+          className="select-sombre text-xs flex-1 sm:flex-none min-w-0"
+          value={livre.langue_source}
+          onChange={(e) => onChangerLangues(e.target.value, livre.langue_cible)}
+          title="Langue source"
+          aria-label="Langue source"
+        >
+          {CODES.map((c) => (
+            <option key={c} value={c}>
+              {LANGUES[c]}
+            </option>
+          ))}
+        </select>
+        <span className="text-encre-500 text-xs" aria-hidden="true">
+          →
+        </span>
+        <select
+          className="select-sombre text-xs flex-1 sm:flex-none min-w-0"
+          value={livre.langue_cible}
+          onChange={(e) => onChangerLangues(livre.langue_source, e.target.value)}
+          title="Langue cible"
+          aria-label="Langue cible"
+        >
+          {CODES.map((c) => (
+            <option key={c} value={c}>
+              {LANGUES[c]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Bandeau condensé : le repli ne concerne plus que les exports. */}
       <div className="w-full sm:hidden">
         <button
           type="button"
@@ -101,9 +134,7 @@ function BarreActions({
           aria-controls="options-livre"
           className="bouton-fantome w-full text-xs"
         >
-          {optionsOuvertes
-            ? '− Masquer les options'
-            : '⚙︎ Options (langues, exports)'}
+          {optionsOuvertes ? '− Masquer les exports' : '⚙︎ Exports'}
         </button>
       </div>
 
@@ -113,32 +144,6 @@ function BarreActions({
           optionsOuvertes ? 'flex' : 'hidden'
         } sm:flex w-full sm:w-auto flex-wrap items-center gap-3`}
       >
-        <select
-          className="select-sombre text-xs"
-          value={livre.langue_source}
-          onChange={(e) => onChangerLangues(e.target.value, livre.langue_cible)}
-          title="Langue source"
-        >
-          {CODES.map((c) => (
-            <option key={c} value={c}>
-              {LANGUES[c]}
-            </option>
-          ))}
-        </select>
-        <span className="text-encre-500 text-xs">→</span>
-        <select
-          className="select-sombre text-xs"
-          value={livre.langue_cible}
-          onChange={(e) => onChangerLangues(livre.langue_source, e.target.value)}
-          title="Langue cible"
-        >
-          {CODES.map((c) => (
-            <option key={c} value={c}>
-              {LANGUES[c]}
-            </option>
-          ))}
-        </select>
-
         <Exports
           livre={livre}
           exportEnCours={exportEnCours}

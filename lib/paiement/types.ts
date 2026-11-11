@@ -18,6 +18,9 @@ import type { CodePlan } from '../abonnement';
  */
 export type ModePaiement = 'simulation' | 'sandbox' | 'live';
 
+/** Moyen de paiement choisi par le client. */
+export type MoyenPaiement = 'mobile_money' | 'carte';
+
 /** Statut normalisé d'un paiement (3 valeurs, tous fournisseurs). */
 export type StatutPaiement = 'en_attente' | 'reussi' | 'echoue';
 
@@ -32,7 +35,10 @@ export interface Paiement {
   /** Montant en unité entière de la devise (XOF : pas de centimes). */
   montant: number;
   devise: string;
-  telephone: string;
+  /** Numéro Mobile Money ; null pour un paiement par carte. */
+  telephone: string | null;
+  /** Moyen choisi (Mobile Money ou carte bancaire). */
+  moyen: MoyenPaiement;
   statut: StatutPaiement;
   fournisseur: string;
   /** URL de redirection vers le guichet du fournisseur. */
@@ -49,7 +55,10 @@ export interface DemandePaiement {
   plan: CodePlan;
   montant: number;
   devise: string;
-  telephone: string;
+  /** Numéro Mobile Money (obligatoire pour ce moyen, absent pour la carte). */
+  telephone?: string | null;
+  /** Moyen de paiement demandé. */
+  moyen: MoyenPaiement;
   /** Code pays ISO 3166-1 alpha-2 (ex. « bj »), pour le numéro. */
   pays?: string;
   prenom?: string;

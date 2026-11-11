@@ -25,7 +25,8 @@ export default function PageRemboursement() {
         intro="Comment fonctionne le remboursement des formules payantes, et ce que devient le droit de rétractation sur un contenu numérique délivré immédiatement. Dernière mise à jour : 15 octobre 2026, lisible sans compte."
       >
         <SommaireLegal actif="remboursement" />
-
+
+
       </SectionPublique>
 
       <SectionPublique gabarit="etroit" surTitre="1" titre="Nature du contenu">
@@ -131,12 +132,13 @@ export default function PageRemboursement() {
             apporté dans un délai indicatif de{' '}
             <strong className="text-encre-100">sept (7) jours ouvrés</strong>.
             Lorsqu’une erreur de paiement manifeste est confirmée, la correction
-            est réexpédiée par le même canal Mobile Money que le paiement
-            d’origine.
+            est réexpédiée par le même canal que le paiement d’origine (Mobile
+            Money ou carte bancaire).
           </p>
           <p className="text-encre-500 italic">
-            Le délai d’un remboursement Mobile Money peut dépendre de l’opérateur
-            et n’est pas entièrement sous notre contrôle.
+            Le délai d’un remboursement Mobile Money peut dépendre de l’opérateur,
+            et celui d’un remboursement par carte du réseau bancaire ; ils ne sont
+            pas entièrement sous notre contrôle.
           </p>
         </div>
       </SectionPublique>

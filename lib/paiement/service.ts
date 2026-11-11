@@ -28,7 +28,7 @@ import {
   type StatutAbonnement,
 } from '../abonnement';
 import type { FournisseurPaiement } from './fournisseur';
-import type { EvenementPaiement, MagasinCredits, Paiement } from './types';
+import type { EvenementPaiement, MagasinCredits, MoyenPaiement, Paiement } from './types';
 import type { MagasinAbonnement, MagasinPaiement } from './magasin';
 
 export interface ContextePaiement {
@@ -53,7 +53,10 @@ export function genererReference(): string {
 export interface ParamsInitiation {
   proprietaireId: string;
   plan: CodePlan;
-  telephone: string;
+  /** Numéro Mobile Money (facultatif pour un paiement par carte). */
+  telephone?: string;
+  /** Moyen de paiement ('mobile_money' par défaut). */
+  moyen?: MoyenPaiement;
   pays?: string;
   prenom?: string;
   nom?: string;
@@ -81,8 +84,13 @@ export async function initierPaiement(
   if (!estPlanPremium(plan) && !estPackCredits(plan)) {
     throw new Error('Le plan gratuit ne nécessite aucun paiement.');
   }
-  const telephone = params.telephone.replace(/[^\d+]/g, '');
-  if (telephone.replace(/\D/g, '').length < 8) {
+  const moyen: MoyenPaiement = params.moyen === 'carte' ? 'carte' : 'mobile_money';
+  // Le numéro n'est exigé que pour Mobile Money : une carte Visa/Mastercard
+  // se paie sans numéro de téléphone.
+  const telephone = params.telephone
+    ? params.telephone.replace(/[^\d+]/g, '')
+    : null;
+  if (moyen === 'mobile_money' && (telephone ?? '').replace(/\D/g, '').length < 8) {
     throw new Error('Numéro Mobile Money invalide.');
   }
 
@@ -98,6 +106,7 @@ export async function initierPaiement(
     montant: plan.prixXof,
     devise: plan.devise,
     telephone,
+    moyen,
     statut: 'en_attente',
     fournisseur: ctx.fournisseur.id,
     url_paiement: null,
@@ -115,7 +124,8 @@ export async function initierPaiement(
     montant: plan.prixXof,
     devise: plan.devise,
     telephone,
-    pays: params.pays,
+    moyen,
+    pays: moyen === 'mobile_money' ? params.pays : undefined,
     prenom: params.prenom,
     nom: params.nom,
     email: params.email,

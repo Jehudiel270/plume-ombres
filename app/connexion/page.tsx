@@ -6,6 +6,31 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 
+/** Longueur maximale du pseudo (alignée sur la contrainte SQL profiles.pseudo). */
+const PSEUDO_MAX = 32;
+const PSEUDO_MIN = 2;
+const MOT_DE_PASSE_MIN = 8;
+
+/** Force d'un mot de passe : 0 à 4 critères remplis. */
+function forceMotDePasse(valeur: string): { score: number; libelle: string } {
+  let score = 0;
+  if (valeur.length >= MOT_DE_PASSE_MIN) score += 1;
+  if (/[a-z]/.test(valeur) && /[A-Z]/.test(valeur)) score += 1;
+  if (/\d/.test(valeur)) score += 1;
+  if (/[^A-Za-z0-9]/.test(valeur)) score += 1;
+  const libelle =
+    valeur.length === 0
+      ? ''
+      : score <= 1
+        ? 'Faible'
+        : score === 2
+          ? 'Moyen'
+          : score === 3
+            ? 'Bon'
+            : 'Excellent';
+  return { score, libelle };
+}
+
 export default function Connexion() {
   return (
     <Suspense>
@@ -27,6 +52,8 @@ function PageConnexion() {
   const [email, setEmail] = useState('');
   const [pseudo, setPseudo] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [voirMotDePasse, setVoirMotDePasse] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   // Message d'erreur éventuel transmis par /auth/confirmer (lien expiré).
   const [erreur, setErreur] = useState<string | null>(() => {
@@ -40,18 +67,51 @@ function PageConnexion() {
     return null;
   });
 
+  const force = forceMotDePasse(motDePasse);
+  const pseudoPropre = pseudo.trim();
+  const pseudoValide =
+    mode === 'connexion' ||
+    (pseudoPropre.length >= PSEUDO_MIN && pseudoPropre.length <= PSEUDO_MAX);
+  const confirmationValide =
+    mode === 'connexion' || (confirmation.length > 0 && confirmation === motDePasse);
+  const motDePasseValide =
+    mode === 'connexion' || (motDePasse.length >= MOT_DE_PASSE_MIN && force.score >= 2);
+
   async function soumettre(evenement: React.FormEvent) {
     evenement.preventDefault();
-    setEnvoi(true);
     setErreur(null);
+
+    if (mode === 'inscription') {
+      if (!pseudoValide) {
+        setErreur(`Le pseudo doit contenir entre ${PSEUDO_MIN} et ${PSEUDO_MAX} caractères.`);
+        return;
+      }
+      if (motDePasse.length < MOT_DE_PASSE_MIN) {
+        setErreur(`Le mot de passe doit contenir au moins ${MOT_DE_PASSE_MIN} caractères.`);
+        return;
+      }
+      if (force.score < 2) {
+        setErreur(
+          'Mot de passe trop faible : ajoute une majuscule, une minuscule, un chiffre ou un symbole.'
+        );
+        return;
+      }
+      if (confirmation !== motDePasse) {
+        setErreur('Les deux mots de passe ne correspondent pas.');
+        return;
+      }
+    }
+
+    setEnvoi(true);
     const supabase = creerClientNavigateur();
 
     try {
       if (mode === 'inscription') {
+        const pseudoFinal = pseudoPropre || email.split('@')[0].slice(0, PSEUDO_MAX);
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password: motDePasse,
-          options: { data: { pseudo: pseudo || email.split('@')[0] } },
+          options: { data: { pseudo: pseudoFinal } },
         });
         if (error) throw error;
 
@@ -62,7 +122,7 @@ function PageConnexion() {
             .from('profiles')
             .upsert({
               id: data.user.id,
-              pseudo: pseudo || email.split('@')[0],
+              pseudo: pseudoFinal,
             });
           if (errProfil && !errProfil.message.includes('duplicate')) {
             console.warn('Profil non créé :', errProfil.message);
@@ -70,7 +130,7 @@ function PageConnexion() {
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password: motDePasse,
         });
         if (error) throw error;
@@ -86,7 +146,7 @@ function PageConnexion() {
       } else if (message.includes('already registered')) {
         setErreur('Un compte existe déjà avec cet email. Connecte-toi.');
       } else if (message.includes('Password should be at least')) {
-        setErreur('Le mot de passe doit contenir au moins 6 caractères.');
+        setErreur(`Le mot de passe doit contenir au moins ${MOT_DE_PASSE_MIN} caractères.`);
       } else {
         setErreur(message);
       }
@@ -98,7 +158,10 @@ function PageConnexion() {
   function basculer(m: 'connexion' | 'inscription') {
     setMode(m);
     setErreur(null);
+    setConfirmation('');
   }
+
+  const barresForce = ['bg-grenat-500', 'bg-grenat-400', 'bg-or-ros-400', 'bg-or-ros-300'];
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
@@ -146,44 +209,131 @@ function PageConnexion() {
           <form onSubmit={soumettre} className="space-y-4">
             {mode === 'inscription' && (
               <div>
-                <label className="text-xs text-encre-500 uppercase tracking-wider block mb-1.5">
-                  Pseudo
-                </label>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <label
+                    className="text-xs text-encre-500 uppercase tracking-wider"
+                    htmlFor="pseudo"
+                  >
+                    Pseudo
+                  </label>
+                  <span
+                    className={`text-[11px] tabular-nums ${
+                      pseudoPropre.length > PSEUDO_MAX
+                        ? 'text-grenat-300'
+                        : 'text-encre-500'
+                    }`}
+                  >
+                    {pseudo.length}/{PSEUDO_MAX}
+                  </span>
+                </div>
                 <input
+                  id="pseudo"
                   className="champ-sombre"
                   placeholder="Ex. Lectrice de minuit"
+                  maxLength={PSEUDO_MAX}
+                  required
+                  autoComplete="nickname"
                   value={pseudo}
                   onChange={(e) => setPseudo(e.target.value)}
                 />
+                <p className="text-[11px] text-encre-500 mt-1">
+                  {PSEUDO_MIN} à {PSEUDO_MAX} caractères.
+                </p>
               </div>
             )}
             <div>
-              <label className="text-xs text-encre-500 uppercase tracking-wider block mb-1.5">
+              <label
+                className="text-xs text-encre-500 uppercase tracking-wider block mb-1.5"
+                htmlFor="email"
+              >
                 Email
               </label>
               <input
+                id="email"
                 type="email"
                 required
                 className="champ-sombre"
                 placeholder="vous@exemple.com"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-xs text-encre-500 uppercase tracking-wider block mb-1.5">
+              <label
+                className="text-xs text-encre-500 uppercase tracking-wider block mb-1.5"
+                htmlFor="mot-de-passe"
+              >
                 Mot de passe
               </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                className="champ-sombre"
-                placeholder="••••••••"
-                value={motDePasse}
-                onChange={(e) => setMotDePasse(e.target.value)}
-              />
+              <div className="relative">
+                <input
+                  id="mot-de-passe"
+                  type={voirMotDePasse ? 'text' : 'password'}
+                  required
+                  minLength={mode === 'inscription' ? MOT_DE_PASSE_MIN : 6}
+                  className="champ-sombre pr-12"
+                  placeholder="••••••••"
+                  autoComplete={mode === 'inscription' ? 'new-password' : 'current-password'}
+                  value={motDePasse}
+                  onChange={(e) => setMotDePasse(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setVoirMotDePasse((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-encre-500 hover:text-encre-300 transition-colors cursor-pointer"
+                  aria-label={voirMotDePasse ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                >
+                  {voirMotDePasse ? 'Masquer' : 'Voir'}
+                </button>
+              </div>
+
+              {mode === 'inscription' && (
+                <div className="mt-2">
+                  <div className="flex gap-1" aria-hidden="true">
+                    {[0, 1, 2, 3].map((i) => (
+                      <span
+                        key={i}
+                        className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
+                          i < force.score ? barresForce[Math.max(force.score - 1, 0)] : 'bg-nuit-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-encre-500 mt-1">
+                    {motDePasse.length === 0
+                      ? `Au moins ${MOT_DE_PASSE_MIN} caractères, avec majuscule, chiffre ou symbole.`
+                      : `Force : ${force.libelle}`}
+                  </p>
+                </div>
+              )}
             </div>
+
+            {mode === 'inscription' && (
+              <div>
+                <label
+                  className="text-xs text-encre-500 uppercase tracking-wider block mb-1.5"
+                  htmlFor="confirmation"
+                >
+                  Confirmer le mot de passe
+                </label>
+                <input
+                  id="confirmation"
+                  type={voirMotDePasse ? 'text' : 'password'}
+                  required
+                  className="champ-sombre"
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  value={confirmation}
+                  onChange={(e) => setConfirmation(e.target.value)}
+                />
+                {confirmation.length > 0 && confirmation !== motDePasse && (
+                  <p className="text-[11px] text-grenat-300 mt-1">
+                    Les deux mots de passe ne correspondent pas.
+                  </p>
+                )}
+              </div>
+            )}
 
             {mode === 'connexion' && (
               <p className="text-right">
@@ -204,7 +354,13 @@ function PageConnexion() {
 
             <button
               type="submit"
-              disabled={envoi}
+              disabled={
+                envoi ||
+                (mode === 'inscription' &&
+                  (!pseudoValide ||
+                    !motDePasseValide ||
+                    !confirmationValide))
+              }
               className="bouton-principal w-full !py-3"
             >
               {envoi

@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/tarifs' },
   title: 'Tarifs',
   description:
-    'Les formules Plume d’Ombres et leurs prix en francs CFA : offre gratuite, abonnements Lecteur et Passionné (mensuels et annuels), paiement par Mobile Money.',
+    'Les formules Plume d’Ombres et leurs prix en francs CFA : offre gratuite, abonnements Lecteur et Passionné (mensuels et annuels), paiement par Mobile Money ou carte bancaire.',
 };
 
 async function grille(): Promise<{ grille: GrillePublique; source: 'base' | 'repli' }> {
@@ -89,17 +89,21 @@ export default async function PageTarifs() {
             </p>
           ) : sandbox ? (
             <p>
-              <strong className="text-encre-100">Paiement par Mobile Money.</strong>{' '}
-              Le règlement s’effectue via FedaPay (agrégateur Mobile Money), en
-              environnement de test (sandbox) : aucun débit réel n’est effectué
-              tant que l’ouverture au public n’est pas annoncée.
+              <strong className="text-encre-100">
+                Paiement par Mobile Money ou carte bancaire.
+              </strong>{' '}
+              Le règlement s’effectue via FedaPay, en environnement de test
+              (sandbox) : aucun débit réel n’est effectué.
             </p>
           ) : (
             <p>
-              <strong className="text-encre-100">Paiement par Mobile Money.</strong>{' '}
-              Le règlement s’effectue via FedaPay (agrégateur Mobile Money). Le
-              prix affiché est celui du catalogue au moment de la commande ; les
-              modalités complètes figurent dans les conditions générales.
+              <strong className="text-encre-100">
+                Paiement par Mobile Money ou carte bancaire.
+              </strong>{' '}
+              Le règlement s’effectue via FedaPay (Mobile Money MTN, Moov, Orange,
+              Wave, Airtel ; cartes Visa et Mastercard). Le prix affiché est celui du
+              catalogue au moment de la commande ; les modalités complètes figurent
+              dans les conditions générales.
             </p>
           )}
           <p className="mt-3">

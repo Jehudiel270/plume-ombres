@@ -41,6 +41,7 @@ function paiementEnAttente(montant = 5000): Paiement {
     montant,
     devise: 'XOF',
     telephone: '97000000',
+    moyen: 'mobile_money',
     statut: 'en_attente',
     fournisseur: 'fedapay',
     url_paiement: 'https://process.fedapay.com/900123',

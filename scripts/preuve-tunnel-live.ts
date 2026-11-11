@@ -56,6 +56,7 @@ async function principal(): Promise<void> {
     montant,
     devise: 'XOF',
     telephone: '+22990000000',
+    moyen: 'mobile_money',
     pays: 'bj',
     prenom: 'Preuve',
     nom: 'Technique',

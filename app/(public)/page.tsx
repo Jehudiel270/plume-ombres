@@ -112,10 +112,11 @@ export default async function Accueil() {
         </h1>
         <div className="liseret mx-auto mt-6" />
         <p className="text-encre-300 text-base sm:text-lg mt-6 leading-relaxed max-w-2xl mx-auto">
-          Importez un roman en anglais : Plume d’Ombres le découpe en
-          chapitres, le traduit en français et vous le rend dans un lecteur
-          au confort réglable — prêt à exporter, sans perdre la morsure du
-          texte.
+          Importez un roman dans sa langue d’origine — anglais, espagnol,
+          italien… et plus de soixante-dix autres : Plume d’Ombres le découpe
+          en chapitres, le traduit vers le français (ou vers une autre langue)
+          et vous le rend dans un lecteur au confort réglable — prêt à
+          exporter, sans perdre la morsure du texte.
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -128,8 +129,9 @@ export default async function Accueil() {
         </div>
 
         <p className="text-encre-500 text-xs mt-4 italic">
-          L’offre gratuite reste ouverte — les formules payantes et leurs prix
-          sont détaillés sur la page <Link href="/tarifs" className="lien-discret underline">Tarifs</Link>.
+          L’offre gratuite reste ouverte ; les formules payantes, leurs prix et le
+          paiement (Mobile Money ou carte bancaire) sont détaillés sur la page{' '}
+          <Link href="/tarifs" className="lien-discret underline">Tarifs</Link>.
         </p>
       </section>
 
@@ -175,9 +177,12 @@ export default async function Accueil() {
         <div className="velours p-5 mt-4">
           <p className="sur-titre text-encre-300">Langues proposées</p>
           <p className="text-encre-300 text-sm mt-3 leading-relaxed">
-            Traduction vers le <strong className="text-encre-100">français</strong> depuis
-            l’anglais, l’espagnol, l’italien, le portugais, l’allemand — et entre ces six
-            langues.
+            Plus de <strong className="text-encre-100">soixante-dix langues</strong> en
+            source comme en cible — anglais, espagnol, italien, portugais, allemand,
+            arabe, russe, chinois, japonais, coréen, turc, hindi, swahili… Le{' '}
+            <strong className="text-encre-100">français</strong> est proposé par défaut,
+            et vous choisissez la langue de départ comme la langue d’arrivée au moment
+            de l’import.
           </p>
           <p className="text-encre-500 text-xs mt-3 leading-relaxed italic">
             Un PDF scanné (photocopie, image sans couche texte) ne peut pas être lu :
@@ -207,12 +212,6 @@ export default async function Accueil() {
             Ce que le studio ne fait pas <span className="normal-case tracking-normal">(encore)</span>
           </p>
           <ul className="mt-3 space-y-2 text-sm text-encre-500 leading-relaxed list-disc pl-5">
-            <li>
-              <strong className="text-encre-300">Paiement en cours d’ouverture</strong> :
-              les formules payantes et leurs prix sont visibles sur la page{' '}
-              <Link href="/tarifs" className="lien-discret underline">Tarifs</Link>, mais
-              l’encaissement destiné au grand public reste à ouvrir.
-            </li>
             <li>
               <strong className="text-encre-300">Pas d’OCR</strong> ni de PDF scanné, pas
               encore de DOCX en entrée.
@@ -262,7 +261,8 @@ export default async function Accueil() {
               Lecteur et Passionné
             </p>
             <p className="text-encre-500 text-xs mt-1">
-              au mois ou à l’année (2 mois offerts), paiement par Mobile Money
+              au mois ou à l’année (2 mois offerts), paiement par Mobile Money ou
+              carte bancaire
             </p>
             <ul className="mt-5 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
               <li>Quota de traduction élargi (plusieurs livres par mois)</li>
