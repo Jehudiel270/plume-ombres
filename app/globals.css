@@ -1513,3 +1513,14 @@ html[data-economie='1'] .reveler {
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;
 }
+
+/* ============================================================
+   Lecture à voix haute (F9) — signal du paragraphe en cours.
+   Sans déplacement de texte : un simple liseré à gauche, visible
+   sur toutes les palettes, retiré dès que la lecture avance.
+   ============================================================ */
+.corps-livre p[data-lecture-vocale='true'] {
+  box-shadow: inset 3px 0 0 0 var(--color-grenat-400, oklch(0.62 0.16 25));
+  border-radius: 2px;
+  transition: box-shadow 0.4s ease;
+}
