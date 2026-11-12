@@ -145,8 +145,13 @@ export default function PanneauGlossaire({
     }
   }
 
-  async function ajouter(sourceTexte: string, traductionTexte: string, cat: CategorieGlossaire, verrou: boolean) {
-    if (!livreId) return;
+  async function ajouter(
+    sourceTexte: string,
+    traductionTexte: string,
+    cat: CategorieGlossaire,
+    verrou: boolean
+  ): Promise<boolean> {
+    if (!livreId) return false;
     const ok = await appeler('POST', {
       livreId,
       source: sourceTexte,
@@ -154,9 +159,10 @@ export default function PanneauGlossaire({
       categorie: cat,
       verrouillee: verrou,
     });
-    if (!ok) return;
+    if (!ok) return false;
     setMessage({ ton: 'ok', texte: `« ${sourceTexte.trim()} » enregistré.` });
     router.refresh();
+    return true;
   }
 
   if (livres.length === 0) {
