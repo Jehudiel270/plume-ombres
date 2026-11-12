@@ -2,7 +2,7 @@
 
 // ============================================================
 // components/paiement/FormulairePaiement.tsx — Formulaire de paiement
-// FedaPay : Mobile Money (7 pays UEMOA) ou carte bancaire.
+// FedaPay : Mobile Money (5 pays activés sur le compte) ou carte bancaire.
 //
 // Aucune dépendance à un composant importé : logique propre, classes
 // du projet (champ-sombre / bouton-principal / velours) et routes
@@ -22,14 +22,20 @@ interface PaysMobileMoney {
   operateurs: string;
 }
 
-/** Pays UEMOA couverts par FedaPay (Mobile Money). */
+/**
+ * Pays Mobile Money ACTIVÉS sur le compte FedaPay (dashboard → Paramètres
+ * → Moyens de paiement ; constat du 12/11/2026 : 5 pays, 9 moyens).
+ *
+ * ⚠ Ne PAS ajouter un pays ici sans l'activer d'abord sur le compte :
+ * le choix de l'opérateur se fait sur le guichet FedaPay — un client
+ * dont le pays n'est pas activé n'y verrait AUCUN moyen de paiement
+ * disponible et bloquerait à l'étape suivante.
+ */
 const PAYS_MOBILE_MONEY: PaysMobileMoney[] = [
-  { code: 'bj', nom: 'Bénin', operateurs: 'MTN, Moov, Celtiis, Coris Money, BMO' },
-  { code: 'ci', nom: 'Côte d’Ivoire', operateurs: 'MTN, Moov, Orange, Wave' },
-  { code: 'sn', nom: 'Sénégal', operateurs: 'Orange Money, Wave' },
-  { code: 'tg', nom: 'Togo', operateurs: 'Moov, Togocel (Mixx by Yas)' },
-  { code: 'bf', nom: 'Burkina Faso', operateurs: 'Orange Money, Moov' },
-  { code: 'ml', nom: 'Mali', operateurs: 'Orange Money' },
+  { code: 'bj', nom: 'Bénin', operateurs: 'MTN MoMo, Moov Money, Celtiis…' },
+  { code: 'ci', nom: 'Côte d’Ivoire', operateurs: 'Orange Money, MTN MoMo, Moov Money, Wave…' },
+  { code: 'sn', nom: 'Sénégal', operateurs: 'Orange Money, Wave…' },
+  { code: 'tg', nom: 'Togo', operateurs: 'T-Money (Togocom), Flooz (Moov)' },
   { code: 'ne', nom: 'Niger', operateurs: 'Airtel Money' },
 ];
 
@@ -218,7 +224,8 @@ export default function FormulairePaiement({
             </select>
             {paysChoisi && (
               <p className="text-[11px] text-encre-500 mt-1">
-                Opérateurs : {paysChoisi.operateurs}.
+                Opérateurs : {paysChoisi.operateurs} — le choix exact s’affiche
+                sur la page sécurisée FedaPay.
               </p>
             )}
           </div>

@@ -213,9 +213,9 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
           Prestataire de paiement :{' '}
           <strong className="text-encre-100">FedaPay</strong>, agrégateur de
           paiement <strong className="text-encre-100">Mobile Money</strong>{' '}
-          couvrant la zone UEMOA (Bénin, Burkina Faso, Côte d’Ivoire, Mali, Niger,
-          Sénégal, Togo) et les cartes Visa / Mastercard. Les opérateurs pris en
-          charge sont précisés au moment du paiement.
+          couvrant le Bénin, la Côte d’Ivoire, le Sénégal, le Togo et le Niger,
+          ainsi que les cartes Visa / Mastercard. Les opérateurs pris en charge
+          sont précisés au moment du paiement.
         </p>
       </>
     ),
