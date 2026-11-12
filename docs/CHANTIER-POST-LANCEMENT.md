@@ -30,7 +30,7 @@ Ordre d'attaque validé (rapport d'inspection du 12/11/2026) :
 |---|---|---|---|---|
 | 1 | Interrupteurs admin (registre, proxy, admin, check, tests) | — | M | **MERGÉ dans develop** |
 | 2 | TTS lecture à voix haute | F9 | S | **MERGÉ dans develop** |
-| 3 | Vue bilingue alignée | F7 | M | à venir |
+| 3 | Vue bilingue alignée | F7 | M | **MERGÉ dans develop** |
 | 4 | Écran de gestion du glossaire | F16 | S | à venir |
 | 5 | Carnet (notes, surlignage, citations, export) | — | M | à venir |
 | 6 | Théories et comparateur | F8/F19 | M | à venir |
@@ -71,6 +71,18 @@ auteurs partenaires avec partage de revenus, liens d'affiliation, licences de gr
 - Tests : 7/7 dédiés, 194/195 au total, build OK, check:flags OK, lint à l'état
   de base.
 - Fiche détaillée : `docs/fonctionnalites/01-lecture-vocale.md`.
+
+### 3. `fonctionnalite/vue-bilingue` — MERGÉ (12/11/2026)
+
+- Vue bilingue alignée (F7) : paires source ↔ traduction construites depuis les
+  SEGMENTS (alignement exact par construction, les unités réellement traduites),
+  repli paragraphe par paragraphe avec offsets exacts pour la recherche.
+- Interface : troisième bouton « Bilingue » dans la bascule du lecteur, rendu
+  côte à côte dès 640 px, colonne source secondaire, segment non traduit visible.
+- Barrière fine serveur `verifierAccesModule('bilingue')` dans la page du livre.
+- Tests : 5/5 dédiés, 199/200 au total, build OK, check:flags OK, lint à l'état
+  de base.
+- Fiche détaillée : `docs/fonctionnalites/02-vue-bilingue.md`.
 
 ## Précautions de fin de chantier
 

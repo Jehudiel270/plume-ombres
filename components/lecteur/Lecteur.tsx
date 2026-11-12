@@ -50,6 +50,7 @@ import {
   TAILLE_BLOC_TEXTE,
 } from '@/lib/pagination';
 import { preferencesEnCss } from '@/lib/lecture';
+import type { PaireBilingue } from '@/lib/bilingue';
 import Recherche from '@/components/Recherche';
 import type { ControlePreferences } from '@/components/lecteur/ReglagesLecture';
 import ReglagesLecture from '@/components/lecteur/ReglagesLecture';
@@ -124,6 +125,16 @@ interface Props {
    * inchangé quand aucun outil n'est passé.
    */
   outils?: ReactNode;
+  /**
+   * Vue bilingue (F7, ajout chantier) : paires source ↔ traduit. Non
+   * null → le corps affiche les paires au lieu du texte simple. La
+   * recherche garde son texte (`texteNet`) ; le surlignage ne porte
+   * que les paires dont l'offset traduit est connu (repli
+   * paragraphe), celles venant des segments s'affichent sans marque.
+   */
+  pairesBilingue?: PaireBilingue[] | null;
+  /** Code de langue de la colonne source (attribut lang de la paire). */
+  langueSourceBilingue?: string;
 }
 
 /**
@@ -152,6 +163,8 @@ function Lecteur({
   total,
   preferences,
   outils,
+  pairesBilingue = null,
+  langueSourceBilingue,
 }: Props) {
   const { prefs, maj, reinitialiser } = preferences;
   // ---------- Recherche plein texte (chapitre affiché) ----------
@@ -271,6 +284,49 @@ function Lecteur({
   const contenu = useMemo(() => {
     const avecLettrine = prefs.lettrine;
     const paresseux = !deuxColonnes;
+    // Vue bilingue (F7) : paires source ↔ traduit, regroupées en
+    // paquets portant content-visibility (comme le texte simple).
+    if (pairesBilingue) {
+      const TAILLE_PAIQUET_PAIRES = 6;
+      const paquetsPaires: PaireBilingue[][] = [];
+      for (let i = 0; i < pairesBilingue.length; i += TAILLE_PAIQUET_PAIRES) {
+        paquetsPaires.push(pairesBilingue.slice(i, i + TAILLE_PAIQUET_PAIRES));
+      }
+      return paquetsPaires.map((paquet, iP) => (
+        <div
+          key={iP}
+          className={
+            paresseux
+              ? '[content-visibility:auto] [contain-intrinsic-size:auto_800px]'
+              : undefined
+          }
+        >
+          {paquet.map((paire, iB) => {
+            const absolu = iP * TAILLE_PAIQUET_PAIRES + iB;
+            return (
+              <div key={iB} className="paire-bilingue">
+                {paire.source && (
+                  <p className="bilingue-source" lang={langueSourceBilingue}>
+                    {paire.source}
+                  </p>
+                )}
+                {paire.traduit ? (
+                  <p className={avecLettrine && absolu === 0 ? 'lettrine' : undefined}>
+                    {paire.debutTraduit >= 0
+                      ? surligne(paire.traduit, paire.debutTraduit)
+                      : paire.traduit}
+                  </p>
+                ) : (
+                  <p className="bilingue-attente" aria-hidden="true">
+                    —
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ));
+    }
     return paquets.map((paquet, iP) => (
       <div
         key={iP}
@@ -307,7 +363,7 @@ function Lecteur({
         })}
       </div>
     ));
-  }, [paquets, surligne, prefs.lettrine, deuxColonnes]);
+  }, [paquets, surligne, prefs.lettrine, deuxColonnes, pairesBilingue, langueSourceBilingue]);
 
   /** Tourne d'une colonne (le cadre défile horizontalement). */
   const tournerColonne = useCallback(
