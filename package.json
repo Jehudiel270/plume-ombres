@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:flags": "tsx scripts/verifier-interrupteurs.ts",
+    "test:unitaires": "tsx --test lib/**/*.test.ts lib/*.test.ts",
     "test:abonnement": "tsx scripts/test-abonnement-paiement.ts",
     "test:credits": "tsx scripts/test-credits-e2e.ts"
   },

@@ -6,6 +6,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { verdictPourChemin } from '@/lib/fonctionnalites/etats';
+
 export async function proxy(request: NextRequest) {
   // Ancienne adresse Vercel : redirection permanente vers le domaine définitif.
   // Sans cela, un lien partagé sur l'ancienne adresse produit un aperçu qui
@@ -89,7 +91,54 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/bibliotheque', request.url));
   }
 
+  // ============================================================
+  // Interrupteurs de fonctionnalités (chantier post-lancement).
+  //
+  // Barrière GROSSIÈRE côté pages : un module fermé par
+  // l'administrateur répond 404 — comme si la route n'existait pas
+  // (aucune donnée n'est rendue, donc rien ne fuit). Les contrôles
+  // FINS (abonnement minimal, déploiement progressif) sont revérifiés
+  // CÔTÉ SERVEUR dans chaque page et chaque route d'API du module :
+  // le proxy n'a ni le plan ni l'identifiant du lecteur, et le
+  // serveur est l'autorité (règle du brief).
+  //
+  // Les routes d'API sont exclues du matcher de ce proxy : chaque
+  // route d'API d'un module appelle sa propre barrière fine
+  // (lib/fonctionnalites/etats.verifierModuleApi).
+  // ============================================================
+  if (!estCheminReserve(chemin)) {
+    const { def, verdict } = await verdictPourChemin(chemin, 'pages');
+    if (def && !verdict.ouvert) {
+      return new NextResponse(null, { status: 404 });
+    }
+  }
+
   return reponse;
+}
+
+/**
+ * Chemins que la barrière des interrupteurs ne doit JAMAIS examiner
+ * ici : le socle (l'atelier personnel) et l'admin (qui vérifie ses
+ * propres permissions) ne passent pas par les interrupteurs de
+ * pages. Le calcul précis vit dans le registre ; ce test rapide ne
+ * sert qu'à épargner une lecture d'états aux requêtes du socle.
+ * La décision fine reste dans verdictPourChemin (interrupteurPourChemin).
+ */
+function estCheminReserve(chemin: string): boolean {
+  // Un interrupteur n'a de sens que pour ses propres itinéraires :
+  // verdictPourChemin ne matche rien pour le socle, mais ce filtre
+  // évite la lecture d'états (fetch) sur CHAQUE page ordinaire.
+  const segments = chemin.toLowerCase().split('?')[0].split('/').filter(Boolean);
+  const premier = segments[0] ?? '';
+  // Préfixes du socle et de l'admin (registre : ITINERAIRES_SOCLE /
+  // ITINERAIRES_ADMIN — première liste segmentée pour la vitesse).
+  const exclus = new Set([
+    'bibliotheque', 'livres', 'favoris', 'compte', 'abonnement', 'paiement',
+    'connexion', 'auth', 'mot-de-passe-oublie', 'nouveau-mot-de-passe',
+    'tarifs', 'faq', 'contact', 'mentions-legales', 'conditions',
+    'confidentialite', 'remboursement', 'cookies', 'admin',
+  ]);
+  return exclus.has(premier);
 }
 
 export const config = {

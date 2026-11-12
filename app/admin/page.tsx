@@ -23,6 +23,7 @@
 // ============================================================
 
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { creerClientServeur } from '@/lib/supabase/server';
 import { exigerPermission } from '@/lib/roles-garde';
 import BarreNavigation from '@/components/BarreNavigation';
@@ -663,6 +664,15 @@ export default async function PageAdmin() {
           <p className="text-encre-500 text-sm mt-3 italic">
             Comptes, usage, abonnements et paiements. Aucun contenu de livre d’autrui n’est
             lisible ici.
+          </p>
+          {/* Chantier post-lancement : interrupteurs des nouveaux modules. */}
+          <p className="text-sm mt-2">
+            <Link
+              href="/admin/fonctionnalites"
+              className="text-grenat-300 underline underline-offset-4 hover:text-grenat-200"
+            >
+              Fonctionnalités du chantier — ouvrir, fermer, déployer les nouveaux modules
+            </Link>
           </p>
         </header>
 
