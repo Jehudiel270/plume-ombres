@@ -251,13 +251,21 @@ export default async function PageLivre({
     packsCredits()
   );
 
-  // ---------- Interrupteur lecture_vocale (F9) ----------
+  // ---------- Interrupteurs des modules du lecteur (F7, F9) ----------
   // Barrière fine côté serveur : registre + plan effectif du compte.
-  // Un module fermé = composant jamais monté (le serveur est l'autorité).
-  const lectureVocale = await verifierAccesModule('lecture_vocale', {
-    utilisateurId: utilisateur.id,
-    codePlan: planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT,
-  });
+  // Un module fermé = composant/bouton jamais montés (le serveur est
+  // l'autorité).
+  const planCode = planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT;
+  const [lectureVocale, vueBilingue] = await Promise.all([
+    verifierAccesModule('lecture_vocale', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('bilingue', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+  ]);
 
   return (
     <>
@@ -279,6 +287,7 @@ export default async function PageLivre({
           chapitresInitiaux={chapitresLegers as Chapitre[]}
           totalCaracteres={totalCaracteres}
           lectureVocaleOuverte={lectureVocale.ouvert}
+          bilingueOuverte={vueBilingue.ouvert}
         />
       </main>
     </>

@@ -47,6 +47,11 @@ import {
 import Sommaire from '@/components/lecteur/Sommaire';
 import BarreActions from '@/components/lecteur/BarreActions';
 import CommandesTraduction from '@/components/lecteur/CommandesTraduction';
+import {
+  apparierDepuisSegments,
+  apparierParagraphes,
+  type PaireBilingue,
+} from '@/lib/bilingue';
 import Lecteur from '@/components/lecteur/Lecteur';
 import LectureVocale from '@/components/lecteur/LectureVocale';
 import { usePreferencesLecture } from '@/components/lecteur/ReglagesLecture';
@@ -70,6 +75,7 @@ export default function EspaceLivre({
   chapitresInitiaux,
   totalCaracteres,
   lectureVocaleOuverte = false,
+  bilingueOuverte = false,
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
@@ -81,6 +87,11 @@ export default function EspaceLivre({
    * pour ce lecteur. Défaut false : sans wire, rien ne s'affiche.
    */
   lectureVocaleOuverte?: boolean;
+  /**
+   * Interrupteur `bilingue` (F7) évalué CÔTÉ SERVEUR : le bouton de la
+   * vue bilingue n'existe que si le module est ouvert pour ce lecteur.
+   */
+  bilingueOuverte?: boolean;
 }) {
   const supabaseRef = useRef(creerClientNavigateur());
   const requeteRef = useRef<string | null>(null);
@@ -91,7 +102,9 @@ export default function EspaceLivre({
     chapitresInitiaux[0]?.id ?? null
   );
   const [chapitreComplet, setChapitreComplet] = useState<Chapitre | null>(null);
-  const [lecture, setLecture] = useState<'source' | 'traduit'>('source');
+  const [lecture, setLecture] = useState<'source' | 'traduit' | 'bilingue'>(
+    'source'
+  );
   const [compteurs, setCompteurs] = useState<Compteurs | null>(null);
   /** Ce qui RESTE à traduire dans le livre (compté avec la vraie source). */
   const [aTraduire, setATraduire] = useState<{
@@ -665,7 +678,7 @@ export default function EspaceLivre({
   // ---------- Divers ----------
   const texteAffiche = useMemo(() => {
     if (!chapitreComplet) return '';
-    if (lecture === 'traduit')
+    if (lecture === 'traduit' || lecture === 'bilingue')
       return chapitreComplet.texte_traduit ?? chapitreComplet.texte_source;
     return chapitreComplet.texte_source;
   }, [chapitreComplet, lecture]);
@@ -677,9 +690,49 @@ export default function EspaceLivre({
    *  l'annonce du corps de texte aux lecteurs d'écran. */
   const langueAffichee = useMemo(() => {
     const brute =
-      lecture === 'traduit' ? livre.langue_cible : livre.langue_source;
+      lecture === 'source' ? livre.langue_source : livre.langue_cible;
     return /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(brute ?? '') ? brute : 'fr';
   }, [lecture, livre.langue_source, livre.langue_cible]);
+
+  // ---------- Vue bilingue (F7) : paires source ↔ traduit ----------
+  // Alignement SEGMENT par SEGMENT (les unités réellement traduites) ;
+  // repli paragraphe par paragraphe si la table est vide. Les paires
+  // restent en cache : basculer de vue ne relance pas la lecture.
+  const [pairesBilingue, setPairesBilingue] = useState<PaireBilingue[] | null>(
+    null
+  );
+  useEffect(() => {
+    if (lecture !== 'bilingue' || !chapitreComplet) return;
+    const idChapitre = chapitreComplet.id;
+    const texteSource = chapitreComplet.texte_source;
+    const texteTraduit = chapitreComplet.texte_traduit ?? '';
+    let annule = false;
+    (async () => {
+      try {
+        const { data } = await supabaseRef.current
+          .from('segments')
+          .select('source, traduit, position')
+          .eq('chapitre_id', idChapitre)
+          .order('position', { ascending: true });
+        if (annule) return;
+        const parSegments = apparierDepuisSegments(
+          (data ?? []) as Array<{ source: string | null; traduit: string | null }>
+        );
+        setPairesBilingue(
+          parSegments.length > 0
+            ? parSegments
+            : apparierParagraphes(texteSource, texteTraduit)
+        );
+      } catch {
+        if (!annule) {
+          setPairesBilingue(apparierParagraphes(texteSource, texteTraduit));
+        }
+      }
+    })();
+    return () => {
+      annule = true;
+    };
+  }, [lecture, chapitreComplet]);
 
   const chapitreActuel = useMemo(
     () => chapitres.find((c) => c.id === selection) ?? null,
@@ -767,6 +820,7 @@ export default function EspaceLivre({
           onToutTraduire={toutTraduire}
           lecture={lecture}
           onLecture={setLecture}
+          bilingueDisponible={bilingueOuverte && !!chapitreComplet?.texte_traduit}
           texteTraduitDisponible={!!chapitreComplet?.texte_traduit}
           langueSource={livre.langue_source}
           langueCible={livre.langue_cible}
@@ -812,6 +866,10 @@ export default function EspaceLivre({
               position={indexSelection + 1}
               total={chapitres.length}
               preferences={preferences}
+              pairesBilingue={
+                lecture === 'bilingue' ? pairesBilingue : null
+              }
+              langueSourceBilingue={livre.langue_source}
               outils={
                 lectureVocaleOuverte && chapitreComplet ? (
                   <LectureVocale texte={texteNet} />
