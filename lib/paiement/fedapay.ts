@@ -36,6 +36,22 @@ const API_LIVE = 'https://api.fedapay.com/v1';
 const PROCESS_SANDBOX = 'https://sandbox-process.fedapay.com';
 const PROCESS_LIVE = 'https://process.fedapay.com';
 
+/**
+ * User-Agent « navigateur » obligatoire sur l'API live.
+ *
+ * Depuis fin octobre 2026, `api.fedapay.com` est protégé par Cloudflare :
+ * une requête serveur SANS User-Agent navigateur reçoit une page HTML
+ * « Just a moment… » avec un 403 — AVANT d'atteindre l'API FedaPay
+ * (constaté en production le 11/11 : `[fedapay] HTTP 403` sur toutes les
+ * créations de transaction, y compris avec une clé live valide ; le
+ * sandbox `sandbox-api.fedapay.com` n'est pas concerné). On envoie donc
+ * explicitement un User-Agent de navigateur sur CHAQUE appel, comme le
+ * fait le guichet lui-même. Ne jamais retirer cet en-tête.
+ */
+const EN_TETE_NAVIGATEUR =
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) ' +
+  'Chrome/126.0.0.0 Safari/537.36';
+
 /** Environnement FedaPay courant ('sandbox' par défaut). */
 export function fedapayEnv(): 'sandbox' | 'live' {
   return process.env.FEDAPAY_ENV?.trim().toLowerCase() === 'live'
@@ -213,6 +229,8 @@ export class FedaPayFournisseur {
           Authorization: `Bearer ${cle}`,
           'Content-Type': 'application/json',
           Accept: 'application/json',
+          // Cloudflare (API live) défie le trafic sans UA navigateur.
+          'User-Agent': EN_TETE_NAVIGATEUR,
         },
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
         signal: controleur.signal,
@@ -225,11 +243,18 @@ export class FedaPayFournisseur {
         donnees = { brut: texte };
       }
       if (!reponse.ok) {
-        const message =
-          typeof donnees.message === 'string'
-            ? donnees.message
-            : `HTTP ${reponse.status}`;
-        throw new Error(`[fedapay] ${message}`);
+        if (typeof donnees.message === 'string') {
+          throw new Error(`[fedapay] ${donnees.message}`);
+        }
+        // Réponse NON JSON (pare-feu / challenge / passerelle) : on joint
+        // un extrait du corps pour diagnostiquer d'un coup d'œil dans les
+        // logs — ex. « Just a moment… » = blocage Cloudflare, et non une
+        // erreur de clé ni de compte.
+        const extrait = texte.replace(/\s+/g, ' ').trim().slice(0, 160);
+        throw new Error(
+          `[fedapay] HTTP ${reponse.status} sans corps JSON` +
+            (extrait ? ` — réponse : « ${extrait} »` : '')
+        );
       }
       return donnees;
     } finally {

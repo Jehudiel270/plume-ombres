@@ -51,17 +51,24 @@ function rechargerPourMiseAJour(): void {
 export default function PWA() {
   const [evenement, setEvenement] = useState<EvenementInstall | null>(null);
   const [installable, setInstallable] = useState(false);
-  const [installe, setInstalle] = useState(estInstalleStandalone);
+  // Hydratation : ces deux états lisent le NAVIGATEUR (matchMedia /
+  // localStorage). Initialisés côté serveur à `false` puis lus APRÈS le
+  // montage, sinon une branche serveur/client dans l'initialiseur rend
+  // un HTML différent du premier rendu client — l'erreur React #418
+  // (« the server rendered text didn't match the client ») en production.
+  const [installe, setInstalle] = useState(false);
   // L'utilisateur a déjà dit « plus tard » : on ne le relance pas tout
   // seul. Le bouton reste accessible dans les réglages du compte.
-  const [refuse, setRefuse] = useState(() => {
-    if (typeof window === 'undefined') return false;
+  const [refuse, setRefuse] = useState(false);
+
+  useEffect(() => {
+    setInstalle(estInstalleStandalone());
     try {
-      return localStorage.getItem('plume-install-reporte') === '1';
+      setRefuse(localStorage.getItem('plume-install-reporte') === '1');
     } catch {
-      return false;
+      // Stockage indisponible (navigation privée stricte) : non bloquant.
     }
-  });
+  }, []);
 
   // Enregistrement du service worker + écoute des événements
   // d'installation (Chromium / Android). Le body de l'effet ne fait que

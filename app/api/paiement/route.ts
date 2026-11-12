@@ -133,12 +133,23 @@ export async function POST(request: NextRequest) {
       fournisseur: resultat.fournisseur,
     });
   } catch (erreur) {
+    const message =
+      erreur instanceof Error ? erreur.message : 'Paiement impossible.';
+    // Une panne du FOURNISSEUR (FedaPay, pare-feu…) n'est pas une faute
+    // du client : on la journalise côté serveur, on renvoie 502 avec un
+    // message générique — au lieu d'un 400 qui ressemble à une requête
+    // invalide et masque la vraie cause dans la console navigateur.
+    const panneFournisseur = message.startsWith('[fedapay]');
+    if (panneFournisseur) {
+      console.error('[paiement] initiation échouée :', message);
+    }
     return NextResponse.json(
       {
-        erreur:
-          erreur instanceof Error ? erreur.message : 'Paiement impossible.',
+        erreur: panneFournisseur
+          ? 'Le service de paiement est momentanément indisponible. Réessayez dans un instant.'
+          : message,
       },
-      { status: 400 }
+      { status: panneFournisseur ? 502 : 400 }
     );
   }
 }

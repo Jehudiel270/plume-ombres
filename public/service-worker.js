@@ -28,7 +28,7 @@
  * la portée (scope) est la racine du site — aucune magic Next.
  * ============================================================ */
 
-const VERSION = 'plume-v3';
+const VERSION = 'plume-v4'; // v4 : purge des caches après le correctif paiement 403
 const CACHE_APP = `${VERSION}-app`;
 const CACHE_MAX_ENTREES = 200; // borné pour rester léger
 
