@@ -52,6 +52,31 @@ const EN_TETE_NAVIGATEUR =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) ' +
   'Chrome/126.0.0.0 Safari/537.36';
 
+/**
+ * Base du relais Edge (voir app/api/fedapay-relay).
+ *
+ * Le domaine officiel est déduit comme dans proxy.ts
+ * (NEXT_PUBLIC_SITE_URL, repli sur le domaine définitif). Si la
+ * variable pointe encore vers un alias (ancienne adresse Vercel ou
+ * www), on retombe sur le domaine définitif : une redirection 308 vers
+ * un autre hôte ferait perdre l'en-tête Authorization (règle fetch sur
+ * les redirections inter-origines).
+ */
+function baseRelais(): string {
+  let hote = '';
+  try {
+    hote = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+      ? new URL(process.env.NEXT_PUBLIC_SITE_URL.trim()).host.toLowerCase()
+      : '';
+  } catch {
+    hote = '';
+  }
+  if (!hote || hote.includes('vercel.app') || hote.startsWith('www.')) {
+    hote = 'plumedombres.kodelyza.com';
+  }
+  return `https://${hote}/api/fedapay-relay`;
+}
+
 /** Environnement FedaPay courant ('sandbox' par défaut). */
 export function fedapayEnv(): 'sandbox' | 'live' {
   return process.env.FEDAPAY_ENV?.trim().toLowerCase() === 'live'
@@ -196,7 +221,17 @@ export class FedaPayFournisseur {
   private apiBase(): string {
     const surcharge = process.env.FEDAPAY_API_URL?.trim();
     if (surcharge) return surcharge.replace(/\/$/, '');
-    return this.mode === 'live' ? API_LIVE : API_SANDBOX;
+    if (this.mode === 'live') {
+      // ⚠ Pare-feu Cloudflare devant api.fedapay.com : il défie toutes
+      // les requêtes issues des IP de datacenter des fonctions Node
+      // (AWS) — 403 « Just a moment… » même avec des en-têtes navigateur
+      // complets (diagnostic du 12/11 : sondes depuis la prod). Le
+      // relais Edge (même hébergeur, AUTRE réseau de sortie, voir
+      // app/api/fedapay-relay) n'est pas défié : en live, on l'emprunte.
+      // Sandbox : appel direct (aucun défi sur sandbox-api.fedapay.com).
+      return baseRelais();
+    }
+    return API_SANDBOX;
   }
 
   private processBase(): string {
@@ -245,6 +280,12 @@ export class FedaPayFournisseur {
       if (!reponse.ok) {
         if (typeof donnees.message === 'string') {
           throw new Error(`[fedapay] ${donnees.message}`);
+        }
+        if (typeof donnees.erreur === 'string') {
+          // Erreur structurée du relais Edge (garde-fou ou réseau).
+          throw new Error(
+            `[fedapay] HTTP ${reponse.status} — ${donnees.erreur}`
+          );
         }
         // Réponse NON JSON (pare-feu / challenge / passerelle) : on joint
         // un extrait du corps pour diagnostiquer d'un coup d'œil dans les
