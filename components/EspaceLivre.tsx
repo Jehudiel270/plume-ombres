@@ -48,6 +48,7 @@ import Sommaire from '@/components/lecteur/Sommaire';
 import BarreActions from '@/components/lecteur/BarreActions';
 import CommandesTraduction from '@/components/lecteur/CommandesTraduction';
 import Lecteur from '@/components/lecteur/Lecteur';
+import LectureVocale from '@/components/lecteur/LectureVocale';
 import { usePreferencesLecture } from '@/components/lecteur/ReglagesLecture';
 import { useExports } from '@/components/lecteur/useExports';
 import type { ChapitreLeger, Compteurs } from '@/components/lecteur/partages';
@@ -68,11 +69,18 @@ export default function EspaceLivre({
   livreInitial,
   chapitresInitiaux,
   totalCaracteres,
+  lectureVocaleOuverte = false,
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
   /** Nombre total de caractères du livre (estimation du temps de lecture). */
   totalCaracteres: number;
+  /**
+   * Interrupteur `lecture_vocale` (F9) évalué CÔTÉ SERVEUR (registre +
+   * plan du compte) : la page ne passe vrai que si le module est ouvert
+   * pour ce lecteur. Défaut false : sans wire, rien ne s'affiche.
+   */
+  lectureVocaleOuverte?: boolean;
 }) {
   const supabaseRef = useRef(creerClientNavigateur());
   const requeteRef = useRef<string | null>(null);
@@ -804,6 +812,11 @@ export default function EspaceLivre({
               position={indexSelection + 1}
               total={chapitres.length}
               preferences={preferences}
+              outils={
+                lectureVocaleOuverte && chapitreComplet ? (
+                  <LectureVocale texte={texteNet} />
+                ) : undefined
+              }
             />
           </div>
         )}

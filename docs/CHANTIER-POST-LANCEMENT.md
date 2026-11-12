@@ -29,7 +29,7 @@ Ordre d'attaque validé (rapport d'inspection du 12/11/2026) :
 | # | Module | Code | Effort | État |
 |---|---|---|---|---|
 | 1 | Interrupteurs admin (registre, proxy, admin, check, tests) | — | M | **MERGÉ dans develop** |
-| 2 | TTS lecture à voix haute | F9 | S | à venir |
+| 2 | TTS lecture à voix haute | F9 | S | **MERGÉ dans develop** |
 | 3 | Vue bilingue alignée | F7 | M | à venir |
 | 4 | Écran de gestion du glossaire | F16 | S | à venir |
 | 5 | Carnet (notes, surlignage, citations, export) | — | M | à venir |
@@ -58,6 +58,19 @@ auteurs partenaires avec partage de revenus, liens d'affiliation, licences de gr
 - Tests : 16/16 dédiés, 187/188 au total (1 échec préexistant, indépendant),
   build OK, check:flags OK, lint inchangé.
 - Fiche détaillée : `docs/fonctionnalites/00-interrupteurs-admin.md`.
+
+### 2. `fonctionnalite/lecture-vocale` — MERGÉ (12/11/2026)
+
+- Lecture à voix haute (F9) par Web Speech API : découpage typographique partagé
+  avec le rendu, voix françaises d'abord, vitesse et voix mémorisées, paragraphe
+  en cours signalé et amené à l'écran.
+- Branchement minimal : prop `outils` facultative dans Lecteur, prop
+  `lectureVocaleOuverte` dans EspaceLivre, barrière fine serveur dans la page du
+  livre (`verifierAccesModule`). Livré fermé : rien ne s'affiche avant ouverture
+  de l'interrupteur `lecture_vocale`.
+- Tests : 7/7 dédiés, 194/195 au total, build OK, check:flags OK, lint à l'état
+  de base.
+- Fiche détaillée : `docs/fonctionnalites/01-lecture-vocale.md`.
 
 ## Précautions de fin de chantier
 

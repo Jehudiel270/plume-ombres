@@ -118,6 +118,12 @@ interface Props {
   total: number;
   /** Préférences de confort (état détenu par l'espace de travail). */
   preferences: ControlePreferences;
+  /**
+   * Outils SUPPLÉMENTAIREs de la barre du chapitre (ajout chantier :
+   * lecture à voix haute). Optionnel : le lecteur livré reste
+   * inchangé quand aucun outil n'est passé.
+   */
+  outils?: ReactNode;
 }
 
 /**
@@ -145,6 +151,7 @@ function Lecteur({
   position,
   total,
   preferences,
+  outils,
 }: Props) {
   const { prefs, maj, reinitialiser } = preferences;
   // ---------- Recherche plein texte (chapitre affiché) ----------
@@ -410,6 +417,7 @@ function Lecteur({
                 maj={maj}
                 reinitialiser={reinitialiser}
               />
+              {outils}
               {deuxColonnes && (
                 <div className="hidden lg:flex items-center gap-1">
                   <button

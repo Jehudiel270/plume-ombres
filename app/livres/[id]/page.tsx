@@ -15,6 +15,7 @@ import {
   quotaPourPlan,
 } from '@/lib/abonnement';
 import { calculerComplement } from '@/lib/credits-manquants';
+import { verifierAccesModule } from '@/lib/fonctionnalites/etats';
 import {
   MagasinAbonnementSupabase,
   MagasinCreditsSupabase,
@@ -250,6 +251,14 @@ export default async function PageLivre({
     packsCredits()
   );
 
+  // ---------- Interrupteur lecture_vocale (F9) ----------
+  // Barrière fine côté serveur : registre + plan effectif du compte.
+  // Un module fermé = composant jamais monté (le serveur est l'autorité).
+  const lectureVocale = await verifierAccesModule('lecture_vocale', {
+    utilisateurId: utilisateur.id,
+    codePlan: planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT,
+  });
+
   return (
     <>
       <BarreNavigation email={utilisateur.email ?? ''} pseudo={pseudo} />
@@ -269,6 +278,7 @@ export default async function PageLivre({
           livreInitial={livre as Livre}
           chapitresInitiaux={chapitresLegers as Chapitre[]}
           totalCaracteres={totalCaracteres}
+          lectureVocaleOuverte={lectureVocale.ouvert}
         />
       </main>
     </>
