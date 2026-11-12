@@ -142,7 +142,9 @@ export interface AgregatsPaiements {
 /** Agrège un jeu de paiements déjà filtré. */
 export function agregerPaiements(
   paiements: readonly PaiementAdmin[],
-  nombreDeJours = 30
+  nombreDeJours = 30,
+  /** Facultatif : l'horloge du test. Défaut = maintenant (comportement inchangé). */
+  maintenant: Date = new Date()
 ): AgregatsPaiements {
   const parStatut = new Map<string, { nombre: number; montant: number }>();
   const parFournisseur = new Map<string, { nombre: number; montant: number }>();
@@ -194,7 +196,7 @@ export function agregerPaiements(
     parFournisseur: [...parFournisseur.entries()]
       .map(([fournisseur, valeur]) => ({ fournisseur, ...valeur }))
       .sort((a, b) => b.montant - a.montant),
-    serie: serieQuotidienne(parJour, nombreDeJours),
+    serie: serieQuotidienne(parJour, nombreDeJours, maintenant),
   };
 }
 
@@ -204,14 +206,14 @@ export function agregerPaiements(
  */
 function serieQuotidienne(
   parJour: Map<string, { encaisse: number; nombre: number }>,
-  nombreDeJours: number
+  nombreDeJours: number,
+  maintenant: Date
 ): PointSerie[] {
   const points: PointSerie[] = [];
-  const aujourdHui = new Date();
   const base = Date.UTC(
-    aujourdHui.getFullYear(),
-    aujourdHui.getMonth(),
-    aujourdHui.getDate()
+    maintenant.getFullYear(),
+    maintenant.getMonth(),
+    maintenant.getDate()
   );
 
   for (let i = nombreDeJours - 1; i >= 0; i -= 1) {
