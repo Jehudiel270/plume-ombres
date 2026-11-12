@@ -144,17 +144,17 @@ test('la répartition par statut est triée et libellée', () => {
   assert.ok(agregats.parStatut.some((ligne) => ligne.libelle === 'Échoué'));
 });
 
-test('la série quotidienne est continue et se termine aujourd’hui', () => {
-  const agregats = agregerPaiements(JEU, 5);
+test('la série quotidienne est continue et se termine à la date de référence', () => {
+  // Horloge figée (MAINTENANT) : le test ne dépend plus du jour réel.
+  const agregats = agregerPaiements(JEU, 5, MAINTENANT);
   assert.equal(agregats.serie.length, 5);
   const jours = agregats.serie.map((point) => point.jour);
   assert.equal(new Set(jours).size, 5);
-  // Le dernier point est le jour courant (heure locale du serveur).
-  const maintenant = new Date();
+  // Le dernier point est le jour courant de la référence (heure locale).
   const attendu = [
-    maintenant.getFullYear(),
-    String(maintenant.getMonth() + 1).padStart(2, '0'),
-    String(maintenant.getDate()).padStart(2, '0'),
+    MAINTENANT.getFullYear(),
+    String(MAINTENANT.getMonth() + 1).padStart(2, '0'),
+    String(MAINTENANT.getDate()).padStart(2, '0'),
   ].join('-');
   assert.equal(jours[4], attendu);
   // Seul le paiement du jour tombe dans la fenêtre : 2 500.
