@@ -130,7 +130,7 @@ export default async function Accueil() {
 
         <p className="text-encre-500 text-xs mt-4 italic">
           L’offre gratuite reste ouverte ; les formules payantes, leurs prix et le
-          paiement (Mobile Money ou carte bancaire) sont détaillés sur la page{' '}
+          paiement (Mobile Money) sont détaillés sur la page{' '}
           <Link href="/tarifs" className="lien-discret underline">Tarifs</Link>.
         </p>
       </section>
@@ -261,8 +261,7 @@ export default async function Accueil() {
               Lecteur et Passionné
             </p>
             <p className="text-encre-500 text-xs mt-1">
-              au mois ou à l’année (2 mois offerts), paiement par Mobile Money ou
-              carte bancaire
+              au mois ou à l’année (2 mois offerts), paiement par Mobile Money
             </p>
             <ul className="mt-5 space-y-2 text-sm text-encre-300 leading-relaxed list-disc pl-5 flex-1">
               <li>Quota de traduction élargi (plusieurs livres par mois)</li>

@@ -55,7 +55,7 @@ const SOUS_TRAITANTS: { nom: string; role: string; lieu: string }[] = [
   },
   {
     nom: 'FedaPay',
-    role: 'Paiement des abonnements (Mobile Money zone UEMOA et cartes Visa / Mastercard).',
+    role: 'Paiement des abonnements (Mobile Money, zone UEMOA).',
     lieu: 'Bénin (zone UEMOA).',
   },
   {

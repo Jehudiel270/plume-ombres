@@ -132,13 +132,12 @@ export default function PageRemboursement() {
             apporté dans un délai indicatif de{' '}
             <strong className="text-encre-100">sept (7) jours ouvrés</strong>.
             Lorsqu’une erreur de paiement manifeste est confirmée, la correction
-            est réexpédiée par le même canal que le paiement d’origine (Mobile
-            Money ou carte bancaire).
+            est réexpédiée par le même canal que le paiement d’origine
+            (Mobile Money).
           </p>
           <p className="text-encre-500 italic">
-            Le délai d’un remboursement Mobile Money peut dépendre de l’opérateur,
-            et celui d’un remboursement par carte du réseau bancaire ; ils ne sont
-            pas entièrement sous notre contrôle.
+            Le délai d’un remboursement Mobile Money peut dépendre de
+            l’opérateur ; il n’est pas entièrement sous notre contrôle.
           </p>
         </div>
       </SectionPublique>

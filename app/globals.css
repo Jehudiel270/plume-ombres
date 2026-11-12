@@ -985,6 +985,31 @@ body {
   padding-right: 2.2rem;
 }
 
+/* ---------- Listes natives TOUJOURS lisibles (correctif 12/11/2026) ---------- */
+/* Certains navigateurs (WebView Android, Samsung Internet, versions
+   Chrome < 97) ignorent le color-scheme HÉRITÉ de <html> : la liste du
+   <select> s'ouvre en fond BLANC sur texte pâle, quasi illisible —
+   constaté sur le menu « Pays » de la page de paiement (capture du
+   11/11). On redéclare donc color-scheme sur l'ÉLÉMENT lui-même :
+   la liste native s'ouvre alors sombre (texte clair) comme le contrôle.
+   Les trois palettes claires repassent en « light » juste en dessous. */
+.select-sombre,
+select.champ-sombre {
+  color-scheme: dark;
+}
+html[data-palette='claire'] :is(.select-sombre, select.champ-sombre),
+html[data-palette='roseFane'] :is(.select-sombre, select.champ-sombre),
+html[data-palette='sepiaAncienne'] :is(.select-sombre, select.champ-sombre) {
+  color-scheme: light;
+}
+/* Repli pour les moteurs qui stylisent les <option> (Firefox, WebView) :
+   mêmes couleurs que le contrôle, quelles que soient les palettes. */
+.select-sombre option,
+select.champ-sombre option {
+  background: var(--color-nuit-850);
+  color: var(--color-encre-100);
+}
+
 /* Liens discrets */
 .lien-discret {
   @apply text-encre-300 hover:text-grenat-400 transition-colors;

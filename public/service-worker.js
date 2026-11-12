@@ -28,7 +28,7 @@
  * la portée (scope) est la racine du site — aucune magic Next.
  * ============================================================ */
 
-const VERSION = 'plume-v5'; // v5 : appels FedaPay live via relais Edge (pare-feu Cloudflare)
+const VERSION = 'plume-v6'; // v6 : paiement Mobile Money seul (carte non activée) + menus natifs lisibles
 const CACHE_APP = `${VERSION}-app`;
 const CACHE_MAX_ENTREES = 200; // borné pour rester léger
 

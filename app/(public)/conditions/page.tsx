@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/conditions' },
   title: 'Conditions générales (CGU/CGV)',
   description:
-    'Conditions générales d’utilisation et de vente du studio Plume d’Ombres : compte, âge minimum, usages, droits sur les textes, offres payantes, paiement Mobile Money ou carte bancaire, durée, résiliation, rétractation, responsabilité et litiges.',
+    'Conditions générales d’utilisation et de vente du studio Plume d’Ombres : compte, âge minimum, usages, droits sur les textes, offres payantes, paiement Mobile Money, durée, résiliation, rétractation, responsabilité et litiges.',
 };
 
 const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
@@ -188,18 +188,18 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
     ),
   },
   {
-    titre: '9. Paiement (Mobile Money ou carte bancaire)',
+    titre: '9. Paiement (Mobile Money)',
     corps: (
       <>
         <p>
           Le règlement s’effectue par{' '}
-          <strong className="text-encre-100">Mobile Money</strong> (MTN, Moov,
-          Orange, Wave, Airtel selon le pays) ou par{' '}
-          <strong className="text-encre-100">carte bancaire</strong> (Visa,
-          Mastercard, carte de débit), via un prestataire agrégateur de paiement.
+          <strong className="text-encre-100">Mobile Money</strong> (MTN MoMo,
+          Moov Flooz, Celtiis Cash, Wave, Free Money, Airtel selon le pays), via
+          un prestataire agrégateur de paiement.
           Le débit est unique, du montant de la formule choisie, au moment de la
-          commande. Aucun numéro de carte n’est saisi ni conservé sur le site :
-          la saisie se fait sur la page sécurisée du prestataire.
+          commande. La confirmation du paiement se fait sur la page sécurisée du
+          prestataire puis sur le téléphone du client : aucune donnée bancaire
+          n’est saisie ni conservée sur le site.
         </p>
         <p className="mt-3">
           Une formule n’est considérée comme souscrite, et la période
@@ -213,8 +213,8 @@ const ARTICLES: { titre: string; corps: React.ReactNode }[] = [
           Prestataire de paiement :{' '}
           <strong className="text-encre-100">FedaPay</strong>, agrégateur de
           paiement <strong className="text-encre-100">Mobile Money</strong>{' '}
-          couvrant le Bénin, la Côte d’Ivoire, le Sénégal, le Togo et le Niger,
-          ainsi que les cartes Visa / Mastercard. Les opérateurs pris en charge
+          couvrant le Bénin, la Côte d’Ivoire, le Sénégal, le Togo et le Niger.
+          Les opérateurs pris en charge
           sont précisés au moment du paiement.
         </p>
       </>
@@ -391,7 +391,7 @@ export default function PageConditions() {
         gabarit="etroit"
         surTitre="Cadre juridique"
         titre="Conditions générales d’utilisation et de vente"
-        intro="Dernière mise à jour : 15 octobre 2026. Elle s’applique à l’usage du studio et couvre la vente des formules payantes (prix, Mobile Money ou carte bancaire, durée, résiliation, rétractation). Lisible sans compte."
+        intro="Dernière mise à jour : 12 novembre 2026. Elle s’applique à l’usage du studio et couvre la vente des formules payantes (prix, Mobile Money, durée, résiliation, rétractation). Lisible sans compte."
       >
         <SommaireLegal actif="conditions" />
 

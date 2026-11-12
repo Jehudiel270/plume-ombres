@@ -129,10 +129,10 @@ export default function PageMentionsLegales() {
           </p>
           <p>
             <strong className="text-encre-100">FedaPay</strong> — agrégateur de
-            paiement Mobile Money (zone UEMOA) et de cartes Visa / Mastercard. Il
-            traite le paiement des abonnements ; aucun numéro de carte n’est saisi
-            ni conservé sur le site, la saisie se faisant sur la page sécurisée du
-            prestataire.
+            paiement Mobile Money (zone UEMOA). Il traite le paiement des
+            abonnements ; la confirmation se fait sur la page sécurisée du
+            prestataire, aucune donnée bancaire n’est saisie ni conservée sur
+            le site.
           </p>
           <p className="text-encre-500">
             Le projet prépare aussi un second hébergeur (Netlify) qui n’est pas
