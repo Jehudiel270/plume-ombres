@@ -31,7 +31,7 @@ Ordre d'attaque validé (rapport d'inspection du 12/11/2026) :
 | 1 | Interrupteurs admin (registre, proxy, admin, check, tests) | — | M | **MERGÉ dans develop** |
 | 2 | TTS lecture à voix haute | F9 | S | **MERGÉ dans develop** |
 | 3 | Vue bilingue alignée | F7 | M | **MERGÉ dans develop** |
-| 4 | Écran de gestion du glossaire | F16 | S | à venir |
+| 4 | Écran de gestion du glossaire | F16 | S | **MERGÉ dans develop** |
 | 5 | Carnet (notes, surlignage, citations, export) | — | M | à venir |
 | 6 | Théories et comparateur | F8/F19 | M | à venir |
 | 7 | Graphe narratif anti-spoilers (manuel d'abord) | F25 | L | à venir |
@@ -83,6 +83,20 @@ auteurs partenaires avec partage de revenus, liens d'affiliation, licences de gr
 - Tests : 5/5 dédiés, 199/200 au total, build OK, check:flags OK, lint à l'état
   de base.
 - Fiche détaillée : `docs/fonctionnalites/02-vue-bilingue.md`.
+
+### 4. `fonctionnalite/ecran-glossaire` — MERGÉ (12/11/2026)
+
+- Écran de gestion du glossaire (F16) : consultation, ajout, correction, verrou
+  et suppression des entrées ; validation en un clic des candidats détectés
+  automatiquement. Zéro modification de la mécanique d'injection existante
+  (lib/glossaire.ts) et **aucune migration SQL** (tables de 20261002000002).
+- Serveur : `/api/glossaire` (POST/PATCH/DELETE) — session 401, module fermé
+  404, plan insuffisant 403, livre d'autrui 404 (RLS « own », entrée remontée
+  entrée → glossaire → livre pour PATCH/DELETE).
+- Page `/glossaire` gardée par `verifierAccesModule('glossaire')` — module
+  fermé = 404. Livré fermé (interrupteur `glossaire`, `prod: false`).
+- Tests, build et check:flags exécutés avant le merge (voir fiche).
+- Fiche détaillée : `docs/fonctionnalites/03-glossaire.md`.
 
 ## Précautions de fin de chantier
 
