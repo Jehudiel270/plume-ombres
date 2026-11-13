@@ -600,3 +600,46 @@ export function planifierOuvertureMasse(
 
   return { aOuvrir, inchanges, ignoresRisque };
 }
+
+/** Une ligne prête pour l'upsert de `fonctionnalites_etats` lors d'une
+ *  ouverture en masse. Toutes les colonnes écrites y figurent sur
+ *  CHAQUE ligne — voir la remarque de sécurité ci-dessous. */
+export interface LigneOuvertureMasse {
+  cle: string;
+  actif: true;
+  deploiement: number;
+  juriste_ok: boolean;
+  maj_le: string;
+  maj_par: string;
+}
+
+/**
+ * Construit les lignes d'upsert pour l'ouverture en masse. FONCTION
+ * PURE, testée.
+ *
+ * REMARQUE DE SÉCURITÉ (bug corrigé le 14/11/2026) : supabase-js
+ * ajoute à la requête un paramètre `columns` égal à l'UNION des clés
+ * de toutes les lignes du tableau. Si une ligne omet `juriste_ok`
+ * (valeur `undefined` retirée par JSON.stringify) alors qu'une autre
+ * la porte, PostgREST insère NULL sur la ligne qui ne l'a pas —
+ * colonne NOT NULL → erreur 23502 « null value in column
+ * "juriste_ok" ». La règle est donc : chaque ligne porte la MÊME
+ * liste de clés, et `juriste_ok` y est toujours un booléen explicite
+ * (vrai pour un module à risque ouvert avec confirmation, faux
+ * ailleurs — la confirmation n'a de sens que pour les modules à
+ * risque, et `etatEffectif` l'ignore pour les autres).
+ */
+export function construireLignesOuvertureMasse(
+  clesAOuvrir: readonly string[],
+  utilisateurId: string,
+  maintenantIso: string
+): LigneOuvertureMasse[] {
+  return clesAOuvrir.map((cle) => ({
+    cle,
+    actif: true,
+    deploiement: 100,
+    juriste_ok: interrupteurParCle(cle)?.risqueJuridique === true,
+    maj_le: maintenantIso,
+    maj_par: utilisateurId,
+  }));
+}
