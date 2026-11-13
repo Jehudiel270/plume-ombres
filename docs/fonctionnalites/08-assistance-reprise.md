@@ -37,16 +37,24 @@ Mêmes modèles et même délai que la traduction
 cas d'indisponibilité (404/429/503) ou de silence. Aucun nouveau fournisseur.
 `maxDuration = 60` sur la route (appels modèle).
 
-### Clé : deux voies (`lib/parametres.ts`)
+### Clé : deux voies, avec SUCCESSION (lib/cles-api.ts)
 
 1. **Variable d'environnement `GEMINI_API_KEY`** (voie officielle, ouvre le
    module à TOUS les abonnés) — elle prime toujours si elle existe ;
-2. **Clé collée dans le panneau admin** (`/admin/fonctionnalites`, bas de
-   page) — stockée en base (`parametres_systeme`, migration
-   20261113000001), lisible UNIQUEMENT par un administrateur (RLS
-   `est_admin()`), jamais renvoyée en clair au navigateur (aperçu
-   `AIza…x9Qz` seulement) ; sert dans les routes appelées PAR l'admin
-   lui-même : l'essai sur SON compte, sans redéploiement.
+2. **Réservoir « Clés API » du tableau de bord** (`/admin?onglet=cles`) —
+   une ou PLUSIEURS clés Gemini (et DeepSeek, OpenAI, OpenRouter,
+   Mistral…), essayées DANS L'ORDRE : si une clé lâche (quota 429, accès
+   refusé), la suivante prend le relais ; après 3 échecs de suite, une
+   clé prend un temps de repos d'une minute puis réintègre la rotation.
+   Chaque clé peut être réservée à un niveau d'abonnement (« Passionné et
+   plus », « Illimité »…). Stockée en base (`cles_api`, migration
+   20261113000002), lisible UNIQUEMENT par un administrateur (RLS
+   `est_admin()`) — et, pour servir tous les abonnés, par le rôle
+   service (variable `SUPABASE_SERVICE_ROLE_KEY` chez l'hébergeur).
+   L'ancienne clé unique du panneau `/admin/fonctionnalites`
+   (`parametres_systeme`, migration 20261113000001) reste un filet de
+   sécurité : la migration la copie automatiquement en première position
+   du réservoir.
 
 Sans clé (ni env ni base), l'API répond un message clair : « Le modèle
 n'est pas configuré… ».
