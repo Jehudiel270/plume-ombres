@@ -382,6 +382,9 @@ export const ITINERAIRES_SOCLE: readonly string[] = [
   '/api/og',
   '/api/fedapay-relay',
   '/api/features',
+  // Liens des modules ouverts pour la barre de navigation (aucun
+  // contenu de lecture : des liens, évalués côté serveur).
+  '/api/atelier',
 ];
 
 /** Réservé aux administrateurs (les pages vérifient elles-mêmes la permission). */

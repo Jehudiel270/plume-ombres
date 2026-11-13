@@ -391,6 +391,7 @@ export default async function PageLivre({
           grapheOuvert={moduleGraphe.ouvert}
           assistanceOuverte={moduleReprise.ouvert}
           progressionOuverte={moduleProgression.ouvert}
+          theoriesOuverte={moduleTheories.ouvert}
           modulesExplorer={modulesExplorer}
         />
       </main>

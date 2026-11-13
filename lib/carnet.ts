@@ -15,6 +15,41 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type TypeCarnet = 'note' | 'citation' | 'surlignage';
 
+/**
+ * Couleurs de surlignage, telles que la maquette du lecteur les
+ * propose (zip plume-ombres-ui, data/reader-meta.ts) : cinq teintes,
+ * re-rendues dans le texte du chapitre.
+ */
+export type CouleurCarnet = 'or' | 'rouge' | 'azur' | 'menthe' | 'lilas';
+
+const COULEURS: readonly CouleurCarnet[] = ['or', 'rouge', 'azur', 'menthe', 'lilas'];
+
+export const COULEUR_DEFAUT: CouleurCarnet = 'azur';
+
+export function estCouleurCarnet(valeur: unknown): valeur is CouleurCarnet {
+  return typeof valeur === 'string' && (COULEURS as readonly string[]).includes(valeur);
+}
+
+export interface CouleurCarnetMeta {
+  valeur: CouleurCarnet;
+  label: string;
+  /** Classe de la marque dans le texte (mark). */
+  marque: string;
+  /** Classe de la pastille (dot). */
+  pastille: string;
+}
+
+export const COULEURS_CARNET: readonly CouleurCarnetMeta[] = [
+  { valeur: 'or', label: 'Or', marque: 'marque-surlignage-or', pastille: 'pastille-or' },
+  { valeur: 'rouge', label: 'Rouge', marque: 'marque-surlignage-rouge', pastille: 'pastille-rouge' },
+  { valeur: 'azur', label: 'Azur', marque: 'marque-surlignage-azur', pastille: 'pastille-azur' },
+  { valeur: 'menthe', label: 'Menthe', marque: 'marque-surlignage-menthe', pastille: 'pastille-menthe' },
+  { valeur: 'lilas', label: 'Lilas', marque: 'marque-surlignage-lilas', pastille: 'pastille-lilas' },
+];
+
+export const metaCouleur = (c: CouleurCarnet): CouleurCarnetMeta =>
+  COULEURS_CARNET.find((x) => x.valeur === c) ?? COULEURS_CARNET[2]; // azur
+
 /** Plafond d'un passage cité (caractères). Vaut pour la table ET les exports. */
 export const MAX_EXTRAIT = 800;
 export const MAX_ANNOTATION = 4000;
@@ -57,8 +92,12 @@ export interface EntreeCarnet {
   extrait: string | null;
   annotation: string | null;
   chapitre_titre: string | null;
+  couleur: CouleurCarnet | null;
   created_at: string;
 }
+
+const CHAMPS_ENTREE =
+  'id, livre_id, chapitre_id, type, extrait, annotation, chapitre_titre, couleur, created_at';
 
 export interface LivreCarnet {
   id: string;
@@ -68,16 +107,19 @@ export interface LivreCarnet {
 /** Liste les notes du compte (RLS), les plus récentes d'abord. */
 export async function listerCarnet(
   client: SupabaseClient,
-  options: { livreId?: string | null; type?: TypeCarnet | null } = {}
+  options: {
+    livreId?: string | null;
+    chapitreId?: string | null;
+    type?: TypeCarnet | null;
+  } = {}
 ): Promise<EntreeCarnet[]> {
   let requete = client
     .from('carnet_notes')
-    .select(
-      'id, livre_id, chapitre_id, type, extrait, annotation, chapitre_titre, created_at'
-    )
+    .select(CHAMPS_ENTREE)
     .order('created_at', { ascending: false })
     .limit(500);
   if (options.livreId) requete = requete.eq('livre_id', options.livreId);
+  if (options.chapitreId) requete = requete.eq('chapitre_id', options.chapitreId);
   if (options.type) requete = requete.eq('type', options.type);
   const { data, error } = await requete;
   if (error) throw new Error(error.message);
@@ -93,6 +135,7 @@ export async function ajouterNote(
     extrait?: string | null;
     annotation?: string | null;
     chapitreTitre?: string | null;
+    couleur?: CouleurCarnet | null;
   }
 ): Promise<EntreeCarnet> {
   const extrait = normaliserExtrait(donnees.extrait ?? '');
@@ -109,10 +152,9 @@ export async function ajouterNote(
       extrait,
       annotation,
       chapitre_titre: donnees.chapitreTitre ?? null,
+      couleur: estCouleurCarnet(donnees.couleur) ? donnees.couleur : null,
     })
-    .select(
-      'id, livre_id, chapitre_id, type, extrait, annotation, chapitre_titre, created_at'
-    )
+    .select(CHAMPS_ENTREE)
     .single();
   if (error) throw new Error(error.message);
   return data as EntreeCarnet;
@@ -121,13 +163,16 @@ export async function ajouterNote(
 export async function majNote(
   client: SupabaseClient,
   id: string,
-  maj: { annotation?: string | null; type?: TypeCarnet }
+  maj: { annotation?: string | null; type?: TypeCarnet; couleur?: CouleurCarnet | null }
 ): Promise<void> {
   const champs: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (maj.annotation !== undefined) {
     champs.annotation = normaliserAnnotation(maj.annotation ?? '');
   }
   if (maj.type) champs.type = maj.type;
+  if (maj.couleur !== undefined) {
+    champs.couleur = estCouleurCarnet(maj.couleur) ? maj.couleur : null;
+  }
   const { error } = await client.from('carnet_notes').update(champs).eq('id', id);
   if (error) throw new Error(error.message);
 }

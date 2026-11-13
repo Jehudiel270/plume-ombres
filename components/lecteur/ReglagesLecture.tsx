@@ -3,21 +3,20 @@
 //
 //  · `usePreferencesLecture()` : l'état des préférences (chargé
 //    depuis localStorage, persisté à chaque changement) ;
-//  · `ReglagesLecture` : le panneau de réglages, CONTRÔLÉ (il ne
+//  · `PanneauReglages` : le panneau de réglages, CONTRÔLÉ (il ne
 //    détient aucun état de préférence) — il reçoit les préférences
-//    et un `maj(patch)`.
+//    et un `maj(patch)`. S'ouvre dans la feuille du lecteur.
 //
 // Le panneau est entièrement pilotable au CLAVIER :
-//  · bouton « Aa » : aria-expanded / aria-haspopup / aria-controls ;
+//  · groupes exclusifs (police, thème, colonnes…) en `radiogroup`
 //  · groupes exclusifs (police, thème, colonnes…) en `radiogroup`
 //    avec navigation par flèches, Home/End et tabindex mobile ;
 //  · glissières natives (flèches, Home/End, Page↑/Page↓) doublées
 //    d'un `aria-valuetext` lisible (« 17 px », « 0,9 em »…) ;
-//  · Échap ferme et REND LE FOCUS au bouton d'ouverture ; un focus
-//    qui sort du panneau le referme (jamais de panneau fantôme).
+//  · la feuille qui l'enveloppe gère Échap et la fermeture.
 //
-// Présentation : feuille ancrée à droite sur grand écran, feuille
-// du bas sur mobile (au pouce, jamais hors écran).
+// Présentation : rendu DANS FeuilleLecteur (bas mobile, carte
+// en bas à droite sur grand écran).
 // ============================================================
 'use client';
 
@@ -99,8 +98,6 @@ export type ControlePreferences = ReturnType<typeof usePreferencesLecture>;
 // ------------------------------------------------------------
 // Briques de réglage (clavier + lecteur d'écran)
 // ------------------------------------------------------------
-
-const ID_PANNEAU = 'reglages-lecture';
 
 interface Option<T> {
   valeur: T;
@@ -328,11 +325,16 @@ function Section({ titre, children }: { titre: string; children: ReactNode }) {
 
 /**
  * Panneau de réglages de lecture. CONTRÔLÉ : les préférences et
- * leur mise à jour viennent du parent (le lecteur), qui les
- * applique en style en ligne — l'affichage ne peut donc pas
+ * leur mise à jour viennent du parent (la feuille du lecteur), qui
+ * les applique en style en ligne — l'affichage ne peut donc pas
  * diverger du réglage.
+ *
+ * Portage : dans la maquette, ce panneau s'ouvre dans la FEUILLE du
+ * lecteur (bouton « Réglages » de la barre du bas) — il en est de
+ * même ici : aucun déclencheur ni ancrage propre, l'enveloppe
+ * (titre, fermeture, position) appartient à FeuilleLecteur.
  */
-export default function ReglagesLecture({
+export function PanneauReglages({
   prefs,
   maj,
   reinitialiser,
@@ -344,9 +346,155 @@ export default function ReglagesLecture({
   /** Contenu additionnel inséré en bas (ex. identité visuelle). */
   extra?: ReactNode;
 }) {
-  const [ouvert, setOuvert] = useState(false);
   const { palette, typo, choisirPalette, choisirTypo } = useTheme();
-  const conteneurRef = useRef<HTMLDivElement>(null);
+
+  const espacementForce =
+    !prefs.retrait && prefs.espacement < espacementEffectif(prefs);
+
+  return (
+    <div className="text-left">
+      <Section titre="Texte">
+        <div className="mb-3">
+          <p className="text-micro text-encre-500 mb-1.5">Police du texte</p>
+          <GroupeRadio
+            legende="Police du texte"
+            options={POLICES}
+            valeur={prefs.police}
+            onChoix={(police) => maj({ police })}
+            disposition="grille"
+          />
+        </div>
+        <Glissiere
+          libelle="Taille du texte"
+          valeur={prefs.taille}
+          valeurTexte={`${prefs.taille} px`}
+          min={BORNES.taille.min}
+          max={BORNES.taille.max}
+          pas={1}
+          onValeur={(taille) => maj({ taille })}
+        />
+        <Glissiere
+          libelle="Interligne"
+          valeur={prefs.interligne}
+          valeurTexte={prefs.interligne.toFixed(2).replace('.', ',')}
+          min={BORNES.interligne.min}
+          max={BORNES.interligne.max}
+          pas={0.05}
+          onValeur={(interligne) => maj({ interligne })}
+        />
+      </Section>
+
+      {SEPARATEUR}
+
+      <Section titre="Mise en page">
+        <Glissiere
+          libelle="Largeur de ligne"
+          valeur={prefs.largeur}
+          valeurTexte={`${prefs.largeur} car.`}
+          min={BORNES.largeur.min}
+          max={BORNES.largeur.max}
+          pas={1}
+          onValeur={(largeur) => maj({ largeur })}
+          aide="Entre 65 et 75 caractères, la lecture est la plus confortable."
+        />
+        <div className="mb-3">
+          <p className="text-micro text-encre-500 mb-1.5">Marges</p>
+          <GroupeRadio
+            legende="Marges de la surface de lecture"
+            options={MARGES_OPTIONS}
+            valeur={prefs.marges}
+            onChoix={(marges) => maj({ marges })}
+          />
+        </div>
+        <Glissiere
+          libelle="Espace entre paragraphes"
+          valeur={prefs.espacement}
+          valeurTexte={`${prefs.espacement.toFixed(2).replace('.', ',')} em`}
+          min={BORNES.espacement.min}
+          max={BORNES.espacement.max}
+          pas={0.05}
+          onValeur={(espacement) => maj({ espacement })}
+          aide={
+            espacementForce
+              ? 'Sans retrait de première ligne, un espace minimal est conservé pour rester lisible.'
+              : undefined
+          }
+        />
+        <Bascule
+          libelle="Première ligne en retrait"
+          actif={prefs.retrait}
+          onBascule={(retrait) => maj({ retrait })}
+        />
+        <Bascule
+          libelle="Texte justifié"
+          actif={prefs.justifie}
+          onBascule={(justifie) => maj({ justifie })}
+        />
+        <Bascule
+          libelle="Césure automatique"
+          actif={prefs.cesure}
+          onBascule={(cesure) => maj({ cesure })}
+          aide="Recommandée avec le texte justifié : évite les grands trous entre les mots."
+        />
+        <div className="mt-2">
+          <p className="text-micro text-encre-500 mb-1.5">Colonnes</p>
+          <GroupeRadio
+            legende="Nombre de colonnes"
+            options={COLONNES}
+            valeur={prefs.colonnes}
+            onChoix={(colonnes) => maj({ colonnes })}
+          />
+        </div>
+      </Section>
+
+      {SEPARATEUR}
+
+      <Section titre="Thème du lecteur">
+        <GroupeRadio
+          legende="Thème du lecteur"
+          options={THEMES}
+          valeur={prefs.theme}
+          onChoix={(theme) => maj({ theme })}
+        />
+      </Section>
+
+      {SEPARATEUR}
+
+      <SelecteurPalette valeur={palette} onChoix={choisirPalette} />
+      <SelecteurTypo valeur={typo} onChoix={choisirTypo} />
+
+      {extra}
+
+      <button
+        type="button"
+        onClick={reinitialiser}
+        className="w-full mt-2 inline-flex items-center justify-center min-h-11 text-micro text-encre-500 hover:text-grenat-300 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 rounded"
+      >
+        Réinitialiser les réglages
+      </button>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
+// Version AUTONOME (déclencheur « Aa » + panneau ancré).
+// Réservée aux surfaces qui n'ont pas la feuille du lecteur
+// (aperçu de l'apparence, components/RegleLecture.tsx) : le lecteur
+// de livre, lui, ouvre PanneauReglages dans FeuilleLecteur.
+// ------------------------------------------------------------
+
+export default function ReglagesLecture({
+  prefs,
+  maj,
+  reinitialiser,
+  extra,
+}: {
+  prefs: PreferencesLecture;
+  maj: (patch: Partial<PreferencesLecture>) => void;
+  reinitialiser: () => void;
+  extra?: ReactNode;
+}) {
+  const [ouvert, setOuvert] = useState(false);
   const panneauRef = useRef<HTMLDivElement>(null);
   const boutonRef = useRef<HTMLButtonElement>(null);
 
@@ -355,15 +503,6 @@ export default function ReglagesLecture({
     setOuvert(false);
     if (rendreFocus) boutonRef.current?.focus();
   }, []);
-
-  // Ouverture : le focus entre dans le panneau (premier réglage).
-  useEffect(() => {
-    if (!ouvert) return;
-    const premier = panneauRef.current?.querySelector<HTMLElement>(
-      'input, button, select, [tabindex]:not([tabindex="-1"])'
-    );
-    premier?.focus();
-  }, [ouvert]);
 
   // Échap (fermeture) + clic/toucher extérieur + focus sortant.
   useEffect(() => {
@@ -396,11 +535,8 @@ export default function ReglagesLecture({
     };
   }, [ouvert, fermer]);
 
-  const espacementForce =
-    !prefs.retrait && prefs.espacement < espacementEffectif(prefs);
-
   return (
-    <div className="relative" ref={conteneurRef}>
+    <div className="relative">
       <button
         ref={boutonRef}
         type="button"
@@ -412,7 +548,6 @@ export default function ReglagesLecture({
         aria-label="Réglages de lecture"
         aria-haspopup="dialog"
         aria-expanded={ouvert}
-        aria-controls={ouvert ? ID_PANNEAU : undefined}
       >
         <span className="font-display text-sm" aria-hidden="true">
           Aa
@@ -421,151 +556,12 @@ export default function ReglagesLecture({
 
       {ouvert && (
         <div
-          id={ID_PANNEAU}
           ref={panneauRef}
           role="dialog"
           aria-label="Réglages de lecture"
-          // Ancrée au bouton « Aa », à toutes les tailles : le lecteur
-          // porte `backdrop-filter`, qui fait de lui le bloc conteneur
-          // des descendants `position: fixed` — une feuille « fixe »
-          // glisserait donc avec le texte et sortirait de l'écran sur
-          // un chapitre long. Ancrage absolu + défilement interne =
-          // panneau toujours visible, du pouce comme à la souris.
-          className="absolute right-0 top-full z-40 mt-2 velours !bg-nuit-800/95 backdrop-blur-md p-4 text-left animate-fondu-monte w-[min(21rem,calc(100vw-2.5rem))] max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain max-w-[calc(100vw-1.5rem)]"
+          className="absolute right-0 top-full z-40 mt-2 velours !bg-nuit-800/95 backdrop-blur-md p-4 animate-fondu-monte w-[min(21rem,calc(100vw-2.5rem))] max-h-[min(70vh,32rem)] overflow-y-auto overscroll-contain max-w-[calc(100vw-1.5rem)]"
         >
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-encre-500">
-              Confort de lecture
-            </p>
-            <button
-              type="button"
-              onClick={() => fermer()}
-              className="grid place-items-center min-h-11 min-w-11 -mr-1 rounded text-encre-500 hover:text-encre-100 text-xs cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400"
-              aria-label="Fermer les réglages"
-            >
-              ✕
-            </button>
-          </div>
-
-          <Section titre="Texte">
-            <div className="mb-3">
-              <p className="text-micro text-encre-500 mb-1.5">Police du texte</p>
-              <GroupeRadio
-                legende="Police du texte"
-                options={POLICES}
-                valeur={prefs.police}
-                onChoix={(police) => maj({ police })}
-                disposition="grille"
-              />
-            </div>
-            <Glissiere
-              libelle="Taille du texte"
-              valeur={prefs.taille}
-              valeurTexte={`${prefs.taille} px`}
-              min={BORNES.taille.min}
-              max={BORNES.taille.max}
-              pas={1}
-              onValeur={(taille) => maj({ taille })}
-            />
-            <Glissiere
-              libelle="Interligne"
-              valeur={prefs.interligne}
-              valeurTexte={prefs.interligne.toFixed(2).replace('.', ',')}
-              min={BORNES.interligne.min}
-              max={BORNES.interligne.max}
-              pas={0.05}
-              onValeur={(interligne) => maj({ interligne })}
-            />
-          </Section>
-
-          {SEPARATEUR}
-
-          <Section titre="Mise en page">
-            <Glissiere
-              libelle="Largeur de ligne"
-              valeur={prefs.largeur}
-              valeurTexte={`${prefs.largeur} car.`}
-              min={BORNES.largeur.min}
-              max={BORNES.largeur.max}
-              pas={1}
-              onValeur={(largeur) => maj({ largeur })}
-              aide="Entre 65 et 75 caractères, la lecture est la plus confortable."
-            />
-            <div className="mb-3">
-              <p className="text-micro text-encre-500 mb-1.5">Marges</p>
-              <GroupeRadio
-                legende="Marges de la surface de lecture"
-                options={MARGES_OPTIONS}
-                valeur={prefs.marges}
-                onChoix={(marges) => maj({ marges })}
-              />
-            </div>
-            <Glissiere
-              libelle="Espace entre paragraphes"
-              valeur={prefs.espacement}
-              valeurTexte={`${prefs.espacement.toFixed(2).replace('.', ',')} em`}
-              min={BORNES.espacement.min}
-              max={BORNES.espacement.max}
-              pas={0.05}
-              onValeur={(espacement) => maj({ espacement })}
-              aide={
-                espacementForce
-                  ? 'Sans retrait de première ligne, un espace minimal est conservé pour rester lisible.'
-                  : undefined
-              }
-            />
-            <Bascule
-              libelle="Première ligne en retrait"
-              actif={prefs.retrait}
-              onBascule={(retrait) => maj({ retrait })}
-            />
-            <Bascule
-              libelle="Texte justifié"
-              actif={prefs.justifie}
-              onBascule={(justifie) => maj({ justifie })}
-            />
-            <Bascule
-              libelle="Césure automatique"
-              actif={prefs.cesure}
-              onBascule={(cesure) => maj({ cesure })}
-              aide="Recommandée avec le texte justifié : évite les grands trous entre les mots."
-            />
-            <div className="mt-2">
-              <p className="text-micro text-encre-500 mb-1.5">Colonnes</p>
-              <GroupeRadio
-                legende="Nombre de colonnes"
-                options={COLONNES}
-                valeur={prefs.colonnes}
-                onChoix={(colonnes) => maj({ colonnes })}
-              />
-            </div>
-          </Section>
-
-          {SEPARATEUR}
-
-          <Section titre="Thème du lecteur">
-            <GroupeRadio
-              legende="Thème du lecteur"
-              options={THEMES}
-              valeur={prefs.theme}
-              onChoix={(theme) => maj({ theme })}
-            />
-          </Section>
-
-          {SEPARATEUR}
-
-          <SelecteurPalette valeur={palette} onChoix={choisirPalette} />
-          <SelecteurTypo valeur={typo} onChoix={choisirTypo} />
-
-          {extra}
-
-          <button
-            type="button"
-            onClick={reinitialiser}
-            className="w-full mt-2 inline-flex items-center justify-center min-h-11 text-micro text-encre-500 hover:text-grenat-300 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 rounded"
-          >
-            Réinitialiser les réglages
-          </button>
+          <PanneauReglages prefs={prefs} maj={maj} reinitialiser={reinitialiser} extra={extra} />
         </div>
       )}
     </div>

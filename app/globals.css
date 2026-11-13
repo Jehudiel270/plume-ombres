@@ -1593,3 +1593,107 @@ html[data-economie='1'] .reveler {
   opacity: 0.35;
   text-align: center;
 }
+
+/* ============================================================
+   Lecteur — portage de la maquette (zip plume-ombres-ui)
+   ============================================================ */
+
+/* Barre d'outils fixe du bas : icône + libellé, cible tactile
+   44 px (portage de .rd-tool). */
+.outil-lecteur {
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 56px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--color-encre-500);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 160ms var(--courbe), color 160ms var(--courbe);
+}
+.outil-lecteur:hover,
+.outil-lecteur[aria-pressed='true'] {
+  color: var(--color-encre-100);
+  background: rgba(127, 127, 127, 0.15);
+}
+.outil-lecteur:focus-visible {
+  outline: 2px solid var(--color-grenat-400);
+  outline-offset: 1px;
+}
+/* La barre défile horizontalement sans voir de barre moche. */
+.outil-scroll {
+  scrollbar-width: none;
+}
+.outil-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Surlignages du carnet re-rendus dans le texte (portage de
+   .rd-mark-*), teintes de la maquette, lisibles sur les thèmes
+   sombres et le parchemin. */
+.corps-livre mark.marque-surlignage-or {
+  background: rgba(240, 195, 109, 0.38);
+  color: inherit;
+}
+.corps-livre mark.marque-surlignage-rouge {
+  background: rgba(209, 20, 47, 0.32);
+  color: inherit;
+}
+.corps-livre mark.marque-surlignage-azur {
+  background: rgba(95, 168, 255, 0.34);
+  color: inherit;
+}
+.corps-livre mark.marque-surlignage-menthe {
+  background: rgba(95, 209, 165, 0.32);
+  color: inherit;
+}
+.corps-livre mark.marque-surlignage-lilas {
+  background: rgba(185, 140, 255, 0.34);
+  color: inherit;
+}
+.corps-livre mark[data-surlignage-id] {
+  border-radius: 3px;
+  padding: 0 1px;
+  cursor: pointer;
+}
+
+/* Pastilles des couleurs dans le menu de sélection et le composeur. */
+.pastille-or { background: #f0c36d; }
+.pastille-rouge { background: #d1142f; }
+.pastille-azur { background: #5fa8ff; }
+.pastille-menthe { background: #5fd1a5; }
+.pastille-lilas { background: #b98cff; }
+
+/* Sélection dans le corps du livre (portage de .rd-body ::selection). */
+.corps-livre ::selection {
+  background: rgba(255, 90, 115, 0.45);
+}
+
+/* Feuille du lecteur : montée depuis le bas (portage de
+   animate-fade-up de la maquette). */
+@keyframes feuille-monte {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-feuille-monte {
+  animation: feuille-monte 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Ombre portée du menu de sélection (portage de shadow-pop). */
+.shadow-pop {
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.35);
+}

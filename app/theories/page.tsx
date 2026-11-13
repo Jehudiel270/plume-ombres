@@ -27,9 +27,14 @@ export const dynamic = 'force-dynamic';
 export default async function PageTheories({
   searchParams,
 }: {
-  searchParams: Promise<{ livre?: string }>;
+  searchParams: Promise<{
+    livre?: string;
+    onglet?: string;
+    terme?: string;
+  }>;
 }) {
-  const { livre: paramLivre } = await searchParams;
+  const { livre: paramLivre, onglet: paramOnglet, terme: paramTerme } =
+    await searchParams;
   const utilisateur = await utilisateurConnecte();
   if (!utilisateur) notFound();
 
@@ -81,7 +86,13 @@ export default async function PageTheories({
           </p>
         </header>
 
-        <PanneauTheories livres={livres} theories={theories} livreId={livreId} />
+        <PanneauTheories
+          livres={livres}
+          theories={theories}
+          livreId={livreId}
+          ongletInitial={paramOnglet === 'comparateur' ? 'comparateur' : 'theories'}
+          termeInitial={(paramTerme ?? '').slice(0, 60)}
+        />
       </main>
     </>
   );
