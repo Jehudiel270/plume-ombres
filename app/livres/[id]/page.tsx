@@ -256,7 +256,7 @@ export default async function PageLivre({
   // Un module fermé = composant/bouton jamais montés (le serveur est
   // l'autorité).
   const planCode = planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT;
-  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise, moduleProgression, moduleTheories, moduleCartes, moduleUnivers, moduleAmbiance, moduleGlossaire] = await Promise.all([
+  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise, moduleProgression, moduleTheories, moduleCartes, moduleUnivers, moduleAmbiance, moduleGlossaire, moduleDefis, moduleClubs, moduleCollections, moduleCalendrier, moduleCatalogue] = await Promise.all([
     verifierAccesModule('lecture_vocale', {
       utilisateurId: utilisateur.id,
       codePlan: planCode,
@@ -298,6 +298,26 @@ export default async function PageLivre({
       codePlan: planCode,
     }),
     verifierAccesModule('glossaire', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('defis', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('clubs', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('collections', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('calendrier', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('catalogue_public', {
       utilisateurId: utilisateur.id,
       codePlan: planCode,
     }),
@@ -365,6 +385,41 @@ export default async function PageLivre({
       detail: 'XP, rangs et badges de lecture',
     });
   }
+  if (moduleDefis.ouvert) {
+    modulesExplorer.push({
+      href: '/defis',
+      libelle: 'Défis de lecture',
+      detail: 'Objectifs personnels, progression calculée depuis vos lectures réelles',
+    });
+  }
+  if (moduleClubs.ouvert) {
+    modulesExplorer.push({
+      href: '/clubs',
+      libelle: 'Clubs de lecture',
+      detail: 'Cercles privés entre inscrits, anti-spoilers par chapitre',
+    });
+  }
+  if (moduleCollections.ouvert) {
+    modulesExplorer.push({
+      href: `/collections?livre=${id}`,
+      libelle: 'Collections',
+      detail: 'Ranger ce livre dans vos listes privées',
+    });
+  }
+  if (moduleCalendrier.ouvert) {
+    modulesExplorer.push({
+      href: '/calendrier',
+      libelle: 'Calendrier de lecture',
+      detail: 'Vos chapitres découverts par jour, votre série, vos échéances',
+    });
+  }
+  if (moduleCatalogue.ouvert) {
+    modulesExplorer.push({
+      href: '/catalogue',
+      libelle: 'Catalogue',
+      detail: 'Votre bibliothèque présentée comme une librairie, filtrable',
+    });
+  }
 
   return (
     <>
@@ -391,6 +446,7 @@ export default async function PageLivre({
           grapheOuvert={moduleGraphe.ouvert}
           assistanceOuverte={moduleReprise.ouvert}
           progressionOuverte={moduleProgression.ouvert}
+          theoriesOuverte={moduleTheories.ouvert}
           modulesExplorer={modulesExplorer}
         />
       </main>

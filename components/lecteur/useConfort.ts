@@ -1,27 +1,21 @@
 'use client';
 
 // ============================================================
-// ConfortLecture.tsx — Plein écran + défilement automatique
-// (socle du lecteur, gratuit — pas d'interrupteur : aucune donnée
-// ne quitte l'atelier, aucune route d'API).
+// components/lecteur/useConfort.ts — Plein écran + défilement
+// automatique (socle du lecteur, gratuit), sous forme de HOOK.
 //
-// Inspiré des lecteurs de référence (Readest, lecteur d'Anime-Sama) :
-//   · PLEIN ÉCRAN — Fullscreen API sur le conteneur du chapitre ;
-//     absent sur iPhone (Safari ne l'expose que pour les vidéos) →
-//     le bouton ne s'affiche pas quand le navigateur ne le permet
-//     pas. Échap quitte, comme partout.
-//   · DÉFILEMENT AUTOMATIQUE — boucle requestAnimationFrame, vitesse
-//     réglable (px/s, mémorisée), pause automatique au bas de page
-//     et au changement de chapitre. Choisit le bon conteneur :
-//     élément plein écran, cadre deux colonnes s'il défile, sinon la
-//     page elle-même.
-//   · RACCOURCIS — f : plein écran, a : défilement, ← / → :
-//     chapitre précédent / suivant (gérés côté Lecteur).
+// Portage de la maquette : le mode immersif devient plein écran
+// (Fullscreen API — absent sur iPhone, le bouton ne s'affiche pas),
+// et le défilement automatique reste une boucle requestAnimationFrame
+// à vitesse réglable, en pause au bas de page et au changement de
+// chapitre. L'ÉTAT vit ici, une seule fois par chapitre ; la barre
+// d'outils du bas et la pilule de vitesse n'en sont que des vues.
+//
 // Les helpers purs (borne de vitesse, pas suivant, fin de page) sont
 // dans lib/confort-lecture.ts et testés.
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
   VITESSE_DEFAUT,
@@ -32,6 +26,8 @@ import {
 } from '@/lib/confort-lecture';
 
 const CLEF_VITESSE = 'plume-defilement-auto';
+
+export { VITESSE_MIN, VITESSE_MAX };
 
 /** Vrai si l'événement clavier vient d'un champ de saisie. */
 function vientDUneSaisie(e: KeyboardEvent): boolean {
@@ -45,7 +41,40 @@ function vientDUneSaisie(e: KeyboardEvent): boolean {
   );
 }
 
-interface Props {
+// ---------- Plein écran comme « source externe » ----------
+// L'état du Fullscreen API vit dans le document : store externe
+// (useSyncExternalStore), aucun setState d'effet.
+
+function souscrirePleinEcran(notifier: () => void): () => void {
+  if (typeof document === 'undefined') return () => {};
+  document.addEventListener('fullscreenchange', notifier);
+  return () => document.removeEventListener('fullscreenchange', notifier);
+}
+
+const pleinEcranPossibleMaintenant = () =>
+  typeof document !== 'undefined' &&
+  'fullscreenEnabled' in document &&
+  document.fullscreenEnabled === true;
+const pleinEcranActifMaintenant = () =>
+  typeof document !== 'undefined' && Boolean(document.fullscreenElement);
+const pleinEcranServeur = () => false;
+
+export interface ControleConfort {
+  pleinEcranPossible: boolean;
+  pleinEcran: boolean;
+  basculerPleinEcran: () => void;
+  defile: boolean;
+  basculerDefile: () => void;
+  vitesse: number;
+  majVitesse: (v: number) => void;
+}
+
+export function useConfortLecture({
+  cibleId,
+  cadreRef,
+  deuxColonnes,
+  cleChapitre,
+}: {
   /** Élément à passer en plein écran (conteneur du chapitre). */
   cibleId: string;
   /** Cadre du mode deux colonnes (conteneur défilant éventuel). */
@@ -54,16 +83,17 @@ interface Props {
   deuxColonnes: boolean;
   /** Change à chaque chapitre ouvert : met le défilement en pause. */
   cleChapitre: string;
-}
-
-export default function ConfortLecture({
-  cibleId,
-  cadreRef,
-  deuxColonnes,
-  cleChapitre,
-}: Props) {
-  const [pleinEcranPossible, setPleinEcranPossible] = useState(false);
-  const [pleinEcran, setPleinEcran] = useState(false);
+}): ControleConfort {
+  const pleinEcranPossible = useSyncExternalStore(
+    souscrirePleinEcran,
+    pleinEcranPossibleMaintenant,
+    pleinEcranServeur
+  );
+  const pleinEcran = useSyncExternalStore(
+    souscrirePleinEcran,
+    pleinEcranActifMaintenant,
+    pleinEcranServeur
+  );
   const [defile, setDefile] = useState(false);
   const [vitesse, setVitesse] = useState<number>(() => {
     // Lecture tolérante : hors navigateur ou valeur corrompue → défaut.
@@ -75,20 +105,15 @@ export default function ConfortLecture({
       return VITESSE_DEFAUT;
     }
   });
-  const vitesseRef = useRef(vitesse);
-  vitesseRef.current = vitesse;
 
-  // ---------- Plein écran ----------
-  useEffect(() => {
-    setPleinEcranPossible(
-      typeof document !== 'undefined' &&
-        'fullscreenEnabled' in document &&
-        document.fullscreenEnabled === true
-    );
-    const surChangement = () => setPleinEcran(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', surChangement);
-    return () => document.removeEventListener('fullscreenchange', surChangement);
-  }, []);
+  // Pause au changement de chapitre : on ne veut pas défiler un texte
+  // qui n'est plus celui lu. Ajustement PENDANT le rendu (pattern
+  // officiel React — même convention que useVoix).
+  const [cleVu, setCleVu] = useState(cleChapitre);
+  if (cleVu !== cleChapitre) {
+    setCleVu(cleChapitre);
+    setDefile(false);
+  }
 
   const basculerPleinEcran = useCallback(async () => {
     try {
@@ -106,6 +131,13 @@ export default function ConfortLecture({
   // ---------- Défilement automatique ----------
   // Boucle rAF : pas = vitesse (px/s) × temps écoulé. Le conteneur est
   // résolu À CHAQUE pas (plein écran entré/sorti, colonnes changées).
+  // La vitesse passe par une ref tenue à jour PAR EFFET (jamais
+  // écrite pendant le rendu).
+  const vitesseRef = useRef(vitesse);
+  useEffect(() => {
+    vitesseRef.current = vitesse;
+  }, [vitesse]);
+
   useEffect(() => {
     if (!defile) return;
     let annule = 0;
@@ -144,11 +176,7 @@ export default function ConfortLecture({
     return () => cancelAnimationFrame(annule);
   }, [defile, deuxColonnes, cadreRef]);
 
-  // Pause au changement de chapitre : on ne veut pas défiler un texte
-  // qui n'est plus celui lu.
-  useEffect(() => {
-    setDefile(false);
-  }, [cleChapitre]);
+  const basculerDefile = useCallback(() => setDefile((d) => !d), []);
 
   // ---------- Raccourcis clavier (f, a) ----------
   useEffect(() => {
@@ -167,7 +195,7 @@ export default function ConfortLecture({
     return () => document.removeEventListener('keydown', surTouche);
   }, [basculerPleinEcran, pleinEcranPossible]);
 
-  const majVitesse = (valeur: number) => {
+  const majVitesse = useCallback((valeur: number) => {
     const bornee = vitesseDefilement(valeur);
     setVitesse(bornee);
     try {
@@ -175,48 +203,15 @@ export default function ConfortLecture({
     } catch {
       // Stockage indisponible : la vitesse reste en mémoire.
     }
-  };
+  }, []);
 
-  return (
-    <div className="flex items-center gap-1 shrink-0" role="group" aria-label="Confort de lecture">
-      {/* Compact (correctif 13/11) : ces trois contrôles occupaient
-          trop de place dans la barre du chapitre (le libellé « Plein
-          écran » se repliait sur deux lignes en étouffant la ligne) —
-          hauteur 40 px, polices 11 px, libellés sur une seule ligne,
-          curseur plus court sur petit écran. Reste tactile : 40 px de
-          hauteur de cible. */}
-      <button
-        type="button"
-        onClick={() => setDefile((d) => !d)}
-        aria-pressed={defile}
-        aria-label="Défilement automatique (touche A)"
-        title="Défilement automatique — touche A"
-        className={`min-h-10 text-[11px] px-2 whitespace-nowrap ${defile ? 'bouton-principal' : 'bouton-fantome'}`}
-      >
-        {defile ? 'Pause' : 'Défiler'}
-      </button>
-      <input
-        type="range"
-        min={VITESSE_MIN}
-        max={VITESSE_MAX}
-        step={10}
-        value={vitesse}
-        onChange={(e) => majVitesse(Number(e.target.value))}
-        aria-label="Vitesse du défilement automatique, pixels par seconde"
-        className={`w-16 sm:w-20 accent-[var(--color-grenat-500)] ${defile ? '' : 'opacity-50'}`}
-      />
-      {pleinEcranPossible && (
-        <button
-          type="button"
-          onClick={() => void basculerPleinEcran()}
-          aria-pressed={pleinEcran}
-          aria-label="Plein écran (touche F)"
-          title="Plein écran — touche F (Échap pour sortir)"
-          className="bouton-fantome min-h-10 text-[11px] px-2 whitespace-nowrap"
-        >
-          {pleinEcran ? 'Quitter' : 'Plein écran'}
-        </button>
-      )}
-    </div>
-  );
+  return {
+    pleinEcranPossible,
+    pleinEcran,
+    basculerPleinEcran: () => void basculerPleinEcran(),
+    defile,
+    basculerDefile,
+    vitesse,
+    majVitesse,
+  };
 }

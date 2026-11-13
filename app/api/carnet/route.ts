@@ -1,9 +1,10 @@
 // ============================================================
 // app/api/carnet/route.ts — Carnet de lecture (F2).
 //
+//   GET    ?livreId=&chapitreId=&type=  → liste (RLS, filtrée) ;
 //   POST   { livreId, chapitreId?, type, extrait?, annotation?,
-//            chapitreTitre? }  → ajoute une entrée ;
-//   PATCH  { id, annotation?, type? } → met à jour une entrée ;
+//            chapitreTitre?, couleur? }  → ajoute une entrée ;
+//   PATCH  { id, annotation?, type?, couleur? } → met à jour ;
 //   DELETE { id }              → supprime une entrée.
 //
 // GARDES (le serveur est l'autorité) :
@@ -27,6 +28,9 @@ import {
   majNote,
   supprimerNote,
   estTypeCarnet,
+  estCouleurCarnet,
+  listerCarnet,
+  type CouleurCarnet,
   type TypeCarnet,
 } from '@/lib/carnet';
 
@@ -70,6 +74,31 @@ async function corpsValide(
   }
 }
 
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const ctx = await contexte();
+  if (!ctx.ok) return ctx.reponse;
+
+  // Filtres : livreId requis (jamais tout le carnet d'un coup),
+  // chapitreId et type facultatifs — le lecteur ne charge que les
+  // surlignages du chapitre affiché.
+  const params = request.nextUrl.searchParams;
+  const livreId = params.get('livreId') ?? '';
+  if (!UUID.test(livreId)) {
+    return NextResponse.json({ erreur: 'Livre invalide.' }, { status: 400 });
+  }
+  const chapitreIdBrut = params.get('chapitreId') ?? '';
+  const chapitreId = UUID.test(chapitreIdBrut) ? chapitreIdBrut : null;
+  const typeBrut = params.get('type');
+  const type = typeBrut && estTypeCarnet(typeBrut) ? (typeBrut as TypeCarnet) : null;
+
+  try {
+    const entrees = await listerCarnet(ctx.client, { livreId, chapitreId, type });
+    return NextResponse.json({ ok: true, entrees });
+  } catch {
+    return NextResponse.json({ erreur: 'Lecture impossible.' }, { status: 400 });
+  }
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const ctx = await contexte();
   if (!ctx.ok) return ctx.reponse;
@@ -92,6 +121,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const annotation = typeof corps.annotation === 'string' ? corps.annotation : '';
   const chapitreTitre =
     typeof corps.chapitreTitre === 'string' ? corps.chapitreTitre.slice(0, 200) : null;
+  const couleur = estCouleurCarnet(corps.couleur) ? corps.couleur : null;
 
   if (!extrait.trim() && !annotation.trim()) {
     return NextResponse.json(
@@ -108,6 +138,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       extrait,
       annotation,
       chapitreTitre,
+      couleur,
     });
     return NextResponse.json({ ok: true, entree });
   } catch (erreur) {
@@ -131,9 +162,16 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ erreur: 'Entrée invalide.' }, { status: 400 });
   }
 
-  const maj: { annotation?: string | null; type?: TypeCarnet } = {};
+  const maj: {
+    annotation?: string | null;
+    type?: TypeCarnet;
+    couleur?: CouleurCarnet | null;
+  } = {};
   if (typeof corps.annotation === 'string') maj.annotation = corps.annotation;
   if (estTypeCarnet(corps.type)) maj.type = corps.type;
+  if (corps.couleur !== undefined) {
+    maj.couleur = estCouleurCarnet(corps.couleur) ? corps.couleur : null;
+  }
   if (Object.keys(maj).length === 0) {
     return NextResponse.json({ erreur: 'Aucun champ à mettre à jour.' }, { status: 400 });
   }

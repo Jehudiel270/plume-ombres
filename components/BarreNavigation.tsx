@@ -27,7 +27,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
-import { ChevronDown, CreditCard, LogOut, Menu, Palette, User } from 'lucide-react';
+import { ChevronDown, BookMarked, CreditCard, Image as ImageIcon, Lightbulb, LogOut, Menu, NotebookPen, Orbit, Palette, Sparkles, TrendingUp, User } from 'lucide-react';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import ClocheNotifications from '@/components/ClocheNotifications';
 import {
@@ -52,11 +52,30 @@ interface Lien {
   libelle: string;
 }
 
+/** Entrée « Atelier » : lien renvoyé par /api/atelier/liens
+ *  (modules ouverts pour le compte, évalués côté serveur). */
+interface LienAtelier {
+  href: string;
+  libelle: string;
+  detail: string;
+}
+
+const ICONES_ATELIER: Record<string, ReactNode> = {
+  '/carnet': <NotebookPen size={15} />,
+  '/theories': <Lightbulb size={15} />,
+  '/progression': <TrendingUp size={15} />,
+  '/ambiance': <Sparkles size={15} />,
+  '/glossaire': <BookMarked size={15} />,
+  '/univers': <Orbit size={15} />,
+  '/cartes': <ImageIcon size={15} />,
+};
+
 /** Plan du site principal (desktop et menu mobile). */
 const LIENS_SITE: Lien[] = [
   { href: '/', libelle: 'Accueil' },
   { href: '/bibliotheque', libelle: 'Bibliothèque' },
   { href: '/favoris', libelle: 'Favoris' },
+  { href: '/annonces', libelle: 'Nouveautés' },
   { href: '/tarifs', libelle: 'Tarifs' },
   { href: '/faq', libelle: 'FAQ' },
   { href: '/contact', libelle: 'Contact' },
@@ -338,6 +357,43 @@ export default function BarreNavigation({
 
   // CUMUL : ces liens s'AJOUTENT au plan du site.
   const liensSupplementaires = liensNavigationSupplementaires(role);
+
+  // Portes d'entrée GLOBALES des modules ouverts (correctif « pages
+  // manquantes ») : une seule interrogation par session, silencieuse
+  // en cas d'échec — la fiche du livre reste le point d'entrée de
+  // secours. Le serveur est l'autorité : la route ne renvoie que les
+  // modules ouverts pour CE compte.
+  const [liensAtelier, setLiensAtelier] = useState<LienAtelier[]>([]);
+  useEffect(() => {
+    let actif = true;
+    (async () => {
+      try {
+        const reponse = await fetch('/api/atelier/liens');
+        if (!reponse.ok) return;
+        const donnees = (await reponse.json().catch(() => null)) as {
+          liens?: LienAtelier[];
+        } | null;
+        if (actif && Array.isArray(donnees?.liens)) setLiensAtelier(donnees.liens);
+      } catch {
+        /* silencieux : l'Atelier reste accessible depuis un livre */
+      }
+    })();
+    return () => {
+      actif = false;
+    };
+  }, []);
+
+  const {
+    ouvert: menuAtelierOuvert,
+    fermer: fermerMenuAtelier,
+    basculer: basculerMenuAtelier,
+    zoneRef: zoneAtelierRef,
+    declencheurRef: declencheurAtelierRef,
+    panneauRef: panneauAtelierRef,
+    surDeclencheur: surDeclencheurAtelier,
+    surPanneau: surPanneauAtelier,
+  } = useMenuAccessible();
+
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
   const {
     ouvert: menuUtilisateurOuvert,
@@ -364,6 +420,7 @@ export default function BarreNavigation({
   function fermerMenus() {
     setMenuMobileOuvert(false);
     fermerMenuUtilisateur(false);
+    fermerMenuAtelier(false);
   }
 
   async function seDeconnecter() {
@@ -433,6 +490,57 @@ export default function BarreNavigation({
               </Link>
             );
           })}
+
+          {/* Atelier : les modules ouverts du compte (Carnet,
+              Théories, Univers…). Caché tant que la route n'a rien
+              renvoyé : aucun lien mort. */}
+          {liensAtelier.length > 0 && (
+            <div className="relative" ref={zoneAtelierRef}>
+              <button
+                ref={declencheurAtelierRef}
+                type="button"
+                onClick={basculerMenuAtelier}
+                onKeyDown={surDeclencheurAtelier}
+                aria-haspopup="menu"
+                aria-expanded={menuAtelierOuvert}
+                aria-controls="menu-atelier"
+                className={`rounded-full px-3 py-2 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-grenat-400 cursor-pointer ${
+                  menuAtelierOuvert
+                    ? 'text-grenat-300 bg-grenat-500/10 font-medium'
+                    : 'text-encre-300 hover:text-encre-100 hover:bg-white/[0.05]'
+                }`}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  Atelier
+                  <ChevronDown
+                    aria-hidden="true"
+                    size={14}
+                    className={`transition-transform ${menuAtelierOuvert ? 'rotate-180' : ''}`}
+                  />
+                </span>
+              </button>
+              {menuAtelierOuvert && (
+                <Panneau
+                  id="menu-atelier"
+                  etiquette="Atelier de lecture"
+                  panneauRef={panneauAtelierRef}
+                  surPanneau={surPanneauAtelier}
+                  className="w-[min(21rem,calc(100vw-2rem))]"
+                >
+                  {liensAtelier.map((l) => (
+                    <EntreeMenu
+                      key={l.href}
+                      href={l.href}
+                      libelle={l.libelle}
+                      actif={estActif(chemin, l.href)}
+                      icone={ICONES_ATELIER[l.href]}
+                      onClick={() => fermerMenuAtelier(false)}
+                    />
+                  ))}
+                </Panneau>
+              )}
+            </div>
+          )}
         </nav>
 
         <div className="flex items-center gap-2 ml-auto lg:ml-0">
@@ -596,6 +704,32 @@ export default function BarreNavigation({
               </Link>
             );
           })}
+
+          {/* Atelier — modules ouverts du compte (mobile). */}
+          {liensAtelier.length > 0 && (
+            <>
+              <div className="h-px bg-nuit-700 my-2" aria-hidden="true" />
+              <p className="sur-titre text-encre-500 px-3 pb-1">Atelier</p>
+              {liensAtelier.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  aria-current={estActif(chemin, l.href) ? 'page' : undefined}
+                  onClick={() => setMenuMobileOuvert(false)}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                    estActif(chemin, l.href)
+                      ? 'text-grenat-300 bg-grenat-500/10 font-medium'
+                      : 'text-encre-300 hover:text-encre-100 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <span aria-hidden="true" className="opacity-80 shrink-0">
+                    {ICONES_ATELIER[l.href]}
+                  </span>
+                  {l.libelle}
+                </Link>
+              ))}
+            </>
+          )}
 
           <div className="h-px bg-nuit-700 my-2" aria-hidden="true" />
           <p className="sur-titre text-encre-500 px-3 pb-1">Cadre légal</p>

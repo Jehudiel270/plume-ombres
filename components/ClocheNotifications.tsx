@@ -292,6 +292,15 @@ export default function ClocheNotifications({
               </button>
             ))
           )}
+
+          {/* La page complète : historique au-delà des 20 dernières. */}
+          <a
+            role="menuitem"
+            href="/notifications"
+            className="mt-1 block border-t border-nuit-700/60 px-3 py-2.5 text-center text-[11px] text-grenat-300 hover:text-grenat-400 hover:bg-white/[0.05] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-grenat-400"
+          >
+            Voir toutes les notifications
+          </a>
         </div>
       )}
     </div>
