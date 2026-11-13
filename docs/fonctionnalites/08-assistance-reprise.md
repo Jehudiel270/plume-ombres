@@ -32,17 +32,35 @@ pour une question (la FIN des chapitres lus prime), question ≤ 500 caractères
 
 ## Modèle
 
-Même clé, mêmes modèles et même délai que la traduction
+Mêmes modèles et même délai que la traduction
 (`lib/providers/gemini.ts`) : bascule automatique sur le modèle suivant en
-cas d'indisponibilité (404/429/503) ou de silence. Aucune nouvelle clé,
-aucun nouveau fournisseur. `maxDuration = 60` sur la route (appels modèle).
+cas d'indisponibilité (404/429/503) ou de silence. Aucun nouveau fournisseur.
+`maxDuration = 60` sur la route (appels modèle).
 
-## Données (migration ADDITIVE, idempotente)
+### Clé : deux voies (`lib/parametres.ts`)
 
-`20261112000005_resume_lectures.sql` — table de cache `resume_lectures` :
-livre (PK, CASCADE), jusqu_position (CHECK ≥ 0), titre_chapitre, contenu
-(CHECK 1–8 000), moteur, horodatages. RLS « own » complète. Les questions ne
-sont stockées nulle part.
+1. **Variable d'environnement `GEMINI_API_KEY`** (voie officielle, ouvre le
+   module à TOUS les abonnés) — elle prime toujours si elle existe ;
+2. **Clé collée dans le panneau admin** (`/admin/fonctionnalites`, bas de
+   page) — stockée en base (`parametres_systeme`, migration
+   20261113000001), lisible UNIQUEMENT par un administrateur (RLS
+   `est_admin()`), jamais renvoyée en clair au navigateur (aperçu
+   `AIza…x9Qz` seulement) ; sert dans les routes appelées PAR l'admin
+   lui-même : l'essai sur SON compte, sans redéploiement.
+
+Sans clé (ni env ni base), l'API répond un message clair : « Le modèle
+n'est pas configuré… ».
+
+## Données (migrations ADDITIVES, idempotentes)
+
+- `20261112000005_resume_lectures.sql` — table de cache `resume_lectures` :
+  livre (PK, CASCADE), jusqu_position (CHECK ≥ 0), titre_chapitre, contenu
+  (CHECK 1–8 000), moteur, horodatages. RLS « own » complète. Les questions ne
+  sont stockées nulle part.
+- `20261113000001_parametres_systeme.sql` — table `parametres_systeme`
+  (clé → valeur) pour la clé d'API collée dans le panneau admin : RLS lecture
+  + écriture réservées à `est_admin()` (JAMAIS anon), journalisation du nom
+  du paramètre et de la LONGUEUR de la valeur seulement.
 
 ## Garde-fous (le serveur est l'autorité)
 
@@ -51,13 +69,18 @@ sont stockées nulle part.
   bornée (entier ≥ 0) ; erreurs modèle → 502 avec message lisible.
 - Registre : entrée `reprise` (F6/F10), api `['/api/livres/*/assistance']`,
   planMinimal `passionne`, `prod: false`. `check:flags` : 17 interrupteurs,
-  29 pages, 27 routes, toutes couvertes.
+  33 pages et 30 routes, toutes couvertes (état du 13/11).
 
 ## Tests et vérifications
 
 - `lib/assistance.test.ts` : 3/3 — garde amont « rien lu → pas d'appel
   réseau », question trop courte refusée avant le modèle, plafonds bornés.
-- Suite complète 222/222, `check:flags` OK, build OK (33/33 pages).
+- `lib/parametres.test.ts` : 5/5 — masquage de la clé, validation (longueur,
+  espacement), lecture résiliente (table absente → null), priorité
+  environnement > base, repli « non configuré ».
+- Suite complète : 222/222 à la livraison du module 8, **239/239** au
+  13/11 (modules 9-12 puis clé admin ajoutés). `check:flags` OK,
+  build OK (36/36 pages).
 - Limites assumées : le résumé suit la traduction (un livre non traduit
   retombe sur le texte source) ; l'appel modèle coûte des crédits d'API
   Gemini — d'où le cache et le plan Premium ; pas de résumé « au fil de

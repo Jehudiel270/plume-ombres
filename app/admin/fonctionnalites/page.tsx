@@ -17,11 +17,17 @@ import Link from 'next/link';
 
 import { exigerPermission } from '@/lib/roles-garde';
 import { listeAvecEtats } from '@/lib/fonctionnalites/etats';
+import {
+  CLE_PARAMETRE_GEMINI,
+  lireParametreMeta,
+  masquerCle,
+} from '@/lib/parametres';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 import BarreNavigation from '@/components/BarreNavigation';
 import PanneauFonctionnalites, {
   type InterrupteurAdmin,
 } from '@/components/admin/PanneauFonctionnalites';
+import CleModeleIa from '@/components/admin/CleModeleIa';
 
 export const metadata: Metadata = {
   title: 'Fonctionnalités — Administration',
@@ -48,6 +54,11 @@ export default async function PageAdminFonctionnalites() {
   const pseudo = (profil as { pseudo?: string | null } | null)?.pseudo ?? '';
 
   const liste = await listeAvecEtats();
+
+  // État de la clé du modèle d'IA (lisible ici : session admin). La
+  // valeur complète ne quitte JAMAIS le serveur — seul l'aperçu
+  // masqué est passé à l'interface.
+  const metaCle = await lireParametreMeta(supabase, CLE_PARAMETRE_GEMINI);
 
   const interrupteurs: InterrupteurAdmin[] = liste.map(({ def, etat }) => ({
     cle: def.cle,
@@ -97,6 +108,14 @@ export default async function PageAdminFonctionnalites() {
         </header>
 
         <PanneauFonctionnalites interrupteurs={interrupteurs} />
+
+        <CleModeleIa
+          etatInitial={{
+            defini: metaCle !== null,
+            apercu: metaCle ? masquerCle(metaCle.valeur) : null,
+            majLe: metaCle?.majLe ?? null,
+          }}
+        />
       </main>
     </>
   );
