@@ -223,6 +223,20 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
     prod: false,
   },
   {
+    cle: 'reprise',
+    code: 'F6/F10',
+    libelle: 'Aide à la reprise et questions',
+    groupe: 'Lecture et carnet',
+    description:
+      'Résumé de l’intrigue lue à la reprise (F10) et questions sur ce qui a ' +
+      'déjà été lu (F6). Le contexte est construit CÔTÉ SERVEUR : jamais rien ' +
+      'au-delà du chapitre lu. Panneaux du lecteur, réservé aux abonnés.',
+    itineraires: [],
+    api: ['/api/livres/*/assistance'],
+    planMinimal: 'passionne',
+    prod: false,
+  },
+  {
     cle: 'graphe',
     code: 'F25',
     libelle: 'Graphe narratif anti-spoilers',
