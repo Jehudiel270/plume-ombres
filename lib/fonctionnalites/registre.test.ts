@@ -25,6 +25,7 @@ import {
   interrupteurPourChemin,
   niveauPlanDepuisCode,
   normaliserChemin,
+  planifierOuvertureMasse,
   type EtatInterrupteur,
 } from './registre';
 
@@ -266,4 +267,47 @@ test('apercuDeploiement : borne le nombre de lecteurs de test', () => {
   assert.equal(apercuDeploiement('clubs', 100), 20);
   const partiel = apercuDeploiement('clubs', 25);
   assert.ok(partiel >= 0 && partiel <= 20);
+});
+
+test('planifierOuvertureMasse : les modules à risque restent ignorés par défaut', () => {
+  const etats = new Map(
+    INTERRUPTEURS.map((d) => [d.cle, { actif: false, deploiement: 100 }])
+  );
+  const plan = planifierOuvertureMasse(etats, false);
+  assert.ok(plan.aOuvrir.length > 0);
+  assert.ok(
+    plan.ignoresRisque.every((cle) => {
+      const def = interrupteurParCle(cle);
+      return def?.risqueJuridique === true;
+    }),
+    'toutes les clés ignorées sont à risque juridique'
+  );
+  assert.equal(plan.inchanges.length, 0);
+});
+
+test('planifierOuvertureMasse : avecRisque inclut les modules à risque', () => {
+  const etats = new Map(
+    INTERRUPTEURS.map((d) => [d.cle, { actif: false, deploiement: 100 }])
+  );
+  const plan = planifierOuvertureMasse(etats, true);
+  const tous = plan.aOuvrir.length;
+  assert.equal(
+    tous,
+    INTERRUPTEURS.length,
+    'tous les modules sont planifiés quand aucun n\u2019est ouvert'
+  );
+  assert.equal(plan.ignoresRisque.length, 0);
+  assert.equal(plan.inchanges.length, 0);
+});
+
+test('planifierOuvertureMasse : un module ouvert à 100 % est inchangé', () => {
+  const etats = new Map(
+    INTERRUPTEURS.map((d) => [
+      d.cle,
+      { actif: d.cle === 'carnet', deploiement: d.cle === 'carnet' ? 100 : 50 },
+    ])
+  );
+  const plan = planifierOuvertureMasse(etats, false);
+  assert.ok(plan.inchanges.includes('carnet'));
+  assert.ok(!plan.aOuvrir.includes('carnet'));
 });
