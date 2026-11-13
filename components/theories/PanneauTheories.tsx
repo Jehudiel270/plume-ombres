@@ -296,7 +296,7 @@ export default function PanneauTheories({ livres, theories, livreId }: Props) {
               type="text"
               value={terme}
               onChange={(e) => setTerme(e.target.value)}
-              placeholder="Terme à suivre…"
+              placeholder="Terme à vérifier : un nom, un surnom, une tournure…"
               className="champ-sombre flex-1 min-w-40 rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2.5 text-sm text-encre-100"
             />
             <button

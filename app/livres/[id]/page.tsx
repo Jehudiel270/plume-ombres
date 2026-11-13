@@ -256,7 +256,7 @@ export default async function PageLivre({
   // Un module fermé = composant/bouton jamais montés (le serveur est
   // l'autorité).
   const planCode = planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT;
-  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise, moduleProgression] = await Promise.all([
+  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise, moduleProgression, moduleTheories, moduleCartes, moduleUnivers, moduleAmbiance, moduleGlossaire] = await Promise.all([
     verifierAccesModule('lecture_vocale', {
       utilisateurId: utilisateur.id,
       codePlan: planCode,
@@ -281,7 +281,90 @@ export default async function PageLivre({
       utilisateurId: utilisateur.id,
       codePlan: planCode,
     }),
+    verifierAccesModule('theories', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('cartes', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('univers', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('ambiance', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('glossaire', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
   ]);
+
+  // ---------- Portes d'entrée des modules ouverts ----------
+  // Un module activé au tableau de bord doit être TROUVABLE par le
+  // lecteur : sans lien visible, il n'existe pas. La liste est
+  // construite ICI (côté serveur, seuls les modules ouverts au compte
+  // y figurent) et affichée en tête de l'espace livre.
+  const modulesExplorer: { href: string; libelle: string; detail: string }[] = [];
+  if (moduleCarnet.ouvert) {
+    modulesExplorer.push({
+      href: `/carnet?livre=${id}`,
+      libelle: 'Carnet de lecture',
+      detail: 'Notes, citations et surlignages, conservés par livre',
+    });
+  }
+  if (moduleTheories.ouvert) {
+    modulesExplorer.push({
+      href: `/theories?livre=${id}`,
+      libelle: 'Théories & comparateur',
+      detail: 'Hypothèses de lecture privées ; vérifier comment un terme est rendu dans toute la traduction',
+    });
+  }
+  if (moduleCartes.ouvert) {
+    modulesExplorer.push({
+      href: `/cartes?livre=${id}`,
+      libelle: 'Cartes de lecture',
+      detail: 'Visuels de citation, extraits bornés et attribués',
+    });
+  }
+  if (moduleUnivers.ouvert) {
+    modulesExplorer.push({
+      href: '/univers',
+      libelle: 'Univers',
+      detail: 'Sagas, ordre des tomes, anti-spoilers par tome',
+    });
+  }
+  if (moduleAmbiance.ouvert) {
+    modulesExplorer.push({
+      href: '/ambiance',
+      libelle: 'Ambiance',
+      detail: 'L’atmosphère du livre : fiches d’ambiance',
+    });
+  }
+  if (moduleGlossaire.ouvert) {
+    modulesExplorer.push({
+      href: `/glossaire?livre=${id}`,
+      libelle: 'Glossaire',
+      detail: 'Noms propres et lexique du livre',
+    });
+  }
+  if (moduleGraphe.ouvert) {
+    modulesExplorer.push({
+      href: `/livres/${id}/graphe`,
+      libelle: 'Graphe narratif',
+      detail: 'Personnages et relations, révélés au fil de votre lecture',
+    });
+  }
+  if (moduleProgression.ouvert) {
+    modulesExplorer.push({
+      href: '/progression',
+      libelle: 'Progression',
+      detail: 'XP, rangs et badges de lecture',
+    });
+  }
 
   return (
     <>
@@ -308,6 +391,7 @@ export default async function PageLivre({
           grapheOuvert={moduleGraphe.ouvert}
           assistanceOuverte={moduleReprise.ouvert}
           progressionOuverte={moduleProgression.ouvert}
+          modulesExplorer={modulesExplorer}
         />
       </main>
     </>
