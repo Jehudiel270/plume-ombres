@@ -15,6 +15,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { utilisateurConnecte, creerClientServeur } from '@/lib/supabase/server';
 import { verifierModuleApi } from '@/lib/fonctionnalites/etats';
+import { niveauPlanDepuisCode } from '@/lib/fonctionnalites/registre';
 import { planEnVigueur, CODE_PLAN_GRATUIT } from '@/lib/abonnement';
 import { MagasinAbonnementSupabase } from '@/lib/paiement/magasin';
 import { resumerReprise, questionnerIntrigue } from '@/lib/assistance';
@@ -42,13 +43,17 @@ export async function POST(
   const abonnement = await new MagasinAbonnementSupabase(client)
     .lire(utilisateur.id)
     .catch(() => null);
+  const codePlan = planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT;
   const module = await verifierModuleApi('reprise', {
     utilisateurId: utilisateur.id,
-    codePlan: planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT,
+    codePlan,
   });
   if (!module.ouvert && module.reponseApi) {
     return module.reponseApi;
   }
+  // Niveau d'abonnement de l'appelant : sert à choisir les clés du
+  // réservoir qui peuvent le servir (clé « Passionné et plus » etc.).
+  const niveau = niveauPlanDepuisCode(codePlan);
 
   let corps: { action?: unknown; question?: unknown; chapitreLu?: unknown };
   try {
@@ -67,7 +72,7 @@ export async function POST(
 
   try {
     if (corps.action === 'resume') {
-      const resume = await resumerReprise(client, id, chapitreLu);
+      const resume = await resumerReprise(client, id, chapitreLu, niveau);
       if (!resume) {
         return NextResponse.json({
           ok: true,
@@ -82,7 +87,8 @@ export async function POST(
         client,
         id,
         chapitreLu,
-        typeof corps.question === 'string' ? corps.question : ''
+        typeof corps.question === 'string' ? corps.question : '',
+        niveau
       );
       return NextResponse.json({ ok: true, reponse });
     }

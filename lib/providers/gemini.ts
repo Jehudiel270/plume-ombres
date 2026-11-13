@@ -5,7 +5,10 @@
 // Gratuit sans carte (2026 : ~1 500 requêtes/jour, 10-15/min,
 // 250k tokens/min — Gemini Flash). Activation : une clé d'API
 // AI Studio dans GEMINI_API_KEY (jamais exposée au navigateur :
-// tout passe par la route API serveur).
+// tout passe par la route API serveur) OU une ou plusieurs clés
+// collées dans le réservoir « Clés API » du tableau de bord
+// (succession automatique : si une clé lâche — quota 429, accès
+// refusé — la suivante prend le relais).
 // Les textes trop longs sont découpés en phrases (maxParRequete).
 // ============================================================
 
@@ -16,6 +19,12 @@ import type {
 import { decouperEnFragments, attendre } from './fragments';
 import { composerInstructionSysteme } from '@/lib/glossaire';
 import { libelleLangue, type IdFournisseur } from '@/lib/types';
+import {
+  echecVautPourCle,
+  resoudreClesGemini,
+  signalerEchecCle,
+  signalerSuccesCle,
+} from '@/lib/cles-api';
 
 const MAX_PAR_REQUETE = 6000;
 
@@ -94,13 +103,59 @@ export class FournisseurGemini implements FournisseurTraduction {
   readonly delaiEntreRequetes = 4500; // ~13 requêtes/min max, sous le quota
   readonly qualite = 'haute' as const;
 
+  /**
+   * SUCCESSION DE CLÉS : la variable d'environnement d'abord, puis
+   * chaque clé du réservoir (ordre de position). Une clé qui lâche
+   * (401/403/429 après avoir épuisé ses modèles) laisse la place à
+   * la suivante — et prend un temps de repos après 3 échecs de
+   * suite. Sans aucune clé : message clair, et la chaîne de secours
+   * passe au moteur suivant.
+   */
   async traduire(texte: string, options: OptionsTraduction): Promise<string> {
-    const cle = cleGemini();
-    if (!cle) {
+    const { cles, sourceEnv } = await resoudreClesGemini({ niveau: null });
+    const candidats: Array<{ valeur: string; id: string | null }> = [];
+    if (sourceEnv) candidats.push({ valeur: sourceEnv, id: null });
+    for (const ligne of cles) {
+      if (sourceEnv && ligne.valeur === sourceEnv) continue;
+      candidats.push({ valeur: ligne.valeur, id: ligne.id });
+    }
+    if (candidats.length === 0) {
       throw new Error(
-        'Gemini n’est pas activé : ajoute GEMINI_API_KEY dans .env.local.'
+        'Gemini n’est pas activé : ajoutez une clé dans l’onglet « Clés API » du tableau de bord, ou GEMINI_API_KEY côté serveur.'
       );
     }
+
+    let derniereErreur = '';
+    for (const candidat of candidats) {
+      if (options.signal?.aborted) {
+        throw derniereErreur
+          ? new Error(derniereErreur)
+          : new DOMException('Traduction annulée.', 'AbortError');
+      }
+      try {
+        const resultat = await this.traduireAvecCle(texte, options, candidat.valeur);
+        if (candidat.id) {
+          await signalerSuccesCle(candidat.id).catch(() => {});
+        }
+        return resultat;
+      } catch (e) {
+        const cause = e instanceof Error ? e.message : String(e);
+        derniereErreur = cause;
+        // Annulation demandée par l'appelant : jamais masquée.
+        if (options.signal?.aborted) throw e;
+        if (candidat.id && echecVautPourCle(cause)) {
+          await signalerEchecCle(candidat.id, cause).catch(() => {});
+        }
+      }
+    }
+    throw new Error(derniereErreur || 'Gemini : aucune clé disponible.');
+  }
+
+  private async traduireAvecCle(
+    texte: string,
+    options: OptionsTraduction,
+    cle: string
+  ): Promise<string> {
     if (texte.length <= MAX_PAR_REQUETE) {
       return this.traduireBrut(texte, options, cle);
     }
