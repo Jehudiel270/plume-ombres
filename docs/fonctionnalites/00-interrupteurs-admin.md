@@ -69,7 +69,11 @@ et ne s'ouvrent que si l'administrateur les ouvre — sans redéploiement.
    déploiement avec aperçu sur 20 lecteurs de test, case juriste pour les modules à
    risque. Garde à deux niveaux : permission `admin.fonctionnalites.gerer` (nouvelle,
    accordée à admin et super_admin) + RLS `public.est_admin()`. Journalisation dans
-   `journal_admin` si la table existe (trigger).
+   `journal_admin` si la table existe (trigger). L'ouverture en masse
+   (`POST /api/admin/fonctionnalites/tout-ouvrir`) construit ses lignes avec
+   `construireLignesOuvertureMasse` (registre) : `juriste_ok` y est TOUJOURS un
+   booléen explicite sur chaque ligne — supabase-js déduit les colonnes de l'union
+   des clés du tableau, une clé absente d'une ligne serait insérée à NULL (23502).
 6. **Garde-fou** (`npm run check:flags`) : 15 interrupteurs, 25 pages et 22 routes
    d'API toutes couvertes (interrupteur, socle ou admin) ; clés uniques, modules à
    risque éteints par défaut, doublons socle détectés.
