@@ -16,6 +16,7 @@ import {
   ITINERAIRES_SOCLE,
   apercuDeploiement,
   compartiment,
+  construireLignesOuvertureMasse,
   estCheminAdmin,
   estCheminApi,
   estCheminSocle,
@@ -310,4 +311,52 @@ test('planifierOuvertureMasse : un module ouvert à 100 % est inchangé', () => 
   const plan = planifierOuvertureMasse(etats, false);
   assert.ok(plan.inchanges.includes('carnet'));
   assert.ok(!plan.aOuvrir.includes('carnet'));
+});
+
+test(
+  'construireLignesOuvertureMasse : après JSON.stringify, chaque ligne garde les mêmes clés',
+  () => {
+    // Non-régression du 14/11/2026 : supabase-js déduit les colonnes de
+    // l'UNION des clés du tableau. Une clé absente d'une ligne (valeur
+    // undefined retirée par JSON.stringify) serait insérée à NULL par
+    // PostgREST — colonne NOT NULL → erreur 23502 sur juriste_ok.
+    const cles = INTERRUPTEURS.map((d) => d.cle);
+    const lignes = construireLignesOuvertureMasse(
+      cles,
+      'utilisateur-test',
+      '2026-11-14T00:00:00.000Z'
+    );
+    const envoyees = JSON.parse(JSON.stringify(lignes)) as Array<Record<string, unknown>>;
+    assert.equal(envoyees.length, cles.length);
+    const clesReference = Object.keys(envoyees[0]).sort();
+    for (const ligne of envoyees) {
+      assert.deepEqual(
+        Object.keys(ligne).sort(),
+        clesReference,
+        'toutes les lignes portent exactement les mêmes clés'
+      );
+      assert.equal(
+        typeof ligne.juriste_ok,
+        'boolean',
+        'juriste_ok reste un booléen explicite après sérialisation'
+      );
+    }
+  }
+);
+
+test('construireLignesOuvertureMasse : juriste_ok vrai seulement pour les modules à risque', () => {
+  const cles = INTERRUPTEURS.map((d) => d.cle);
+  const lignes = construireLignesOuvertureMasse(
+    cles,
+    'utilisateur-test',
+    '2026-11-14T00:00:00.000Z'
+  );
+  for (const ligne of lignes) {
+    const def = interrupteurParCle(ligne.cle);
+    assert.equal(ligne.juriste_ok, def?.risqueJuridique === true);
+    assert.equal(ligne.actif, true, 'l\u2019ouverture pose actif à vrai');
+    assert.equal(ligne.deploiement, 100, 'l\u2019ouverture pose le déploiement à 100 %');
+    assert.equal(ligne.maj_par, 'utilisateur-test');
+    assert.equal(ligne.maj_le, '2026-11-14T00:00:00.000Z');
+  }
 });

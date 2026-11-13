@@ -13,6 +13,11 @@
 //     * chaque ouverture pose actif = vrai et déploiement = 100 %
 //       (l'intention du geste est « tout voir »), sans toucher au
 //       plan minimal déjà réglé ;
+//     * juriste_ok est un booléen EXPLICITE sur chaque ligne : vrai
+//       pour un module à risque (ouvert avec confirmation), faux
+//       ailleurs. supabase-js déduit la liste des colonnes de
+//       l'UNION des clés du tableau — une clé absente d'une ligne
+//       serait insérée à NULL (23502) ;
 //     * un module déjà ouvert à 100 % n'est pas réécrit (journal
 //       propre) ;
 //     * la journalisation reste celle du chantier : le déclencheur
@@ -27,7 +32,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { verifierPermission } from '@/lib/roles-garde';
 import { creerClientServeur } from '@/lib/supabase/server';
-import { INTERRUPTEURS, planifierOuvertureMasse } from '@/lib/fonctionnalites/registre';
+import {
+  construireLignesOuvertureMasse,
+  planifierOuvertureMasse,
+} from '@/lib/fonctionnalites/registre';
 import { listeAvecEtats, viderCacheEtats } from '@/lib/fonctionnalites/etats';
 
 export const runtime = 'nodejs';
@@ -71,17 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const maintenant = new Date().toISOString();
-  const lignes = plan.aOuvrir.map((cle) => {
-    const def = INTERRUPTEURS.find((d) => d.cle === cle);
-    return {
-      cle,
-      actif: true,
-      deploiement: 100,
-      juriste_ok: def?.risqueJuridique === true ? true : undefined,
-      maj_le: maintenant,
-      maj_par: decision.utilisateurId,
-    };
-  });
+  const lignes = construireLignesOuvertureMasse(plan.aOuvrir, decision.utilisateurId, maintenant);
 
   const supabase = await creerClientServeur();
   const { error } = await supabase
@@ -92,8 +90,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const reserve =
       error.message.includes('row-level security') ||
       error.message.includes('permission denied');
+    // Erreur de contrainte / charge utile incohérente : message
+    // lisible au lieu du texte brut de Postgres (le cas ne devrait
+    // plus se produire — lignes homogènes — mais on reste prudent).
+    const incoherente =
+      error.code === '23502' ||
+      error.message.includes('All object keys must match') ||
+      error.message.includes('null value in column');
     return NextResponse.json(
-      { erreur: reserve ? 'Réservé aux administrateurs.' : error.message },
+      {
+        erreur: reserve
+          ? 'Réservé aux administrateurs.'
+          : incoherente
+            ? 'Ouverture groupée impossible : états incohérents côté serveur. Réessayez ; si le problème persiste, prévenez l\u2019équipe.'
+            : error.message,
+      },
       { status: reserve ? 403 : 500 }
     );
   }
