@@ -16,7 +16,7 @@
 // /api/admin/cles-api (garde admin + RLS public.est_admin()).
 // ============================================================
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import ModaleConfirmation from '@/components/admin/ModaleConfirmation';
@@ -88,6 +88,13 @@ export default function ClesApi({
   );
   const [retirerCible, setRetirerCible] = useState<CoteCle | null>(null);
 
+  // Test manuel d'une clé : une seule sonde à la fois, résultat
+  // affiché SOUS le libellé de la ligne concernée.
+  const [testEnCours, setTestEnCours] = useState<string | null>(null);
+  const [resultatsTest, setResultatsTest] = useState<
+    Record<string, { ton: 'ok' | 'erreur'; texte: string }>
+  >({});
+
   // Formulaire d'ajout
   const [fournisseur, setFournisseur] = useState('gemini');
   const [libelle, setLibelle] = useState('');
@@ -95,7 +102,16 @@ export default function ClesApi({
   const [planMinimal, setPlanMinimal] = useState('');
   const [afficher, setAfficher] = useState(false);
 
-  const maintenant = useMemo(() => Date.now(), [cles]);
+  // Horloge : elle ne tourne QUE pendant un temps de repos, pour
+  // animer le décompte « En repos (N s) » et réafficher la clé comme
+  // de retour dans la rotation dès que le repos expire.
+  const reposEnCours = cles.some((c) => c.suspendueLe);
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+  useEffect(() => {
+    if (!reposEnCours) return undefined;
+    const minuteur = setInterval(() => setMaintenant(Date.now()), 1000);
+    return () => clearInterval(minuteur);
+  }, [reposEnCours]);
 
   async function envoyer(
     methode: 'POST' | 'PATCH' | 'DELETE',
@@ -165,6 +181,57 @@ export default function ClesApi({
 
   async function deplacer(cle: CoteCle, direction: 'monter' | 'descendre') {
     await envoyer('PATCH', { id: cle.id, direction });
+  }
+
+  // Sonde une clé : requête de contrôle auprès du fournisseur (sans
+  // consommation de quota). Le serveur met à jour les signaux de
+  // santé ; la ligne est rafraîchie localement avec la réponse.
+  async function tester(cle: CoteCle) {
+    setTestEnCours(cle.id);
+    setMessage(null);
+    try {
+      const reponse = await fetch('/api/admin/cles-api/tester', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: cle.id }),
+      });
+      const corps = (await reponse.json().catch(() => ({}))) as {
+        ok?: boolean;
+        message?: string;
+        erreur?: string;
+        echecsConsecutifs?: number;
+        suspendueLe?: string | null;
+        derniereErreur?: string | null;
+      };
+      if (!reponse.ok) {
+        setResultatsTest((r) => ({
+          ...r,
+          [cle.id]: { ton: 'erreur', texte: corps.erreur ?? 'Test impossible.' },
+        }));
+        return;
+      }
+      const ok = corps.ok === true;
+      majLocale(cle.id, {
+        echecsConsecutifs: ok ? 0 : (corps.echecsConsecutifs ?? cle.echecsConsecutifs),
+        suspendueLe: ok ? null : (corps.suspendueLe ?? cle.suspendueLe),
+        derniereErreur: ok ? null : (corps.derniereErreur ?? cle.derniereErreur),
+      });
+      setResultatsTest((r) => ({
+        ...r,
+        [cle.id]: {
+          ton: ok ? 'ok' : 'erreur',
+          texte: corps.message ?? (ok ? 'Clé valide.' : 'Clé refusée.'),
+        },
+      }));
+      router.refresh();
+    } catch {
+      setResultatsTest((r) => ({
+        ...r,
+        [cle.id]: { ton: 'erreur', texte: 'Réseau indisponible.' },
+      }));
+    } finally {
+      setTestEnCours(null);
+    }
   }
 
   async function retirer() {
@@ -365,6 +432,18 @@ export default function ClesApi({
                                 {cle.derniereErreur}
                               </span>
                             )}
+                            {resultatsTest[cle.id] && (
+                              <span
+                                className={
+                                  'block text-xs max-w-[240px] ' +
+                                  (resultatsTest[cle.id].ton === 'ok'
+                                    ? 'text-emerald-300'
+                                    : 'text-grenat-300')
+                                }
+                              >
+                                {resultatsTest[cle.id].texte}
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 pr-2 chiffres-tabulaires text-encre-300">
                             {cle.apercu ?? '••••'}
@@ -416,6 +495,15 @@ export default function ClesApi({
                                 onClick={() => deplacer(cle, 'descendre')}
                               >
                                 ↓
+                              </button>
+                              <button
+                                type="button"
+                                className="bouton-fantome min-h-11 text-xs px-2"
+                                disabled={enCours || testEnCours !== null}
+                                title="Envoyer une requête de contrôle au fournisseur (sans consommer de quota de génération)"
+                                onClick={() => tester(cle)}
+                              >
+                                {testEnCours === cle.id ? 'Test…' : 'Tester'}
                               </button>
                               <button
                                 type="button"
