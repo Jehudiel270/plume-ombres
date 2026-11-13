@@ -166,3 +166,36 @@ créer dans une prochaine vague si le journal d'audit consolidé est voulu.
 administration (§ 4) : `SUPABASE_SERVICE_ROLE_KEY` sur Vercel (Production
 et Preview), coller les clés dans l'onglet « Clés API », et pousser
 `develop` vers GitHub depuis votre machine.
+
+## 7. ADDENDUM (2) du 14/11 — journal_admin créée, traçabilité réveillée
+
+Sur demande, la table `journal_admin` a été créée et les quatre
+déclencheurs de traçabilité restés dormants depuis le 03/11 sont
+maintenant VIVANTS :
+
+- **Migration** `supabase/migrations/20261114000003_journal_admin.sql`
+  (aussi ajoutée au fichier consolidé — la garantie « un seul collage »
+  est maintenue) : table `journal_admin` (admin_id, cible_id, action,
+  motif, cree_le) sans aucune clé étrangère vers `auth.users` — la
+  trace survit à la suppression d'un compte, comme `admin_actions` ;
+- **Sécurité** : RLS activée, lecture réservée à `public.est_admin()`,
+  AUCUNE policy d'écriture (le journal est immuable depuis l'API — seuls
+  les traceurs `SECURITY DEFINER` et le rôle service y écrivent), tous
+  droits `anon` retirés explicitement ; jamais de valeur sensible : pour
+  une clé d'API, fournisseur + libellé + longueur + abonnement minimal +
+  position, jamais la clé ;
+- **Quatre traceurs créés** : `tracer_sections_admin`,
+  `tracer_fonctionnalites_etats`, `tracer_parametres_systeme`,
+  `tracer_cles_api` (définitions identiques aux fichiers d'origine) ;
+- **Preuve de bout en bout** (`scripts/verifier-journal-admin.mjs`,
+  conservé comme outil de maintenance) : deux écritures réelles dans une
+  transaction annulée ont produit les traces attendues au bon format,
+  puis `rollback` → 0 ligne résiduelle ; lecture `anon` refusée ;
+- La sonde anonyme couvre désormais `journal_admin` (présente = 401,
+  distingué de l'absence 404).
+
+À noter pour une future vague : le journal se remplit dès la première
+action d'administration (interrupteurs, sections, paramètres, clés) ;
+aucun écran ne le lit encore — un onglet « Journal » dans le tableau de
+bord (lecture `est_admin`, pagination sur `cree_le`) serait le
+prolongement naturel.
