@@ -11,11 +11,13 @@
 // ============================================================
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import {
   exporterMarkdown,
   libelleType,
+  metaCouleur,
   type EntreeCarnet,
   type LivreCarnet,
   type TypeCarnet,
@@ -224,8 +226,9 @@ export default function PanneauCarnet({
       {/* Liste */}
       {affichees.length === 0 ? (
         <p className="velours p-6 rounded-2xl text-sm text-encre-300 italic">
-          Rien ici encore : depuis le lecteur, le bouton « Carnet » conserve
-          une note, une citation ou un surlignage du chapitre ouvert.
+          Rien ici encore : dans le lecteur, sélectionnez un passage pour le
+          surligner ou l’ajouter à votre carnet — ou ouvrez « Carnet » dans la
+          barre d’outils du bas.
         </p>
       ) : (
         <ul className="space-y-4">
@@ -234,6 +237,12 @@ export default function PanneauCarnet({
             return (
               <li key={e.id} className="velours p-5 rounded-2xl space-y-3">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
+                  {e.couleur && (
+                    <span
+                      className={`h-3 w-3 rounded-full shrink-0 ${metaCouleur(e.couleur).pastille}`}
+                      aria-hidden="true"
+                    />
+                  )}
                   <span className="sur-titre text-grenat-400">{libelleType(e.type)}</span>
                   <span className="text-encre-500">
                     {livre?.titre ?? 'Livre'} {e.chapitre_titre ? `· ${e.chapitre_titre}` : ''}
@@ -279,7 +288,7 @@ export default function PanneauCarnet({
                     <p className="text-sm text-encre-200 whitespace-pre-line">{e.annotation}</p>
                   )
                 )}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {edition !== e.id && (
                     <button
                       type="button"
@@ -292,6 +301,12 @@ export default function PanneauCarnet({
                       Modifier la note
                     </button>
                   )}
+                  <Link
+                    href={`/livres/${e.livre_id}`}
+                    className="bouton-fantome min-h-9 text-xs inline-flex items-center"
+                  >
+                    Ouvrir le livre
+                  </Link>
                   <button
                     type="button"
                     disabled={enCours}

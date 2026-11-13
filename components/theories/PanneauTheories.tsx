@@ -10,7 +10,7 @@
 // même route (interrupteur + plan revérifiés côté serveur).
 // ============================================================
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -26,11 +26,21 @@ interface Props {
   livres: Array<{ id: string; titre: string }>;
   theories: Theorie[];
   livreId: string | null;
+  /** Onglet ouvert à l'arrivée (lien depuis le lecteur : comparateur). */
+  ongletInitial?: 'theories' | 'comparateur';
+  /** Terme prérempli (sélection de texte dans le lecteur → Comparer). */
+  termeInitial?: string;
 }
 
-export default function PanneauTheories({ livres, theories, livreId }: Props) {
+export default function PanneauTheories({
+  livres,
+  theories,
+  livreId,
+  ongletInitial = 'theories',
+  termeInitial = '',
+}: Props) {
   const router = useRouter();
-  const [onglet, setOnglet] = useState<'theories' | 'comparateur'>('theories');
+  const [onglet, setOnglet] = useState<'theories' | 'comparateur'>(ongletInitial);
 
   // ---------- Théories ----------
   const [livreChoisi, setLivreChoisi] = useState(livreId ?? livres[0]?.id ?? '');
@@ -86,7 +96,7 @@ export default function PanneauTheories({ livres, theories, livreId }: Props) {
   };
 
   // ---------- Comparateur ----------
-  const [terme, setTerme] = useState('');
+  const [terme, setTerme] = useState(termeInitial);
   const [paires, setPaires] = useState<PaireComparaison[] | null>(null);
   const [recherche, setRecherche] = useState(false);
 
@@ -112,6 +122,20 @@ export default function PanneauTheories({ livres, theories, livreId }: Props) {
       setRecherche(false);
     }
   };
+
+  // Arrivée depuis le lecteur (« Comparer » sur une sélection) : la
+  // recherche part toute seule sur le terme prérempli, une seule fois.
+  const lanceInitial = useRef(false);
+  useEffect(() => {
+    if (lanceInitial.current) return;
+    if (!termeInitial.trim() || termeInitial.trim().length < 2) return;
+    lanceInitial.current = true;
+    // Hors du corps synchrone de l'effet (règles React Compiler) :
+    // la recherche part après le rendu, une seule fois.
+    const minuteur = window.setTimeout(() => void comparer(), 0);
+    return () => window.clearTimeout(minuteur);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (livres.length === 0) {
     return (
@@ -140,7 +164,7 @@ export default function PanneauTheories({ livres, theories, livreId }: Props) {
           onClick={() => setOnglet('comparateur')}
           className={`min-h-10 text-sm px-4 ${onglet === 'comparateur' ? 'bouton-principal' : 'bouton-fantome'}`}
         >
-          Comparateur
+          Comparateur de traduction
         </button>
       </div>
 
@@ -272,12 +296,19 @@ export default function PanneauTheories({ livres, theories, livreId }: Props) {
         /* Comparateur F19 */
         <section className="velours p-5 rounded-2xl space-y-4" aria-labelledby="titre-comparateur">
           <h2 id="titre-comparateur" className="sur-titre text-encre-300">
-            Vérifier un terme dans toute la traduction
+            Comment ce terme est-il traduit partout ?
           </h2>
+          <p className="text-sm text-encre-300 leading-relaxed">
+            Tapez un terme — un nom de personnage, un surnom, une tournure
+            récurrente — et le comparateur liste chaque passage où il
+            apparaît, <strong>source en face de la traduction</strong>, dans
+            l’ordre de lecture. Utile pour vérifier d’un coup d’œil qu’un nom
+            ne change pas de rendu au fil des chapitres.
+          </p>
           <p className="text-xs text-encre-500 italic">
-            Choisissez le livre, tapez le terme (source ou traduction) : le
-            comparateur liste les passages concernés, dans l’ordre de lecture,
-            pour vérifier la cohérence du rendu.
+            Exemple : « Raven » montre aussitôt si ce personnage reste « Raven »
+            partout ou s’il devient « Corbeau » au chapitre 12. La liste est
+            plafonnée à 60 passages, extraits bornés — jamais le texte intégral.
           </p>
           <div className="flex flex-wrap gap-2">
             <select

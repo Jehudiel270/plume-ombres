@@ -47,6 +47,7 @@ const ENTREES: EntreeCarnet[] = [
     extrait: 'La brume gardait le val.',
     annotation: 'À relire au dernier tome.',
     chapitre_titre: 'Chapitre 3 — Le val',
+    couleur: 'or',
     created_at: '2026-11-12T10:00:00.000Z',
   },
   {
@@ -57,6 +58,7 @@ const ENTREES: EntreeCarnet[] = [
     extrait: null,
     annotation: 'Hypothèse : le gardien est son père.',
     chapitre_titre: null,
+    couleur: null,
     created_at: '2026-11-12T09:00:00.000Z',
   },
 ];

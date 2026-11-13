@@ -123,6 +123,7 @@ export default function Recherche({
         </span>
         <input
           ref={champRef}
+          id="champ-recherche-chapitre"
           type="search"
           value={term}
           onChange={(e) => {

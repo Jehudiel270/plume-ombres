@@ -38,8 +38,6 @@ import {
   useLecture,
 } from '@/lib/useLecture';
 import { CLEF_PROGRESSION } from '@/lib/progression';
-import BoutonCarnet from '@/components/carnet/BoutonCarnet';
-import AssistanceLecture from '@/components/lecteur/AssistanceLecture';
 import {
   DUREE_BAIL_NAVIGATEUR_MS,
   creerTravail,
@@ -56,7 +54,6 @@ import {
   type PaireBilingue,
 } from '@/lib/bilingue';
 import Lecteur from '@/components/lecteur/Lecteur';
-import LectureVocale from '@/components/lecteur/LectureVocale';
 import { usePreferencesLecture } from '@/components/lecteur/ReglagesLecture';
 import { useExports } from '@/components/lecteur/useExports';
 import type { ChapitreLeger, Compteurs } from '@/components/lecteur/partages';
@@ -83,6 +80,7 @@ export default function EspaceLivre({
   grapheOuvert = false,
   assistanceOuverte = false,
   progressionOuverte = false,
+  theoriesOuverte = false,
   modulesExplorer = [],
 }: {
   livreInitial: Livre;
@@ -117,6 +115,12 @@ export default function EspaceLivre({
    * ouvert (sinon aucun appel réseau du tout).
    */
   progressionOuverte?: boolean;
+  /**
+   * Interrupteur `theories` (F8/F19, ajout chantier) évalué CÔTÉ
+   * SERVEUR : le menu de sélection propose « Comparer » seulement si
+   * le module est ouvert.
+   */
+  theoriesOuverte?: boolean;
   /**
    * Interrupteur `bilingue` (F7) évalué CÔTÉ SERVEUR : le bouton de la
    * vue bilingue n'existe que si le module est ouvert pour ce lecteur.
@@ -950,23 +954,17 @@ export default function EspaceLivre({
                 lecture === 'bilingue' ? pairesBilingue : null
               }
               langueSourceBilingue={livre.langue_source}
-              outils={
-                <>
-                  {lectureVocaleOuverte && chapitreComplet ? (
-                    <LectureVocale texte={texteNet} />
-                  ) : null}
-                  {carnetOuverte && chapitreComplet ? (
-                    <BoutonCarnet
-                      livreId={livre.id}
-                      chapitreId={chapitreComplet.id}
-                      chapitreTitre={chapitreComplet.titre}
-                    />
-                  ) : null}
-                  {assistanceOuverte && chapitreComplet ? (
-                    <AssistanceLecture livreId={livre.id} chapitreLu={indexSelection + 1} />
-                  ) : null}
-                </>
-              }
+              livreId={livre.id}
+              chapitreLu={indexSelection + 1}
+              modeLecture={lecture}
+              onModeLecture={setLecture}
+              bilingueDisponible={bilingueOuverte && !!chapitreComplet?.texte_traduit}
+              modulesLecteur={{
+                vocale: lectureVocaleOuverte,
+                carnet: carnetOuverte,
+                reprise: assistanceOuverte,
+                theories: theoriesOuverte,
+              }}
             />
           </div>
         )}
