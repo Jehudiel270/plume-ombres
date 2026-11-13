@@ -24,6 +24,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import { paginer } from '@/lib/pagination';
 import type { Chapitre, Livre, StatutChapitre } from '@/lib/types';
@@ -82,6 +83,7 @@ export default function EspaceLivre({
   grapheOuvert = false,
   assistanceOuverte = false,
   progressionOuverte = false,
+  modulesExplorer = [],
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
@@ -120,6 +122,12 @@ export default function EspaceLivre({
    * vue bilingue n'existe que si le module est ouvert pour ce lecteur.
    */
   bilingueOuverte?: boolean;
+  /**
+   * Portes d'entrée des modules ouverts pour ce lecteur (construites
+   * côté serveur) : sans lien visible, un module activé au tableau de
+   * bord est introuvable pour le lecteur.
+   */
+  modulesExplorer?: { href: string; libelle: string; detail: string }[];
 }) {
   const supabaseRef = useRef(creerClientNavigateur());
   const requeteRef = useRef<string | null>(null);
@@ -843,6 +851,29 @@ export default function EspaceLivre({
           genPdf={genPdf}
           exportFidele={exportFidele}
         />
+
+        {/* Portes d'entrée des modules ouverts : activés au tableau de
+            bord, ils doivent être TROUVABLES ici — sans lien visible,
+            ils n'existent pas pour le lecteur. */}
+        {modulesExplorer.length > 0 && (
+          <nav aria-label="Modules ouverts pour ce livre">
+            <p className="text-[11px] uppercase tracking-wider text-encre-500 px-1">
+              Modules ouverts pour ce livre
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {modulesExplorer.map((m) => (
+                <Link
+                  key={m.href}
+                  href={m.href}
+                  title={m.detail}
+                  className="rounded-full border border-nuit-700 bg-nuit-900/60 px-3.5 py-1.5 text-xs text-encre-200 hover:text-encre-100 hover:border-violet-rom-500/60 transition-colors"
+                >
+                  {m.libelle}
+                </Link>
+              ))}
+            </div>
+          </nav>
+        )}
 
         {/* Message langue / info */}
         {etiquetteReprise && (
