@@ -283,7 +283,7 @@ export default function LectureVocale({ texte }: { texte: string }) {
     <div
       role="group"
       aria-label="Lecture à voix haute"
-      className="flex items-center gap-1 rounded-xl border border-nuit-700 bg-nuit-900/60 px-1.5 py-1"
+      className="flex items-center gap-1 rounded-xl border border-nuit-700 bg-nuit-900/60 px-1.5 py-1 shrink-0 max-w-full"
     >
       {statut !== 'lecture' ? (
         <button
