@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Client } from 'pg';
 
 function lireEnvLocal(cle: string): string {
+  if (process.env[cle]) return process.env[cle] as string;
   const contenu = readFileSync('.env.local', 'utf8');
   const ligne = contenu.split('\n').find((l) => l.trim().startsWith(`${cle}=`));
   if (!ligne) throw new Error(`Clé ${cle} introuvable dans .env.local`);
