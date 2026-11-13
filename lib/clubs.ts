@@ -1,0 +1,81 @@
+// ============================================================
+// lib/clubs.ts — Clubs de lecture PRIVÉS (F11) : règles pures.
+//
+// Décision de l'administrateur (12/11/2026) : les clubs restent
+// PRIVÉS — comptes inscrits uniquement, rejoint par CODE
+// d'invitation, aucune page publique, AUCUN texte de chapitre
+// partagé. Les messages portent un plafond anti-spoilers
+// (`chapitre_max`) appliqué CÔTÉ SERVEUR : un membre dont la
+// position de lecture est en deçà reçoit le message MASQUÉ.
+//
+// Ici : les règles pures (code d'invitation, plafond, bornes).
+// L'API applique ; cette librairie décide.
+// ============================================================
+
+/** Alphabet sans ambiguïté (pas de 0/O, 1/I/L) pour les codes. */
+const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+export const LONGUEUR_CODE = 8;
+export const MAX_MEMBRES = 12;
+export const MAX_CLUBS_PAR_COMPTE = 8;
+export const MAX_MESSAGE = 2000;
+export const MAX_TITRE = 120;
+export const MAX_DESCRIPTION = 600;
+
+/** Code d'invitation lisible (8 caractères). Aléatoire VOLONTAIRE :
+ *  valeur de sécurité côté client, régénérée jusqu'à validité côté
+ *  serveur (UNIQUE en base). */
+export function codeInvitation(aleatoire: () => number = Math.random): string {
+  let code = '';
+  for (let i = 0; i < LONGUEUR_CODE; i += 1) {
+    code += ALPHABET[Math.floor(aleatoire() * ALPHABET.length)];
+  }
+  return code;
+}
+
+export function estCodeValide(code: unknown): code is string {
+  return typeof code === 'string' && /^[A-HJKMNP-Z2-9]{8}$/.test(code);
+}
+
+/**
+ * Caviardage anti-spoilers (PUR, testé) : un message lié au chapitre
+ * `chapitreMax` est-il visible pour un membre rendu au chapitre
+ * `positionLecture` ? Règle du brief : RIEN au-delà du chapitre lu,
+ * filtrage côté serveur — jamais un flou CSS.
+ *   chapitreMax = 0  → hors intrigue, toujours visible ;
+ *   positionLecture >= chapitreMax → visible ;
+ *   sinon → masqué (le CONTENU n'est jamais envoyé au navigateur).
+ */
+export function messageVisiblePour(
+  chapitreMax: number,
+  positionLecture: number
+): boolean {
+  const max = Math.max(0, Math.round(Number(chapitreMax) || 0));
+  const lu = Math.max(0, Math.round(Number(positionLecture) || 0));
+  return max === 0 || lu >= max;
+}
+
+/** Libellé du plafond, pour l'interface. */
+export function libellePlafond(chapitreMax: number): string {
+  if (!chapitreMax || chapitreMax < 1) return 'Hors intrigue';
+  return `Jusqu’au chapitre ${chapitreMax}`;
+}
+
+/** Nettoie un message saisi : borné, sans espaces extrêmes. */
+export function propreMessage(brut: unknown): string {
+  if (typeof brut !== 'string') return '';
+  return brut.trim().replace(/\s+\n/g, '\n').slice(0, MAX_MESSAGE);
+}
+
+/** Nettoie un titre / une description de club. */
+export function propreTexte(brut: unknown, maximum: number): string {
+  if (typeof brut !== 'string') return '';
+  return brut.trim().replace(/\s+/g, ' ').slice(0, maximum);
+}
+
+/** Position de lecture déclarée : entier borné (0 → 2000). */
+export function bornePosition(brut: unknown): number {
+  const n = Math.round(Number(brut));
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(2000, n);
+}

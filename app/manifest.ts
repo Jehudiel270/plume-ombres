@@ -25,6 +25,14 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: '#0a0608',
     theme_color: '#0a0608',
     lang: 'fr',
+    // Cible du partage système : « Partager » depuis une autre
+    // application (téléphone installé) envoie title / text / url vers
+    // /partager, où le lecteur décide de ce qu'il en fait (carnet F2).
+    share_target: {
+      action: '/partager',
+      method: 'GET',
+      params: { title: 'title', text: 'text', url: 'url' },
+    },
     categories: ['books', 'reading', 'productivity'],
     icons: [
       {
