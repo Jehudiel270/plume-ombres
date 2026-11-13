@@ -55,6 +55,9 @@ const ATTENDUS = [
   ['table', 'parametres_systeme', '20261113000001'],
   ['table', 'cles_api', '20261113000002'],
   ['table', 'evenements_webhook', '20261114000002'],
+  // journal_admin : droits anon révoqués → présente = HTTP 401/403
+  // (distingué de l'absence, qui donne 404).
+  ['table', 'journal_admin', '20261114000003'],
   ['fonction', 'admin_stats_revenus', '20261114000001'],
   ['fonction', 'admin_supprimer_compte', '20261111000002'],
 ];
