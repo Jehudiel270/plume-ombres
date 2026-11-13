@@ -138,6 +138,42 @@ Incident noté : le bac à sable a été recyclé en cours de chantier (dépôt 
 remplacé par un clone ancien) — les modules 4b à 8 ont été RECONSTRUITS puis
 poussés immédiatement après chaque merge ; aucun contenu perdu.
 
+## 13/11/2026 — Mise en ligne de l'aperçu : diagnostic + clé du modèle
+
+État de départ : les modules 1 à 12 sont tous MERGÉS dans `develop` et
+poussés. Le retour du terrain est le suivant :
+
+1. **« Internal Server Error » sur l'aperçu develop** — diagnostic
+   confirmé par reproduction locale : les variables d'environnement
+   Supabase n'étaient pas actives pour la portée « Preview » de Vercel ;
+   `createServerClient` lève à chaque requête et l'environnement entier
+   répond un 500 opaque. Deux parades livrées sur
+   `correctif/proxy-env-manquant` (mergé) :
+   - le proxy répond une page **503 explicite** (quoi cocher, où) quand
+     les variables manquent, avec trace console pour les logs Vercel ;
+   - une panne momentanée de Supabase est tolérée : la session est
+     ignorée au lieu de faire répondre 500 à tout le site (pages
+     publiques lisibles, privées renvoyées vers `/connexion`).
+   Procédure complète d'ouverture : `docs/mise-en-ligne-apercu-develop.md`
+   (portée Preview + SQL consolidé `docs/sql/migrations-chantier-consolidees.sql`
+   + interrupteurs + clé du modèle).
+2. **Clé du modèle d'aide à la lecture collable dans le panneau admin**
+   (`fonctionnalite/cle-modele-admin`, mergée) : table
+   `parametres_systeme` (migration 20261113000001, RLS lecture + écriture
+   réservées à `est_admin()`, journalisation SANS la valeur), API
+   `/api/admin/parametres` (GET aperçu masqué / PUT / DELETE, garde
+   `admin.fonctionnalites.gerer`), formulaire en bas de
+   `/admin/fonctionnalites`. `lib/parametres.ts` : la variable
+   d'environnement `GEMINI_API_KEY` prime toujours (voie officielle pour
+   tous les abonnés) ; la clé en base sert à l'essai PAR l'administrateur
+   sur SON compte, sans redéploiement. La valeur complète ne quitte
+   jamais le serveur (aperçu `AIza…x9Qz`).
+   Fiche mise à jour : `docs/fonctionnalites/08-assistance-reprise.md`.
+3. Vérifications du 13/11 : suite complète **239/239**, `check:flags`
+   **17 interrupteurs / 33 pages / 30 routes** toutes couvertes, build
+   OK (**36/36** pages), reproduction locale du 503 et de la dégradation
+   gracieuse (accueil 200, `/bibliotheque` → 307).
+
 ## Précautions de fin de chantier
 
 - Avant le merge final `develop` → `main` : passer les tests complets, appliquer les

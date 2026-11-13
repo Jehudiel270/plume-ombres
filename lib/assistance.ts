@@ -16,10 +16,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  cleGemini,
   delaiModeleMs,
   modelesGemini,
 } from '@/lib/providers/gemini';
+import { resoudreCleGemini } from '@/lib/parametres';
 
 /** Plafond de contexte envoyé au modèle (caractères) : les derniers
  *  chapitres lus priment (le début est résumé de mémoire du texte
@@ -37,15 +37,24 @@ function indisponible(statut: number): boolean {
  * Appel MODELE unique (one-shot) : instruction système + contenu.
  * Retourne le texte du modèle, bascule de modèle en cas d'erreur
  * 404/429/503 ou de silence (même logique que la traduction).
+ *
+ * `client` (facultatif) : la session courante — sans variable
+ * d'environnement GEMINI_API_KEY, la clé collée par l'administrateur
+ * dans son panneau n'est lisible que si CETTE session est admin.
  */
 export async function demanderModele(
   systeme: string,
   contenu: string,
-  maxSortie = 1200
+  maxSortie = 1200,
+  client?: SupabaseClient
 ): Promise<string> {
-  const cle = cleGemini();
+  const cle = await resoudreCleGemini(client);
   if (!cle) {
-    throw new Error('Le modèle d’aide à la lecture n’est pas configuré.');
+    throw new Error(
+      'Le modèle d’aide à la lecture n’est pas configuré : collez la clé ' +
+        'dans le panneau d’administration (Fonctionnalités) ou définissez ' +
+        'la variable d’environnement GEMINI_API_KEY.'
+    );
   }
   const corps = JSON.stringify({
     systemInstruction: { parts: [{ text: systeme }] },
@@ -185,7 +194,8 @@ export async function resumerReprise(
       'termine par une phrase « Vous en êtes à … » qui rappelle où la lecture ' +
       's’est arrêtée.',
     contexte.contexte,
-    800
+    800,
+    client
   );
 
   const dernierTitre = contexte.chapitres[contexte.chapitres.length - 1] ?? null;
@@ -233,6 +243,7 @@ export async function questionnerIntrigue(
       'sans anticiper la suite, sans spoil. Réponds en français, en 3 phrases ' +
       'au maximum.',
     `${contexte.contexte}\n\n=== Question du lecteur ===\n${propre}`,
-    600
+    600,
+    client
   );
 }
