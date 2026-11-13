@@ -1226,6 +1226,23 @@ html[data-fond='fixe'] .fond-fixe {
   padding-inline: var(--pref-marges, 1.75rem);
 }
 
+/* Plein écran du lecteur (ConfortLecture, socle) : le conteneur du
+   chapitre devient l'élément plein écran ET le conteneur défilant.
+   Le fond suit la palette active (les palettes redéfinissent toutes
+   --color-nuit-900) ; la mesure reste celle des préférences. */
+#lecteur-chapitre:fullscreen {
+  overflow-y: auto;
+  background:
+    radial-gradient(
+      ellipse 70% 40% at 50% 0%,
+      color-mix(in srgb, var(--color-grenat-700) 10%, transparent),
+      transparent
+    ),
+    var(--color-nuit-900);
+  padding-block: clamp(1.25rem, 3.5vw, 2.75rem);
+  padding-inline: var(--pref-marges, 1.75rem);
+}
+
 /* Colonne de lecture : mesure réglable en CARACTÈRES (largeur ×
    facteur de la police, en multiples de la taille de police), centrée
    — la mesure ne dépend plus de la taille de la fenêtre. */

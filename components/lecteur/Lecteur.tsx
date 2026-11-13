@@ -54,6 +54,7 @@ import type { PaireBilingue } from '@/lib/bilingue';
 import Recherche from '@/components/Recherche';
 import type { ControlePreferences } from '@/components/lecteur/ReglagesLecture';
 import ReglagesLecture from '@/components/lecteur/ReglagesLecture';
+import ConfortLecture from '@/components/lecteur/ConfortLecture';
 
 const ID_LECTEUR = 'lecteur-chapitre';
 const ID_CORPS = 'corps-livre';
@@ -204,6 +205,31 @@ function Lecteur({
   // Garde-fou défensif : si les plaques ont rétréci, on borne l'index.
   const indexAffiche =
     plaques.length > 0 ? Math.min(indexActif, plaques.length - 1) : 0;
+
+  // ---------- Raccourcis clavier : chapitres (← / →) ----------
+  // Uniquement quand AUCUN contrôle n'a le focus (un cadre deux
+  // colonnes focalisé gère ses propres flèches, les champs de saisie
+  // ne doivent pas naviguer) : on exige un corps de page neutre.
+  const naviguerPrecedent = useCallback(() => {
+    if (chapitrePrecedentId) onNaviguer(chapitrePrecedentId);
+  }, [chapitrePrecedentId, onNaviguer]);
+  const naviguerSuivant = useCallback(() => {
+    if (chapitreSuivantId) onNaviguer(chapitreSuivantId);
+  }, [chapitreSuivantId, onNaviguer]);
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === 'ArrowLeft' && document.activeElement === document.body) {
+        e.preventDefault();
+        naviguerPrecedent();
+      } else if (e.key === 'ArrowRight' && document.activeElement === document.body) {
+        e.preventDefault();
+        naviguerSuivant();
+      }
+    };
+    document.addEventListener('keydown', surTouche);
+    return () => document.removeEventListener('keydown', surTouche);
+  }, [naviguerPrecedent, naviguerSuivant]);
   // La plaque active est ramenée à l'écran (marque spéciale montée
   // dans le corps du chapitre).
   useEffect(() => {
@@ -474,6 +500,12 @@ function Lecteur({
                 reinitialiser={reinitialiser}
               />
               {outils}
+              <ConfortLecture
+                cibleId={ID_LECTEUR}
+                cadreRef={cadreRef}
+                deuxColonnes={deuxColonnes}
+                cleChapitre={chapitreComplet?.id ?? ''}
+              />
               {deuxColonnes && (
                 <div className="hidden lg:flex items-center gap-1">
                   <button

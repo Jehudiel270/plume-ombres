@@ -18,8 +18,9 @@ import { decouperEnParagraphes, estSeparateurScene } from '@/lib/pagination';
  *  si un paragraphe dépasse cette limite. */
 export const LIMITE_ENONCE = 4_000;
 
-/** Vitesse de lecture proposées (×1 = voix normale). */
-export const VITESSES = [0.75, 1, 1.25, 1.5] as const;
+/** Vitesse de lecture proposées (×1 = voix normale). Étendue après
+ *  retour des lecteurs : écoute rapide (×1,75–×2) et lente (×0,5). */
+export const VITESSES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 export type VitesseLecture = (typeof VITESSES)[number];
 
 /** Vrai si la valeur est une vitesse connue. */

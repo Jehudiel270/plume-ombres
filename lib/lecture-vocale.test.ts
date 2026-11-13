@@ -106,5 +106,8 @@ test('vitesses : normalisation prudente', () => {
   assert.equal(normaliserVitesse(7), 1);
   assert.equal(normaliserVitesse('rapide'), 1);
   assert.equal(estVitesse(0.75), true);
-  assert.equal(estVitesse(0.5), false);
+  assert.equal(estVitesse(0.5), true); // étendue : ×0,5 désormais proposé
+  assert.equal(estVitesse(2), true); // étendue : ×2 désormais proposé
+  assert.equal(estVitesse(0.25), false);
+  assert.equal(estVitesse(2.5), false);
 });
