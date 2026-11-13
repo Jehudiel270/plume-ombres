@@ -73,6 +73,36 @@ const PAGES_ATIELIER: Array<{
     libelle: 'Cartes de lecture',
     detail: 'Visuels de citation, extraits bornés et attribués',
   },
+  {
+    cle: 'defis',
+    href: '/defis',
+    libelle: 'Défis de lecture',
+    detail: 'Objectifs personnels, progression calculée, rien de punitif',
+  },
+  {
+    cle: 'clubs',
+    href: '/clubs',
+    libelle: 'Clubs de lecture',
+    detail: 'Cercles privés entre inscrits, anti-spoilers par chapitre',
+  },
+  {
+    cle: 'collections',
+    href: '/collections',
+    libelle: 'Collections',
+    detail: 'Vos listes privées : à relire, série du moment…',
+  },
+  {
+    cle: 'calendrier',
+    href: '/calendrier',
+    libelle: 'Calendrier de lecture',
+    detail: 'Vos chapitres découverts par jour, votre série, vos échéances',
+  },
+  {
+    cle: 'catalogue_public',
+    href: '/catalogue',
+    libelle: 'Catalogue',
+    detail: 'Votre bibliothèque présentée comme une librairie, filtrable',
+  },
 ];
 
 export async function GET(): Promise<NextResponse> {

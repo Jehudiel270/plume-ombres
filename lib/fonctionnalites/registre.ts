@@ -115,7 +115,7 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
     description:
       'Catalogue filtrable, pages genres, rangées éditoriales de l’accueil.',
     itineraires: ['/catalogue', '/genres'],
-    api: ['/api/catalogue'],
+    api: [],
     planMinimal: null,
     risqueJuridique: true,
     noteJuridique: LEGAL,
@@ -127,9 +127,11 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
     libelle: 'Collections éditoriales',
     groupe: 'Exposition publique',
     description:
-      'Collections de livres mises en avant (Plume Sélection et apparentées).',
+      'Collections de livres constituées par le lecteur (listes privées : '
+      + '« à relire », « série préférée »…). La variante atelier des '
+      + 'collections : rien n’est exposé à des tiers.',
     itineraires: ['/collections'],
-    api: [],
+    api: ['/api/collections'],
     planMinimal: null,
     risqueJuridique: true,
     noteJuridique: LEGAL,
@@ -310,7 +312,7 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
     groupe: 'Communauté',
     description: 'Objectifs et défis personnels non manipulateurs.',
     itineraires: ['/defis'],
-    api: [],
+    api: ['/api/defis'],
     planMinimal: null,
     prod: false,
   },
@@ -382,6 +384,11 @@ export const ITINERAIRES_SOCLE: readonly string[] = [
   '/api/og',
   '/api/fedapay-relay',
   '/api/features',
+  // Centre de notifications du lecteur et journal des nouveautés :
+  // deux pages du SOCLE dans la maquette (FEATURE-FLAGS.md) — un
+  // compte rendu de l’activité du compte, aucun contenu de lecture.
+  '/notifications',
+  '/annonces',
   // Liens des modules ouverts pour la barre de navigation (aucun
   // contenu de lecture : des liens, évalués côté serveur).
   '/api/atelier',

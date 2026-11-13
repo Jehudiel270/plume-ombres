@@ -75,6 +75,7 @@ const LIENS_SITE: Lien[] = [
   { href: '/', libelle: 'Accueil' },
   { href: '/bibliotheque', libelle: 'Bibliothèque' },
   { href: '/favoris', libelle: 'Favoris' },
+  { href: '/annonces', libelle: 'Nouveautés' },
   { href: '/tarifs', libelle: 'Tarifs' },
   { href: '/faq', libelle: 'FAQ' },
   { href: '/contact', libelle: 'Contact' },
