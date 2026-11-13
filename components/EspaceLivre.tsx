@@ -78,6 +78,7 @@ export default function EspaceLivre({
   lectureVocaleOuverte = false,
   bilingueOuverte = false,
   carnetOuverte = false,
+  grapheOuvert = false,
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
@@ -94,6 +95,11 @@ export default function EspaceLivre({
    * le bouton du carnet n'existe que si le module est ouvert.
    */
   carnetOuverte?: boolean;
+  /**
+   * Interrupteur `graphe` (F25, ajout chantier) évalué CÔTÉ SERVEUR :
+   * le lien vers le graphe narratif n'existe que si le module est ouvert.
+   */
+  grapheOuvert?: boolean;
   /**
    * Interrupteur `bilingue` (F7) évalué CÔTÉ SERVEUR : le bouton de la
    * vue bilingue n'existe que si le module est ouvert pour ce lecteur.
@@ -790,6 +796,7 @@ export default function EspaceLivre({
           tempsEstime={tempsEstime}
           tempsLecture={tempsLecture}
           chapitreDisponible={!!chapitreComplet}
+          grapheOuvert={grapheOuvert}
           onChangerLangues={changerLangues}
           onExporterChapitre={exporterChapitre}
           onExporterLivre={exporterLivre}
