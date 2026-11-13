@@ -31,6 +31,18 @@ const SECTIONS: { cle: string; libelle: string; detail: string }[] = [
   { cle: 'audience', libelle: 'Audience', detail: 'visites, pages vues, provenance' },
   { cle: 'systeme', libelle: 'Système', detail: 'santé des moteurs, journal, exports' },
   { cle: 'notifications', libelle: 'Alertes', detail: 'notifications de paiement réussi ou échoué' },
+  // Nouveaux modules du chantier post-lancement : mêmes cases que les
+  // onglets du tableau de bord (la base les valide aussi).
+  {
+    cle: 'cles_api',
+    libelle: 'Clés API',
+    detail: 'réservoir des clés des moteurs : aperçu masqué, test, suspension',
+  },
+  {
+    cle: 'fonctionnalites',
+    libelle: 'Fonctionnalités',
+    detail: 'interrupteurs des modules : ouvrir, fermer, déploiement progressif',
+  },
 ];
 
 interface Props {
