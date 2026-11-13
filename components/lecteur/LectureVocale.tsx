@@ -278,94 +278,128 @@ export default function LectureVocale({ texte }: { texte: string }) {
   if (!disponible) return null;
 
   const triees = voixTriees(voix);
+  const avancement =
+    segments.length > 0
+      ? Math.min(((indexLu + 1) / segments.length) * 100, 100)
+      : 0;
 
   return (
-    <div
-      role="group"
-      aria-label="Lecture à voix haute"
-      className="flex items-center gap-1 rounded-xl border border-nuit-700 bg-nuit-900/60 px-1.5 py-1 shrink-0 max-w-full"
-    >
-      {statut !== 'lecture' ? (
-        <button
-          type="button"
-          onClick={demarrer}
-          disabled={segments.length === 0}
-          aria-label={
-            statut === 'pause' ? 'Reprendre la lecture à voix haute' : 'Lire à voix haute'
-          }
-          title={statut === 'pause' ? 'Reprendre' : 'Écouter le chapitre'}
-          className="bouton-fantome !px-2.5 !py-1.5 text-xs min-h-9 disabled:opacity-35"
-        >
-          ▶
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={mettreEnPause}
-          aria-label="Mettre la lecture en pause"
-          title="Pause"
-          className="bouton-fantome !px-2.5 !py-1.5 text-xs min-h-9"
-        >
-          ⏸
-        </button>
-      )}
-      {statut !== 'arret' && (
-        <button
-          type="button"
-          onClick={arreter}
-          aria-label="Arrêter la lecture à voix haute"
-          title="Arrêter"
-          className="bouton-fantome !px-2.5 !py-1.5 text-xs min-h-9"
-        >
-          ⏹
-        </button>
-      )}
-
-      <label className="sr-only" htmlFor="vitesse-vocale">
-        Vitesse de lecture
-      </label>
-      <select
-        id="vitesse-vocale"
-        className="champ-sombre select-sombre rounded-lg border border-nuit-700 bg-nuit-850 px-1.5 py-1 text-xs text-encre-100"
-        value={vitesse}
-        onChange={(e) => changerVitesse(Number(e.target.value))}
+    <>
+      {/* Déclencheur dans la barre d'outils du chapitre : compact,
+          SANS réglages — tout vit dans la barre flottante ci-dessous,
+          qui reste à l'écran pendant qu'on fait défiler le texte (fini
+          le retour en haut du chapitre pour arrêter la voix). */}
+      <button
+        type="button"
+        onClick={statut === 'lecture' ? mettreEnPause : demarrer}
+        disabled={segments.length === 0}
+        aria-label={
+          statut === 'lecture'
+            ? 'Mettre la lecture à voix haute en pause'
+            : statut === 'pause'
+              ? 'Reprendre la lecture à voix haute'
+              : 'Lire le chapitre à voix haute'
+        }
+        title={statut === 'lecture' ? 'Pause' : 'Écouter ce chapitre'}
+        className="bouton-fantome !px-2.5 !py-1.5 text-xs min-h-9 disabled:opacity-35 shrink-0"
       >
-        {VITESSES.map((v) => (
-          <option key={v} value={v}>
-            ×{v}
-          </option>
-        ))}
-      </select>
+        {statut === 'lecture' ? '⏸' : '▶'}
+      </button>
 
-      {triees.length > 1 && (
-        <>
-          <label className="sr-only" htmlFor="voix-vocale">
-            Voix de synthèse
-          </label>
-          <select
-            id="voix-vocale"
-            className="champ-sombre select-sombre max-w-36 rounded-lg border border-nuit-700 bg-nuit-850 px-1.5 py-1 text-xs text-encre-100"
-            value={voixPreferee ?? ''}
-            onChange={(e) => changerVoix(e.target.value)}
+      {/* Barre flottante : fixée en bas de l'écran tant que la voix est
+          active (lecture ou pause). Cibles tactiles de 44 px, marge
+          de sécurité iOS (`safe-area-inset-bottom`) pour le téléphone. */}
+      {statut !== 'arret' && (
+        <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <div
+            role="group"
+            aria-label="Lecture à voix haute en cours"
+            className="pointer-events-auto mx-auto max-w-2xl rounded-2xl border border-nuit-700 bg-nuit-900/95 shadow-2xl backdrop-blur px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2"
           >
-            <option value="">Voix automatique</option>
-            {triees.map((v) => (
-              <option key={v.name} value={v.name}>
-                {v.name} ({v.lang})
-              </option>
-            ))}
-          </select>
-        </>
-      )}
+            {statut === 'lecture' ? (
+              <button
+                type="button"
+                onClick={mettreEnPause}
+                aria-label="Mettre la lecture en pause"
+                title="Pause"
+                className="bouton-fantome !px-3 !py-2 min-h-11 min-w-11 shrink-0"
+              >
+                ⏸
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={demarrer}
+                aria-label="Reprendre la lecture"
+                title="Reprendre"
+                className="bouton-fantome !px-3 !py-2 min-h-11 min-w-11 shrink-0"
+              >
+                ▶
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={arreter}
+              aria-label="Arrêter la lecture à voix haute"
+              title="Arrêter"
+              className="bouton-fantome !px-3 !py-2 min-h-11 min-w-11 shrink-0"
+            >
+              ⏹
+            </button>
 
-      {segments.length > 0 && statut !== 'arret' && (
-        <span
-          className="text-[10px] text-encre-500 tabular-nums px-1"
-          aria-live="polite"
-        >
-          {Math.min(indexLu + 1, segments.length)}/{segments.length}
-        </span>
+            {/* Avancement : barre fine + compteur de paragraphes. */}
+            <div className="flex-1 min-w-32">
+              <div className="h-1.5 rounded-full bg-nuit-700 overflow-hidden" aria-hidden>
+                <div
+                  className="h-full rounded-full bg-grenat-400 transition-[width] duration-500"
+                  style={{ width: `${avancement}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-encre-500 mt-1 tabular-nums" aria-live="polite">
+                {statut === 'pause' ? 'En pause — ' : ''}
+                {Math.min(indexLu + 1, segments.length)}/{segments.length} paragraphes
+              </p>
+            </div>
+
+            <label className="sr-only" htmlFor="vitesse-vocale-flottante">
+              Vitesse de lecture
+            </label>
+            <select
+              id="vitesse-vocale-flottante"
+              className="champ-sombre select-sombre rounded-lg border border-nuit-700 bg-nuit-850 px-2 py-1.5 text-xs text-encre-100 min-h-11"
+              value={vitesse}
+              onChange={(e) => changerVitesse(Number(e.target.value))}
+            >
+              {VITESSES.map((v) => (
+                <option key={v} value={v}>
+                  ×{v}
+                </option>
+              ))}
+            </select>
+
+            {triees.length > 1 && (
+              <>
+                <label className="sr-only" htmlFor="voix-vocale-flottante">
+                  Voix de synthèse
+                </label>
+                <select
+                  id="voix-vocale-flottante"
+                  className="champ-sombre select-sombre max-w-36 rounded-lg border border-nuit-700 bg-nuit-850 px-2 py-1.5 text-xs text-encre-100 min-h-11"
+                  value={voixPreferee ?? ''}
+                  onChange={(e) => changerVoix(e.target.value)}
+                >
+                  <option value="">Voix automatique</option>
+                  {triees.map((v) => (
+                    <option key={v.name} value={v.name}>
+                      {v.name} ({v.lang})
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }

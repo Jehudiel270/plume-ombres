@@ -54,6 +54,13 @@ const LIBELLES_PLAN: Record<string, string> = {
   illimite: 'Illimité',
 };
 
+// Modules dont l'ÉCRAN n'a pas encore été construit : le registre
+// déclare leurs itinéraires prévus, mais ouvrir l'interrupteur ne
+// change rien pour les lecteurs tant que la page n'existe pas.
+// Affiché franchement dans le panneau plutôt que de laisser croire
+// à un module actif.
+const MODULES_SANS_ECRAN = new Set(['collections', 'calendrier', 'clubs', 'defis']);
+
 function LigneInterrupteur({ interrupteur }: { interrupteur: InterrupteurAdmin }) {
   const router = useRouter();
   const [etat, setEtat] = useState(interrupteur.etat);
@@ -156,6 +163,14 @@ function LigneInterrupteur({ interrupteur }: { interrupteur: InterrupteurAdmin }
             interrupteur.sansItineraire
           )}
         </p>
+
+        {MODULES_SANS_ECRAN.has(interrupteur.cle) && (
+          <p className="text-xs text-encre-500 rounded-lg border border-nuit-700 bg-nuit-900/40 px-3 py-2">
+            Écran pas encore construit : ouvrir ce module ne change rien
+            pour les lecteurs pour l’instant (la page{' '}
+            {interrupteur.itineraires[0] ?? 'prévue'} reste à créer).
+          </p>
+        )}
 
         {interrupteur.risqueJuridique && (
           <p className="text-xs text-grenat-300 rounded-lg border border-grenat-500/40 bg-grenat-500/10 px-3 py-2">
