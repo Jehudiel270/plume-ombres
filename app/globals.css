@@ -1032,6 +1032,18 @@ select.champ-sombre option {
   align-items: flex-start;
 }
 
+/* Correctif 13/11 : en dessous de `lg`, le lecteur affiche sa barre de
+   navigation collée au bas (Précédent / sommaire / Suivant, z-30) ;
+   le bouton flottant se posait DESSUS et masquait « Précédent ». On
+   relève donc la zone au-dessus de cette barre (~3,5 rem de haut,
+   plus la zone sûre) — sur les autres pages, le bouton flotte
+   simplement un peu plus haut, sans jamais quitter le pouce. */
+@media (max-width: 63.98em) {
+  .zone-apparence {
+    bottom: calc(4.4rem + env(safe-area-inset-bottom));
+  }
+}
+
 /* Sur les fonds d'ambiance animés, le bouton reste lisible :
    surface opaque + flou léger, sans jamais cacher la lumière. */
 .bouton-apparence {

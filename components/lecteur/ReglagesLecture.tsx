@@ -405,7 +405,7 @@ export default function ReglagesLecture({
         ref={boutonRef}
         type="button"
         onClick={() => setOuvert((o) => !o)}
-        className={`bouton-fantome !px-3 !py-1.5 text-xs ${
+        className={`bouton-fantome !px-2.5 !py-1.5 text-xs min-h-10 ${
           ouvert ? '!border-grenat-600 text-grenat-300' : ''
         }`}
         title="Réglages de lecture (police, taille, espacement, thème…)"

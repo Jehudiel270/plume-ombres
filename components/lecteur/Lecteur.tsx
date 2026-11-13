@@ -420,15 +420,20 @@ function Lecteur({
   const basDePage = (
     <nav
       aria-label="Navigation de chapitre"
-      className="lg:hidden sticky bottom-0 z-30 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="lg:hidden sticky bottom-0 z-30 pt-2 pb-[max(0.4rem,env(safe-area-inset-bottom))]"
     >
-      <div className="flex items-stretch gap-2 rounded-2xl border border-nuit-700 bg-nuit-900/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-md">
+      {/* Compact (correctif 13/11) : hauteur 40 px, libellés sur une
+          seule ligne (ils se repliaient en deux lignes et le bouton
+          « Précédent » débordait), fond OPAQUE (le texte du chapitre
+          se voyait en transparence à travers la barre pendant le
+          défilement), largeur plafonnée des deux boutons de bord. */}
+      <div className="flex items-stretch gap-1.5 rounded-2xl border border-nuit-700 bg-nuit-900 p-1 shadow-2xl shadow-black/60">
         <button
           type="button"
           onClick={() => chapitrePrecedentId && onNaviguer(chapitrePrecedentId)}
           disabled={!chapitrePrecedentId}
           aria-label="Chapitre précédent"
-          className="bouton-fantome flex-1 min-h-12 text-xs disabled:opacity-35"
+          className="bouton-fantome flex-1 max-w-36 min-h-10 px-2 text-[11px] whitespace-nowrap disabled:opacity-35"
         >
           ‹ Précédent
         </button>
@@ -436,10 +441,10 @@ function Lecteur({
           type="button"
           onClick={onOuvrirTiroir}
           aria-label="Ouvrir le sommaire"
-          className="bouton-fantome flex-1 min-h-12 flex flex-col items-center justify-center leading-none"
+          className="bouton-fantome w-16 shrink-0 min-h-10 flex items-center justify-center gap-1 whitespace-nowrap"
         >
           <span className="text-sm" aria-hidden="true">☰</span>
-          <span className="text-[10px] text-encre-500 mt-0.5">
+          <span className="text-[10px] text-encre-500">
             {position}/{total}
           </span>
         </button>
@@ -448,7 +453,7 @@ function Lecteur({
           onClick={() => chapitreSuivantId && onNaviguer(chapitreSuivantId)}
           disabled={!chapitreSuivantId}
           aria-label="Chapitre suivant"
-          className="bouton-principal flex-1 min-h-12 text-xs disabled:opacity-35"
+          className="bouton-principal flex-1 max-w-36 min-h-10 px-2 text-[11px] whitespace-nowrap disabled:opacity-35"
         >
           Suivant ›
         </button>
@@ -484,16 +489,25 @@ function Lecteur({
               <div className="liseret mx-auto mt-5" />
             </header>
 
-            {/* Barre outils du chapitre : recherche + réglages confort */}
-            <div className="flex items-center gap-2 mb-6 -mx-1 px-1">
-              <Recherche
-                term={term}
-                texte={texteNet}
-                plaques={plaques}
-                indexActif={indexAffiche}
-                onTerm={setTerm}
-                onIndexActif={setIndexActif}
-              />
+            {/* Barre outils du chapitre : recherche + réglages confort.
+                RESPONSIVE (correctif 13/11) : la barre REPOUSSE sur
+                plusieurs lignes (`flex-wrap`) au lieu de compresser puis
+                faire déborder ses éléments ; la recherche occupe une
+                ligne entière en dessous de `sm` (elle était écrasée à
+                0 px : seule la loupe débordait, coupée par le bord
+                gauche). Les marges négatives sont retirées : elles
+                faisaient sortir la barre du cadre sur mobile. */}
+            <div className="flex flex-wrap items-center gap-2 gap-y-2.5 mb-6">
+              <div className="order-first basis-full sm:basis-auto sm:flex-1 min-w-0">
+                <Recherche
+                  term={term}
+                  texte={texteNet}
+                  plaques={plaques}
+                  indexActif={indexAffiche}
+                  onTerm={setTerm}
+                  onIndexActif={setIndexActif}
+                />
+              </div>
               <ReglagesLecture
                 prefs={prefs}
                 maj={maj}
