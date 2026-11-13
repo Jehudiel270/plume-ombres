@@ -81,6 +81,7 @@ export default function EspaceLivre({
   carnetOuverte = false,
   grapheOuvert = false,
   assistanceOuverte = false,
+  progressionOuverte = false,
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
@@ -108,6 +109,12 @@ export default function EspaceLivre({
    * module est ouvert (abonnés).
    */
   assistanceOuverte?: boolean;
+  /**
+   * Interrupteur `progression` (A17, ajout chantier) évalué CÔTÉ
+   * SERVEUR : l'XP de découverte n'est envoyée que si le module est
+   * ouvert (sinon aucun appel réseau du tout).
+   */
+  progressionOuverte?: boolean;
   /**
    * Interrupteur `bilingue` (F7) évalué CÔTÉ SERVEUR : le bouton de la
    * vue bilingue n'existe que si le module est ouvert pour ce lecteur.
@@ -432,6 +439,26 @@ export default function EspaceLivre({
       ignore = true;
     };
   }, [selection]);
+
+  // ---------- XP de découverte (A17) ----------
+  // Un seul envoi par chapitre OUVERT, seulement si l'interrupteur
+  // `progression` est ouvert (sinon aucun appel réseau) — l'API
+  // ignore les doublons (upsert on conflict do nothing) et ne
+  // renvoie rien d'obligatoire : fire-and-forget silencieux.
+  const progressionRef = useRef(false);
+  progressionRef.current = progressionOuverte;
+  useEffect(() => {
+    if (!progressionRef.current || !chapitreComplet) return;
+    const livreXp = livre.id;
+    const chapitreXp = chapitreComplet.id;
+    void fetch('/api/progression', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ livreId: livreXp, chapitreId: chapitreXp }),
+    }).catch(() => {
+      // Silencieux : la progression ne doit jamais gêner la lecture.
+    });
+  }, [chapitreComplet, livre.id]);
 
   // ---------- Compteurs de progression (ensemble du livre) ----------
   // Callback STABLE (deps = [livre.id]) : la pagination des segments n'est
