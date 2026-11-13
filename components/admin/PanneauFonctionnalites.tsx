@@ -16,9 +16,15 @@
 // à risque, la case « validé par un juriste » — que le serveur
 // refuse de voir posée ailleurs ou d'activer sans elle.
 //
-// Le serveur reste l'autorité : tout changement passe par
-// PATCH /api/admin/fonctionnalites, qui revalide tout (rôles,
-// transitions à risque) et journalise côté base.
+// EN TÊTE : le geste « tout ouvrir » (POST
+// /api/admin/fonctionnalites/tout-ouvrir) — un bouton pour les
+// modules sans risque, une case de confirmation explicite pour
+// inclure les modules à risque juridique. Le serveur planifie et
+// refuse ce que l'interface n'a pas le droit de demander.
+//
+// Le serveur reste l'autorité : tout changement passe par l'API
+// (PATCH / tout-ouvrir), qui revalide tout (rôles, transitions à
+// risque) et journalise côté base.
 // ============================================================
 
 import { useMemo, useState } from 'react';
@@ -61,6 +67,131 @@ const LIBELLES_PLAN: Record<string, string> = {
 // 14/11/2026) : défis, collections, clubs, calendrier, catalogue et
 // genres ont leurs pages réelles, évaluées côté serveur. La mention
 // « écran pas encore construit » n'a plus lieu d'être.
+
+// ------------------------------------------------------------
+// Bloc « tout ouvrir » : un geste pour les modules sans risque,
+// une case de confirmation explicite pour les modules à risque
+// juridique. La planification et l'écriture sont SERVEUR.
+// ------------------------------------------------------------
+function BlocToutOuvrir({
+  nbRisque,
+  auSucces,
+}: {
+  nbRisque: number;
+  auSucces: () => void;
+}) {
+  const [enCours, setEnCours] = useState(false);
+  const [avecRisque, setAvecRisque] = useState(false);
+  const [message, setMessage] = useState<{ ton: 'ok' | 'erreur'; texte: string } | null>(
+    null
+  );
+
+  async function toutOuvrir() {
+    setEnCours(true);
+    setMessage(null);
+    try {
+      const reponse = await fetch('/api/admin/fonctionnalites/tout-ouvrir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avecRisque }),
+      });
+      const corps = (await reponse.json().catch(() => ({}))) as {
+        erreur?: string;
+        ouvres?: number;
+        inchanges?: number;
+        ignoresRisque?: number;
+      };
+      if (!reponse.ok) {
+        setMessage({ ton: 'erreur', texte: corps.erreur ?? 'Échec de l’ouverture groupée.' });
+        return;
+      }
+      const ouvres = corps.ouvres ?? 0;
+      const inchanges = corps.inchanges ?? 0;
+      const ignores = corps.ignoresRisque ?? 0;
+      if (ouvres === 0) {
+        setMessage({
+          ton: 'ok',
+          texte:
+            inchanges > 0
+              ? `Rien à faire : les modules visés étaient déjà ouverts à 100 % (${inchanges}).`
+              : 'Rien à faire : aucun module visé.',
+        });
+      } else {
+        setMessage({
+          ton: 'ok',
+          texte: `${ouvres} module${ouvres > 1 ? 's' : ''} ouvert${ouvres > 1 ? 's' : ''} à 100 %${
+            inchanges > 0 ? `, ${inchanges} déjà ouvert${inchanges > 1 ? 's' : ''}` : ''
+          }${ignores > 0 && !avecRisque ? `, ${ignores} à risque laissé${ignores > 1 ? 's' : ''} de côté` : ''}.`,
+        });
+      }
+      auSucces();
+    } catch {
+      setMessage({ ton: 'erreur', texte: 'Réseau indisponible.' });
+    } finally {
+      setEnCours(false);
+    }
+  }
+
+  return (
+    <section
+      className="velours p-5 rounded-2xl space-y-3 border border-nuit-700"
+      aria-labelledby="titre-tout-ouvrir"
+    >
+      <h2 id="titre-tout-ouvrir" className="sur-titre text-encre-300">
+        Ouvrir tous les modules d’un geste
+      </h2>
+      <p className="text-sm text-encre-400">
+        Ouvre les modules fermés et ramène leur déploiement à 100 %, sans toucher aux
+        plans d’abonnement déjà réglés. Un module déjà ouvert à 100 % n’est pas réécrit.
+        Chaque ouverture est journalisée, module par module.
+      </p>
+      {nbRisque > 0 && (
+        <label className="flex items-start gap-2 text-sm text-encre-300 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-1 accent-[var(--color-grenat-500,oklch(0.55_0.18_20))] size-4 shrink-0"
+            checked={avecRisque}
+            disabled={enCours}
+            onChange={(e) => setAvecRisque(e.target.checked)}
+          />
+          <span>
+            Inclure les {nbRisque} module{nbRisque > 1 ? 's' : ''} à risque juridique et
+            y poser la confirmation « validé par un juriste ».
+            <br />
+            <span className="text-encre-500">
+              À ne cocher qu’après une validation écrite — loi n° 2005-30.
+            </span>
+          </span>
+        </label>
+      )}
+      <button
+        type="button"
+        onClick={toutOuvrir}
+        disabled={enCours}
+        className="bouton-principal min-h-11 text-sm px-4"
+      >
+        {enCours
+          ? 'Ouverture en cours…'
+          : avecRisque
+            ? 'Tout ouvrir (y compris à risque)'
+            : 'Ouvrir tous les modules sans risque'}
+      </button>
+      {message && (
+        <p
+          role="status"
+          className={
+            'text-sm px-3 py-2 rounded-lg border ' +
+            (message.ton === 'ok'
+              ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10'
+              : 'text-grenat-300 border-grenat-500/40 bg-grenat-500/10')
+          }
+        >
+          {message.texte}
+        </p>
+      )}
+    </section>
+  );
+}
 
 function LigneInterrupteur({ interrupteur }: { interrupteur: InterrupteurAdmin }) {
   const router = useRouter();
@@ -275,6 +406,12 @@ export default function PanneauFonctionnalites({
 }: {
   interrupteurs: InterrupteurAdmin[];
 }) {
+  // Version des lignes : incrémentée après une ouverture en masse
+  // pour re-monter chaque <details> avec son état serveur réel (les
+  // états locaux des lignes garderaient sinon leur valeur initiale).
+  const [version, setVersion] = useState(0);
+  const router = useRouter();
+
   const groupes = useMemo(() => {
     const carte = new Map<string, InterrupteurAdmin[]>();
     for (const i of interrupteurs) {
@@ -286,6 +423,7 @@ export default function PanneauFonctionnalites({
   }, [interrupteurs]);
 
   const ouverts = interrupteurs.filter((i) => i.etat.actif).length;
+  const nbRisque = interrupteurs.filter((i) => i.risqueJuridique).length;
 
   return (
     <div className="space-y-8">
@@ -295,6 +433,14 @@ export default function PanneauFonctionnalites({
         n’existait pas. Tout changement est journalisé. Cliquez sur un module
         pour déplier ses réglages.
       </p>
+
+      <BlocToutOuvrir
+        nbRisque={nbRisque}
+        auSucces={() => {
+          setVersion((v) => v + 1);
+          router.refresh();
+        }}
+      />
 
       {groupes.map(([groupe, liste]) => (
         <section key={groupe} className="space-y-3" aria-labelledby={`titre-groupe-${groupe}`}>
@@ -307,7 +453,10 @@ export default function PanneauFonctionnalites({
           <div className="liseret" />
           <div className="space-y-2">
             {liste.map((interrupteur) => (
-              <LigneInterrupteur key={interrupteur.cle} interrupteur={interrupteur} />
+              <LigneInterrupteur
+                key={`${interrupteur.cle}-${version}`}
+                interrupteur={interrupteur}
+              />
             ))}
           </div>
         </section>

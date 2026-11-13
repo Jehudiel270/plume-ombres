@@ -27,7 +27,26 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
-import { ChevronDown, BookMarked, CreditCard, Image as ImageIcon, Lightbulb, LogOut, Menu, NotebookPen, Orbit, Palette, Sparkles, TrendingUp, User } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronDown,
+  BookMarked,
+  CreditCard,
+  Image as ImageIcon,
+  LayoutGrid,
+  Library,
+  Lightbulb,
+  LogOut,
+  Menu,
+  NotebookPen,
+  Orbit,
+  Palette,
+  Sparkles,
+  Target,
+  TrendingUp,
+  User,
+  Users,
+} from 'lucide-react';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 import ClocheNotifications from '@/components/ClocheNotifications';
 import {
@@ -68,6 +87,11 @@ const ICONES_ATELIER: Record<string, ReactNode> = {
   '/glossaire': <BookMarked size={15} />,
   '/univers': <Orbit size={15} />,
   '/cartes': <ImageIcon size={15} />,
+  '/defis': <Target size={15} />,
+  '/clubs': <Users size={15} />,
+  '/collections': <Library size={15} />,
+  '/calendrier': <CalendarDays size={15} />,
+  '/catalogue': <LayoutGrid size={15} />,
 };
 
 /** Plan du site principal (desktop et menu mobile). */
@@ -525,7 +549,7 @@ export default function BarreNavigation({
                   etiquette="Atelier de lecture"
                   panneauRef={panneauAtelierRef}
                   surPanneau={surPanneauAtelier}
-                  className="w-[min(21rem,calc(100vw-2rem))]"
+                  className="w-[min(21rem,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] overflow-y-auto"
                 >
                   {liensAtelier.map((l) => (
                     <EntreeMenu
@@ -595,7 +619,7 @@ export default function BarreNavigation({
                 etiquette={`Menu de ${pseudo}`}
                 panneauRef={panneauRef}
                 surPanneau={surPanneau}
-                className="w-[min(19rem,calc(100vw-2rem))]"
+                className="w-[min(19rem,calc(100vw-2rem))] max-h-[calc(100vh-6rem)] overflow-y-auto"
               >
                 <div role="presentation" className="px-3 py-2 md:hidden">
                   <p className="text-sm text-encre-100 truncate">{pseudo}</p>
