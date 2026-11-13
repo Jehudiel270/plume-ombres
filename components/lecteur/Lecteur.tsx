@@ -7,7 +7,7 @@
 // STRUCTURE (maquette) :
 //  · le texte EST l'interface : plus aucune rangée d'outils entre
 //    le titre du chapitre et le texte ;
-//  · la BARRE D'OUTILS FIXE DU BAS (BarreOutilsLecteur) porte les
+//  · le BOUTON RADIAL (MenuRadialLecteur, bas à droite) porte les
 //    actions : Bilingue, Écouter, Carnet, Résumé, Questions,
 //    Chercher, Réglages, Défiler, Plein écran — icône + libellé,
 //    toujours atteignable pendant le défilement ;
@@ -74,9 +74,10 @@ import type { ControlePreferences } from '@/components/lecteur/ReglagesLecture';
 import { PanneauReglages } from '@/components/lecteur/ReglagesLecture';
 import { useVoix } from '@/components/lecteur/useVoix';
 import { useConfortLecture } from '@/components/lecteur/useConfort';
-import BarreOutilsLecteur, {
+import MenuRadialLecteur, {
   type OutilLecteur,
-} from '@/components/lecteur/BarreOutilsLecteur';
+} from '@/components/lecteur/MenuRadialLecteur';
+import PiluleVoixFlottante from '@/components/lecteur/PiluleVoixFlottante';
 import FeuilleLecteur from '@/components/lecteur/FeuilleLecteur';
 import PanneauEcouter from '@/components/lecteur/PanneauEcouter';
 import { PanneauQuestions, PanneauResume } from '@/components/lecteur/PanneauxAide';
@@ -1000,10 +1001,12 @@ function Lecteur({
 
       {basDePage}
 
-      {/* Barre d'outils fixe du bas (maquette) + pilule de défilement. */}
-      <BarreOutilsLecteur outils={outils} />
+      {/* Bouton radial des outils (bas droite) + pilule de voix
+          flottante (bas gauche) + pilule de défilement. */}
+      <MenuRadialLecteur outils={outils} />
+      <PiluleVoixFlottante voix={voix} />
       {confort.defile && (
-        <div className="fixed right-3 bottom-[calc(7.75rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 rounded-full border border-nuit-700 bg-nuit-900/95 px-3 py-1.5 shadow-xl backdrop-blur lg:bottom-14 animate-fondu-monte">
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(8.25rem+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 rounded-full border border-nuit-700 bg-nuit-900/95 px-3 py-1.5 shadow-xl backdrop-blur lg:left-auto lg:right-6 lg:translate-x-0 lg:bottom-[8.5rem] animate-fondu-monte">
           <span className="text-[11px] text-encre-500 whitespace-nowrap">Défilement</span>
           <input
             type="range"
@@ -1027,7 +1030,7 @@ function Lecteur({
 
       {/* Deux colonnes : tourner de colonne (grand écran, comme avant). */}
       {deuxColonnes && (
-        <div className="hidden lg:flex fixed left-4 bottom-14 z-30 items-center gap-1 rounded-full border border-nuit-700 bg-nuit-900/95 px-1.5 py-1 shadow-xl backdrop-blur">
+        <div className="hidden lg:flex fixed left-4 bottom-[6.5rem] z-30 items-center gap-1 rounded-full border border-nuit-700 bg-nuit-900/95 px-1.5 py-1 shadow-xl backdrop-blur">
           <button
             type="button"
             onClick={() => tournerColonne(-1)}
