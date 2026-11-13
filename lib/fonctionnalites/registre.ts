@@ -558,3 +558,45 @@ export function apercuDeploiement(cle: string, deploiement: number): number {
   }
   return n;
 }
+
+/**
+ * Planifie l'ouverture en masse des modules (bouton du tableau de
+ * bord « chantier »). FONCTION PURE, testée : la route d'API
+ * l'applique ligne à ligne, le serveur reste l'autorité.
+ *
+ * Règles :
+ *   * sans `avecRisque`, seuls les modules SANS risque juridique
+ *     sont concernés — jamais les modules qui attendent la
+ *     confirmation écrite d'un juriste ;
+ *   * avec `avecRisque`, les modules à risque sont inclus ET la
+ *     confirmation juridique est posée dans la même opération
+ *     (l'interface exige une case de confirmation explicite) ;
+ *   * l'ouverture pose `actif` à vrai et le déploiement à 100 %
+ *     (l'intention du geste est « tout voir »), sans toucher au
+ *     plan minimal déjà réglé ;
+ *   * un module déjà ouvert à 100 % est laissé inchangé (aucune
+ *     ligne réécrite pour rien, journal propre).
+ */
+export function planifierOuvertureMasse(
+  etatParCle: ReadonlyMap<string, { actif: boolean; deploiement: number }>,
+  avecRisque: boolean
+): { aOuvrir: string[]; inchanges: string[]; ignoresRisque: string[] } {
+  const aOuvrir: string[] = [];
+  const inchanges: string[] = [];
+  const ignoresRisque: string[] = [];
+
+  for (const def of INTERRUPTEURS) {
+    if (def.risqueJuridique && !avecRisque) {
+      ignoresRisque.push(def.cle);
+      continue;
+    }
+    const etat = etatParCle.get(def.cle);
+    if (etat && etat.actif && Math.round(etat.deploiement) === 100) {
+      inchanges.push(def.cle);
+      continue;
+    }
+    aOuvrir.push(def.cle);
+  }
+
+  return { aOuvrir, inchanges, ignoresRisque };
+}
