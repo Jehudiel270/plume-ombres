@@ -30,6 +30,13 @@ interface Entree {
 const ENTREES: readonly Entree[] = [
   {
     date: '14 novembre 2026',
+    titre: 'Le site reçoit ce que vous partagez',
+    detail:
+      'Depuis une application de votre téléphone, le menu « Partager » propose maintenant Plume d’Ombres : le passage, le lien ou le message arrive sur la page Partager, et vous décidez — le garder comme note ou comme citation (plafonnée à 40 mots) dans votre carnet, ou copier le lien pour l’import d’un fichier. Rien n’est enregistré sans votre confirmation.',
+    etat: 'livre',
+  },
+  {
+    date: '14 novembre 2026',
     titre: 'Le lecteur se porte à la main',
     detail:
       'Les outils de lecture tiennent dans un seul bouton, en bas à droite, qui déploie les commandes en arc de cercle : bilingue, écoute, carnet, résumé, questions, recherche, réglages, défilement et plein écran. La lecture à voix haute garde ses commandes pause et arrêt visibles pendant tout le défilement.',

@@ -389,6 +389,10 @@ export const ITINERAIRES_SOCLE: readonly string[] = [
   // compte rendu de l’activité du compte, aucun contenu de lecture.
   '/notifications',
   '/annonces',
+  // Cible du partage système (PWA, manifest.share_target) : le
+  // contenu reçu part vers le carnet du lecteur (F2) — du SOCLE,
+  // comme dans la maquette (CORE_ROUTES, pages/partager.vue).
+  '/partager',
   // Liens des modules ouverts pour la barre de navigation (aucun
   // contenu de lecture : des liens, évalués côté serveur).
   '/api/atelier',
