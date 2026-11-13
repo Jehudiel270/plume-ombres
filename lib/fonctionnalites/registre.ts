@@ -338,7 +338,7 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
       'Progression de lecteur non punitive (rangs, badges), adossée à lib/stats.ts. ' +
       'Base exploitable : rien ne punit, tout encourage.',
     itineraires: ['/progression'],
-    api: [],
+    api: ['/api/progression'],
     planMinimal: null,
     prod: false,
   },

@@ -256,7 +256,7 @@ export default async function PageLivre({
   // Un module fermé = composant/bouton jamais montés (le serveur est
   // l'autorité).
   const planCode = planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT;
-  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise] = await Promise.all([
+  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise, moduleProgression] = await Promise.all([
     verifierAccesModule('lecture_vocale', {
       utilisateurId: utilisateur.id,
       codePlan: planCode,
@@ -274,6 +274,10 @@ export default async function PageLivre({
       codePlan: planCode,
     }),
     verifierAccesModule('reprise', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('progression', {
       utilisateurId: utilisateur.id,
       codePlan: planCode,
     }),
@@ -303,6 +307,7 @@ export default async function PageLivre({
           carnetOuverte={moduleCarnet.ouvert}
           grapheOuvert={moduleGraphe.ouvert}
           assistanceOuverte={moduleReprise.ouvert}
+          progressionOuverte={moduleProgression.ouvert}
         />
       </main>
     </>
