@@ -23,7 +23,6 @@
 // ============================================================
 
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { creerClientServeur } from '@/lib/supabase/server';
 import { exigerPermission } from '@/lib/roles-garde';
 import BarreNavigation from '@/components/BarreNavigation';
@@ -204,13 +203,14 @@ export default async function PageAdmin() {
   // Même permission que la page dédiée /admin/fonctionnalites : les
   // écrans sont équivalents. Les clés d'API vivent dans LEUR onglet
   // (« Clés API »), plus dans « Fonctionnalités ». Chargés SEULEMENT
-  // si le compte peut gérer les fonctionnalités (aucune requête
-  // inutile sinon).
+  // si le compte peut gérer les fonctionnalités ET qu'une des deux
+  // sections correspondantes lui est ouverte (aucune requête inutile
+  // sinon).
   const peutGererFonctionnalites = aLaPermission(roleCourant, 'admin.fonctionnalites.gerer');
   let interrupteursChantier: ReturnType<typeof versInterrupteursAdmin> = [];
   let clesApi: CoteCle[] = [];
   let ancienneCle: EtatAncienneCle = { defini: false, apercu: null, majLe: null };
-  if (peutGererFonctionnalites) {
+  if (peutGererFonctionnalites && (peutVoir('cles_api') || peutVoir('fonctionnalites'))) {
     const [listeChantier, lignesCles, metaCleChantier] = await Promise.all([
       listeAvecEtats(),
       // Réservoir de clés (table cles_api) : lisible ici (session
@@ -724,9 +724,10 @@ export default async function PageAdmin() {
       ),
     },
     // Clés d'API : réservoir multi-fournisseurs avec succession —
-    // même permission que « Fonctionnalités » (admin.fonctionnalites.gerer).
+    // permission admin.fonctionnalites.gerer ET section « cles_api »
+    // ouverte (délégable depuis « Sections ouvertes »).
     // La pastille compte les clés actives ; en alerte si aucune clé IA.
-    ...(peutGererFonctionnalites
+    ...(peutGererFonctionnalites && peutVoir('cles_api')
       ? [
           {
             id: 'cles',
@@ -743,7 +744,7 @@ export default async function PageAdmin() {
     // /admin/fonctionnalites (mapper partagé). La pastille compte les
     // modules actuellement OUVERTS aux lecteurs. (Les clés d'API ont
     // déménagé dans l'onglet « Clés API ».)
-    ...(peutGererFonctionnalites
+    ...(peutGererFonctionnalites && peutVoir('fonctionnalites')
       ? [
           {
             id: 'chantier',
@@ -761,6 +762,8 @@ export default async function PageAdmin() {
   // ------------------------------------------------------------
   // Délimitation par section : chaque onglet porte une section ; un
   // onglet sans section (Vue d'ensemble) reste toujours visible.
+  // « Clés API » et « Fonctionnalités » exigent en PLUS la permission
+  // admin.fonctionnalites.gerer, déjà exigée à leur montage.
   // ------------------------------------------------------------
   const SECTION_PAR_ONGLET: Record<string, string> = {
     audience: 'audience',
@@ -769,6 +772,10 @@ export default async function PageAdmin() {
     paiements: 'paiements',
     notifications: 'notifications',
     systeme: 'systeme',
+    // Nouveaux modules du chantier : désormais délégables comme les
+    // autres (la base et la route /api/admin/sections les valident).
+    cles: 'cles_api',
+    chantier: 'fonctionnalites',
   };
   const ongletsAutorises = onglets.filter((onglet) => {
     const section = SECTION_PAR_ONGLET[onglet.id];
@@ -824,15 +831,6 @@ export default async function PageAdmin() {
             Comptes, usage, abonnements et paiements. Aucun contenu de livre d’autrui n’est
             lisible ici. Les interrupteurs des nouveaux modules sont dans l’onglet
             « Fonctionnalités », les clés d’API dans « Clés API ».
-          </p>
-          {/* Chantier post-lancement : interrupteurs des nouveaux modules. */}
-          <p className="text-sm mt-2">
-            <Link
-              href="/admin/fonctionnalites"
-              className="text-grenat-300 underline underline-offset-4 hover:text-grenat-200"
-            >
-              Fonctionnalités du chantier — ouvrir, fermer, déployer les nouveaux modules
-            </Link>
           </p>
         </header>
 
