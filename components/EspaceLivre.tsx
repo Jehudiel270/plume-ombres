@@ -38,6 +38,7 @@ import {
 } from '@/lib/useLecture';
 import { CLEF_PROGRESSION } from '@/lib/progression';
 import BoutonCarnet from '@/components/carnet/BoutonCarnet';
+import AssistanceLecture from '@/components/lecteur/AssistanceLecture';
 import {
   DUREE_BAIL_NAVIGATEUR_MS,
   creerTravail,
@@ -79,6 +80,7 @@ export default function EspaceLivre({
   bilingueOuverte = false,
   carnetOuverte = false,
   grapheOuvert = false,
+  assistanceOuverte = false,
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
@@ -100,6 +102,12 @@ export default function EspaceLivre({
    * le lien vers le graphe narratif n'existe que si le module est ouvert.
    */
   grapheOuvert?: boolean;
+  /**
+   * Interrupteur `reprise` (F6/F10, ajout chantier) évalué CÔTÉ
+   * SERVEUR : le panneau d'aide à la reprise n'existe que si le
+   * module est ouvert (abonnés).
+   */
+  assistanceOuverte?: boolean;
   /**
    * Interrupteur `bilingue` (F7) évalué CÔTÉ SERVEUR : le bouton de la
    * vue bilingue n'existe que si le module est ouvert pour ce lecteur.
@@ -895,6 +903,9 @@ export default function EspaceLivre({
                       chapitreId={chapitreComplet.id}
                       chapitreTitre={chapitreComplet.titre}
                     />
+                  ) : null}
+                  {assistanceOuverte && chapitreComplet ? (
+                    <AssistanceLecture livreId={livre.id} chapitreLu={indexSelection + 1} />
                   ) : null}
                 </>
               }
