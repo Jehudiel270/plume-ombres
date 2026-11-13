@@ -214,9 +214,11 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
     code: 'F8/F19',
     libelle: 'Théories et comparateur',
     groupe: 'Lecture et carnet',
-    description: 'Hypothèses de lecture, comparateur de traductions.',
+    description:
+      'Hypothèses de lecture personnelles (F8) et comparateur de cohérence ' +
+      'de traduction, terme par terme (F19).',
     itineraires: ['/theories'],
-    api: [],
+    api: ['/api/theories'],
     planMinimal: null,
     prod: false,
   },
