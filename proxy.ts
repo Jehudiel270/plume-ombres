@@ -4,6 +4,7 @@
 // ============================================================
 
 import { createServerClient } from '@supabase/ssr';
+import type { User } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { verdictPourChemin } from '@/lib/fonctionnalites/etats';
@@ -27,6 +28,63 @@ export async function proxy(request: NextRequest) {
 
   let reponse = NextResponse.next({ request });
 
+  // ============================================================
+  // VARIABLES D'ENVIRONNEMENT ABSENTES : diagnostic explicite.
+  //
+  // createServerClient exige l'URL et la clé publique Supabase : sans
+  // elles, il lève à CHAQUE requête et l'environnement répond un
+  // « Internal Server Error » opaque (500) — sur un aperçu Vercel
+  // dont les variables sont limitées à la portée « Production », TOUT
+  // le site paraît en panne. On rend ici une page 503 qui dit
+  // exactement quoi corriger, au lieu d'une erreur muette.
+  // ============================================================
+  const urlSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const cleAnonSupabase = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!urlSupabase || !cleAnonSupabase) {
+    console.error(
+      '[proxy] Variables d’environnement Supabase absentes ' +
+        '(NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY). ' +
+        'Sur Vercel : Settings → Environment Variables → activer ces ' +
+        'variables pour la portée « Preview », puis redeployer la branche.'
+    );
+    return new NextResponse(
+      `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Déploiement non configuré — Plume d'Ombres</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: #14100f; color: #d8cfc7; font-family: Georgia, serif; }
+  main { max-width: 640px; padding: 2rem; line-height: 1.6; }
+  h1 { font-size: 1.4rem; color: #e8ddd2; }
+  code { color: #c9a86a; }
+  ul { padding-left: 1.2rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Déploiement non configuré</h1>
+  <p>Le site n’a pas pu démarrer sur cet environnement : les variables
+  Supabase sont absentes du déploiement.</p>
+  <ul>
+    <li>Ouvrez Vercel → projet → <code>Settings</code> →
+      <code>Environment Variables</code> ;</li>
+    <li>vérifiez que <code>NEXT_PUBLIC_SUPABASE_URL</code> et
+      <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> sont cochées pour la
+      portée <code>Preview</code> (et pas seulement <code>Production</code>) ;</li>
+    <li>relancez ensuite le déploiement de la branche
+      (<code>Redeploy</code>).</li>
+  </ul>
+</main>
+</body>
+</html>`,
+      { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '60' } }
+    );
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -48,9 +106,19 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Supabase momentanément injoignable : on considère le visiteur
+  // non connecté plutôt que de faire répondre 500 à TOUTES les pages
+  // (les pages publiques restent lisibles, les privées renvoient vers
+  // la connexion ; les cookies de session ne sont pas touchés).
+  let user: User | null = null;
+  try {
+    user = (await supabase.auth.getUser()).data.user ?? null;
+  } catch (e) {
+    console.error(
+      '[proxy] Supabase injoignable, session ignorée pour cette requête :',
+      e instanceof Error ? e.message : e
+    );
+  }
 
   const chemin = request.nextUrl.pathname;
   const surPageConnexion = chemin.startsWith('/connexion');
