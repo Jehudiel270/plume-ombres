@@ -32,14 +32,15 @@ Ordre d'attaque validé (rapport d'inspection du 12/11/2026) :
 | 2 | TTS lecture à voix haute | F9 | S | **MERGÉ dans develop** |
 | 3 | Vue bilingue alignée | F7 | M | **MERGÉ dans develop** |
 | 4 | Écran de gestion du glossaire | F16 | S | **MERGÉ dans develop** |
-| 5 | Carnet (notes, surlignage, citations, export) | — | M | à venir |
-| 6 | Théories et comparateur | F8/F19 | M | à venir |
-| 7 | Graphe narratif anti-spoilers (manuel d'abord) | F25 | L | à venir |
-| 8 | Résumé à la reprise + Q&A anti-spoilers (IA) | — | M-L | à venir |
-| 9 | XP, rangs, badges (non punitifs) | A17 | M | à venir |
-| 10 | Cartes de lecture partageables | F13 | S-M | à venir (extrait cité : à peser) |
-| 11 | Fiches d'ambiance enrichies | F5 | S-M | à venir |
-| 12 | Univers multi-tomes / sagas | F17 | L | à venir (Illimité) |
+| 4b | Confort lecteur : plein écran, défilement auto, raccourcis | socle | S | **MERGÉ dans develop** |
+| 5 | Carnet (notes, citations, surlignages + export F24 Premium) | F2 | M | **MERGÉ dans develop** |
+| 6 | Théories privées + comparateur de cohérence | F8/F19 | M | **MERGÉ dans develop** |
+| 7 | Graphe narratif anti-spoilers (manuel) | F25 | L | **MERGÉ dans develop** |
+| 8 | Résumé à la reprise + Q&A anti-spoilers (IA, Premium) | F6/F10 | M-L | **MERGÉ dans develop** |
+| 9 | XP, rangs, badges (non punitifs) | A17 | M | **MERGÉ dans develop** |
+| 10 | Cartes de lecture (extrait plafonné + attribution) | F13 | S-M | **MERGÉ dans develop** (éteint : à peser) |
+| 11 | Fiches d'ambiance enrichies | F5 | S-M | **MERGÉ dans develop** |
+| 12 | Univers multi-tomes / sagas | F17 | L | **MERGÉ dans develop** (Illimité) |
 
 Écartés du chantier (éteints par défaut, jamais sans juriste) : catalogue public,
 collections éditoriales, calendrier des sorties, accès anticipé, commentaires publics,
@@ -97,6 +98,45 @@ auteurs partenaires avec partage de revenus, liens d'affiliation, licences de gr
   fermé = 404. Livré fermé (interrupteur `glossaire`, `prod: false`).
 - Tests, build et check:flags exécutés avant le merge (voir fiche).
 - Fiche détaillée : `docs/fonctionnalites/03-glossaire.md`.
+
+### 4b à 12. Mergés le 12/11/2026 (détail dans les fiches)
+
+- **4b `fonctionnalite/confort-lecteur`** — plein écran (Fullscreen API,
+  dégradation propre sans API), défilement automatique réglable (20–300 px/s
+  mémorisé, pause auto bas de page / changement de chapitre), raccourcis
+  `f` / `a` / `←` `→`, TTS élargi ×0,5–×2. Socle gratuit. Fiche :
+  `docs/fonctionnalites/04-confort-lecteur.md`.
+- **5 `fonctionnalite/carnet`** — Carnet F2 (notes, citations, surlignages)
+  + export portable F24 Premium. Migration 20261112000002. Fiche :
+  `docs/fonctionnalites/05-carnet.md`.
+- **6 `fonctionnalite/theories`** — théories PRIVÉES F8 (statut traçant) +
+  comparateur de cohérence F19 (terme → paires source↔traduit bornées).
+  Migration 20261112000003. Fiche : `docs/fonctionnalites/06-theories-comparateur.md`.
+- **7 `fonctionnalite/graphe-narratif`** — graphe F25 manuel (personnages +
+  relations, première apparition), filtrage anti-spoilers PAR LE SERVEUR
+  (une arête exige ses deux extrémités visibles). Migration 20261112000004.
+  Fiche : `docs/fonctionnalites/07-graphe-narratif.md`.
+- **8 `fonctionnalite/assistance-lecture`** — résumé à la reprise F10 (cache
+  par livre) + questions F6, Premium. Anti-spoilers STRUCTUREL : le contexte
+  du modèle ne contient que les chapitres ≤ lu. Migration 20261112000005.
+  Fiche : `docs/fonctionnalites/08-assistance-reprise.md`.
+- **9 `fonctionnalite/progression`** — XP/rangs/badges A17 non punitifs
+  (25 XP par chapitre découvert, UNIQUE en base). Migration 20261112000006.
+  Fiche : `docs/fonctionnalites/09-progression-xp.md`.
+- **10 `fonctionnalite/cartes-lecture`** — cartes F13 (extrait plafonné
+  STRICT 280 + attribution toujours apposée, aucune publication auto).
+  Livré éteint (extrait cité : à peser). Fiche :
+  `docs/fonctionnalites/10-cartes-lecture.md`.
+- **11 `fonctionnalite/ambiance`** — fiches F5 (genres, tropes, intensité
+  1–5) par livre, server action gardée. Migration 20261112000007. Fiche :
+  `docs/fonctionnalites/11-ambiance.md`.
+- **12 `fonctionnalite/univers`** — sagas F17 privées, tomes ordonnés,
+  plan Illimité. Migration 20261112000008. Fiche :
+  `docs/fonctionnalites/12-univers.md`.
+
+Incident noté : le bac à sable a été recyclé en cours de chantier (dépôt local
+remplacé par un clone ancien) — les modules 4b à 8 ont été RECONSTRUITS puis
+poussés immédiatement après chaque merge ; aucun contenu perdu.
 
 ## Précautions de fin de chantier
 
