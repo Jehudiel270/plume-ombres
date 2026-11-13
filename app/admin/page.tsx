@@ -54,11 +54,15 @@ import {
 } from '@/lib/fonctionnalites/interrupteurs-admin';
 import { CLE_PARAMETRE_GEMINI, lireParametreMeta, masquerCle } from '@/lib/parametres';
 import PanneauFonctionnalites from '@/components/admin/PanneauFonctionnalites';
+import RevenusAbonnements from '@/components/admin/RevenusAbonnements';
+import JournalWebhooks from '@/components/admin/JournalWebhooks';
 import ClesApi, {
   type CoteCle,
   type EtatAncienneCle,
 } from '@/components/admin/ClesApi';
 import { listerClesApi } from '@/lib/cles-api';
+import { collecterStatsRevenus } from '@/lib/admin-revenus';
+import { normaliserWebhooks } from '@/lib/admin-webhooks';
 import { aLaPermission, estAdmin, estSuperAdmin, normaliserRole } from '@/lib/roles';
 import {
   collecterStatsAbonnements,
@@ -135,6 +139,12 @@ export default async function PageAdmin() {
     sante,
     mesAlertesResultat,
     { data: alertesAdminRows },
+    // Vague 2 : indicateurs de revenus (MRR, mouvements mensuels).
+    resultatRevenus,
+    // Vague 2 : journal des livraisons de webhook (RLS admin). La
+    // table peut être absente tant que la migration n'est pas
+    // appliquée : l'écran l'indique proprement.
+    { data: webhooksBruts, error: webhooksErreur },
   ] = await Promise.all([
     supabase.from('profiles').select('pseudo, role').eq('id', user?.id ?? '').maybeSingle(),
     collecterStatsAdmin(clientRpc),
@@ -163,6 +173,18 @@ export default async function PageAdmin() {
     // Réglages des autres administrateurs (le super-admin seul y a droit :
     // la fonction SQL lève une exception pour les autres, d'où `data` nulle).
     supabase.rpc('admin_alertes_liste'),
+    // Vague 2 : indicateurs de revenus (MRR, mouvements mensuels).
+    collecterStatsRevenus(clientRpc, 6),
+    // Vague 2 : journal des livraisons de webhook (RLS admin). La
+    // table peut être absente tant que la migration n'est pas
+    // appliquée : l'écran l'indique proprement.
+    supabase
+      .from('evenements_webhook')
+      .select(
+        'id, fournisseur, evenement, reference, statut_http, traite, deja_traite, erreur, cree_le'
+      )
+      .order('cree_le', { ascending: false })
+      .limit(30),
   ]);
 
   const pseudo =
@@ -256,6 +278,16 @@ export default async function PageAdmin() {
 
   const stats: StatsAdmin | null = resultatStats.stats;
   const abonnementsDisponibles = stats !== null && stats.abonnementsActifs !== null;
+
+  // -------- Vague 2 : revenus et livraisons de webhook --------
+  const statsRevenus = resultatRevenus.stats;
+  const erreurRevenus = resultatRevenus.erreur;
+  const livraisonsWebhook = normaliserWebhooks(webhooksBruts);
+  const erreurWebhooks = webhooksErreur
+    ? webhooksErreur.message.includes('does not exist')
+      ? 'table non encore créée : appliquez la migration « evenements_webhook » (SQL consolidé).'
+      : webhooksErreur.message
+    : null;
 
   const plans: PlanAdmin[] = normaliserPlans(plansBruts);
   const actions = normaliserActions(actionsBrutes);
@@ -592,6 +624,7 @@ export default async function PageAdmin() {
       contenu: (
         <>
           <RepartitionAbonnements stats={resultatAgr.stats} erreur={resultatAgr.erreur} />
+          <RevenusAbonnements stats={statsRevenus} erreur={erreurRevenus} />
           <AnomaliesComptes anomalies={anomalies} plans={plans} />
         </>
       ),
@@ -604,10 +637,22 @@ export default async function PageAdmin() {
         libelle: 'paiements récents',
       },
       contenu: (
-        <PaiementsFiltrables
-          paiements={resultatPaiements.paiements}
-          erreur={resultatPaiements.erreur}
-        />
+        <>
+          <PaiementsFiltrables
+            paiements={resultatPaiements.paiements}
+            erreur={resultatPaiements.erreur}
+          />
+          <BlocRepliable
+            titre="Livraisons de webhook (paiement)"
+            resume={
+              erreurWebhooks
+                ? 'indisponible'
+                : `${livraisonsWebhook.length} livraison${livraisonsWebhook.length > 1 ? 's' : ''}`
+            }
+          >
+            <JournalWebhooks livraisons={livraisonsWebhook} erreur={erreurWebhooks} />
+          </BlocRepliable>
+        </>
       ),
     },
     // AJOUT : panneau de gestion des rôles, monté UNIQUEMENT pour un

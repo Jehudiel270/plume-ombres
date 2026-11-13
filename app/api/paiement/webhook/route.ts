@@ -26,8 +26,23 @@ import { traiterWebhook } from '@/lib/paiement/service';
 import { estPing, statutHttpErreurWebhook } from '@/lib/paiement/politique-webhook';
 import { clientServiceRole, utilisateurRequete } from '@/lib/paiement/serveur';
 import { notifierPaiement } from '@/lib/paiement/alertes';
+import { journaliserWebhook } from '@/lib/paiement/journal-webhook';
 
 export const runtime = 'nodejs';
+
+/**
+ * Nom d'événement brut pour le journal (FedaPay envoie
+ * { name: 'transaction.approved', … }). Lecture superficielle, en
+ * bonne foi : ce champ n'est qu'INDICATIF, jamais décisionnaire.
+ */
+function nomEvenementBrut(corps: unknown): string | null {
+  if (typeof corps !== 'object' || corps === null) return null;
+  for (const cle of ['name', 'type', 'event']) {
+    const valeur = (corps as Record<string, unknown>)[cle];
+    if (typeof valeur === 'string' && valeur.trim()) return valeur.slice(0, 120);
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   // Corps BRUT (indispensable pour le HMAC).
@@ -106,6 +121,18 @@ export async function POST(request: NextRequest) {
       );
     }
     if (!fournisseur.verifierSignature(chargeBrute, entetes)) {
+      // Journalisé SILENCIEUSEMENT : voir ces tentatives est justement
+      // l'objet du journal (clé de signature fausse ou requête hostile).
+      const evApprox = fournisseur.extraireEvenement(corps);
+      await journaliserWebhook(client, {
+        fournisseur: 'fedapay',
+        evenement: nomEvenementBrut(corps),
+        reference: evApprox?.referenceInterne ?? null,
+        statutHttp: 401,
+        traite: false,
+        dejaTraite: false,
+        erreur: 'Signature de webhook invalide ou absente (X-FEDAPAY-SIGNATURE).',
+      });
       return NextResponse.json(
         {
           erreur:
@@ -120,6 +147,17 @@ export async function POST(request: NextRequest) {
   // 2. Normalisation de l'événement (statut INDICATIF en réel).
   const evenement = fournisseur.extraireEvenement(corps);
   if (!evenement) {
+    if (!simulation) {
+      await journaliserWebhook(client, {
+        fournisseur: 'fedapay',
+        evenement: nomEvenementBrut(corps),
+        reference: null,
+        statutHttp: 400,
+        traite: false,
+        dejaTraite: false,
+        erreur: 'Notification de paiement invalide (événement illisible).',
+      });
+    }
     return NextResponse.json(
       { erreur: 'Notification de paiement invalide.' },
       { status: 400 }
@@ -156,6 +194,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 5. Journal de la livraison (mode réel uniquement ; en
+    //    simulation, l'écriture serait bloquée par la RLS). Silencieux.
+    if (!simulation) {
+      await journaliserWebhook(client, {
+        fournisseur: 'fedapay',
+        evenement: nomEvenementBrut(corps),
+        reference: evenement.referenceInterne,
+        statutHttp: 200,
+        traite: true,
+        dejaTraite: resultat.dejaTraite === true,
+        erreur: null,
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       statut: resultat.paiement?.statut ?? 'inconnu',
@@ -166,12 +218,23 @@ export async function POST(request: NextRequest) {
   } catch (erreur) {
     const message =
       erreur instanceof Error ? erreur.message : 'Traitement impossible.';
+    const statut = statutHttpErreurWebhook(message);
+    // 6. Livraison en échec : tracée (500 = transitoire → FedaPay
+    //    DOIT retenter, et la retente apparaîtra aussi au journal).
+    if (!simulation) {
+      await journaliserWebhook(client, {
+        fournisseur: 'fedapay',
+        evenement: nomEvenementBrut(corps),
+        reference: evenement.referenceInterne,
+        statutHttp: statut,
+        traite: false,
+        dejaTraite: false,
+        erreur: message,
+      });
+    }
     // 400 = définitif (réessayer ne sert à rien) ; 500 = transitoire
     // (API ou base momentanément indisponible) → FedaPay DOIT réessayer,
     // sinon le paiement n'est jamais crédité.
-    return NextResponse.json(
-      { erreur: message },
-      { status: statutHttpErreurWebhook(message) }
-    );
+    return NextResponse.json({ erreur: message }, { status: statut });
   }
 }
