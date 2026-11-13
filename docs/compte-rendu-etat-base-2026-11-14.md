@@ -116,3 +116,53 @@ déploiera `develop` immédiatement.
 Rappel de la ligne de base en vigueur (inchangée, aucun code applicatif
 modifié aujourd'hui) : tests 261/261, `check:flags` 17/33/32, build de
 production OK.
+
+## 6. ADDENDUM du 14/11 (soir) — MIGRATION APPLIQUÉE
+
+Le mot de passe de la base ayant été fourni (le premier candidat était
+erroné — le bon a été identifié parmi les variantes proposées), la
+migration a été appliquée le jour même :
+
+**Pré-vol (session PostgreSQL 17.6, pooler session-mode)** : 30 tables
+existantes, toutes les dépendances présentes, 15 objets du consolidé
+absents comme prévu — et une **correction du diagnostic du matin** :
+`admin_supprimer_compte` existait DÉJÀ. La sonde anonyme l'avait déclaré
+absent car PostgREST masque à `anon` les fonctions dont `anon` n'a pas le
+droit d'exécution (404 trompeur) — faux négatif documenté, la sonde est
+corrigée en conséquence (les fonctions sont informationnelles, le verdict
+ne repose que sur les tables, fiables anonymement). Le lot 11/11 n°2
+était donc déjà appliqué ; son inclusion idempotente dans le consolidé
+reste sans danger.
+
+**Application** : `npx tsx scripts/appliquer-sql.ts
+docs/sql/migrations-chantier-consolidees.sql` — réussie en UNE
+transaction (annulable), zéro erreur.
+
+**Post-vérification (SQL direct)** :
+- 14 nouvelles tables présentes, **RLS activée**, 0 ligne (vides) ;
+- `admin_stats_revenus(integer)` et `admin_supprimer_compte(uuid, text)`
+  présentes — privilèges vérifiés : `anon` refusé, `authenticated` et
+  `service_role` exécutables ;
+- policies passées en revue une à une : contenus utilisateurs limités à
+  leur propriétaire, `cles_api`/`parametres_systeme`/`evenements_webhook`
+  réservées à `est_admin()` (ou service), états d'interrupteurs lisibles
+  par tous (non sensibles, par conception) ;
+- les grants `anon` visibles dans `information_schema` proviennent des
+  **privilèges par défaut du projet** (comme sur toutes les tables
+  existantes) : neutralisés par la RLS — test réel effectué, `anon` ne
+  voit aucune ligne de `evenements_webhook` ni de `cles_api` ;
+- alignement code ↔ base vérifié colonne par colonne
+  (`plan_minimal`, `suspendue_le`, `echecs_consecutifs`… ;
+  `statut_http`, `deja_traite`, `erreur` pour le journal webhook).
+
+**Constat laissé ouvert (déjà signalé § 2)** : aucun déclencheur de
+traçabilité `tracer_*` n'existe dans tout le schéma — ils sont tous sous
+garde `journal_admin` (absente depuis toujours sur ce projet). Ce n'est
+pas une régression de la migration ; la traçabilité fine des interrupteurs,
+paramètres et clés reste en sommeil tant que cette table n'existe pas. À
+créer dans une prochaine vague si le journal d'audit consolidé est voulu.
+
+**État final de la base : à jour de TOUT le chantier.** Reste côté
+administration (§ 4) : `SUPABASE_SERVICE_ROLE_KEY` sur Vercel (Production
+et Preview), coller les clés dans l'onglet « Clés API », et pousser
+`develop` vers GitHub depuis votre machine.

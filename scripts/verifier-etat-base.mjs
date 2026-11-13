@@ -102,16 +102,27 @@ for (const [type, nom] of DEPENDANCES) {
 }
 
 console.log('\n— MIGRATIONS DU CHANTIER (fichier consolidé) —');
+// Les TABLES sont fiables anonymement (404 = absente, autre = présente).
+// Les FONCTIONS retirées à anon par conception (admin_stats_revenus,
+// admin_supprimer_compte) restent invisibles de l'API REST même
+// appliquées : un 404 signifie « absente OU retirée à anon ». Elles
+// sont donc affichées à titre indicatif, sans peser dans le verdict.
 let manquantes = 0;
 for (const [type, nom, migration] of ATTENDUS) {
   const s = await sonder(type, nom);
-  if (!s.present) manquantes += 1;
-  console.log(`  ${s.present ? '✓' : '✗'} ${nom} — ${s.present ? 'appliquée' : 'À APPLIQUER'} (${migration})`);
+  const fiabilité = type === 'table';
+  const appliquée = s.present;
+  const étiquette = appliquée ? 'appliquée' : fiabilité ? 'À APPLIQUER' : 'absente ou invisible pour anon';
+  if (!appliquée && fiabilité) manquantes += 1;
+  console.log(`  ${appliquée ? '✓' : fiabilité ? '✗' : '?'} ${nom} — ${étiquette} (${migration})`);
 }
 
-console.log('\n— VERDICT —');
+console.log('\n— VERDICT (sur les tables, seules vérifiables anonymement) —');
 if (manquantes === 0) {
-  console.log('Tout est appliqué : rien à faire côté base.');
+  console.log('Toutes les tables du consolidé sont en place. Les deux fonctions\n' +
+    '(admin_stats_revenus, admin_supprimer_compte) sont retirées à anon par\n' +
+    'conception : leur présence se confirme côté base (to_regprocedure) ou\n' +
+    'depuis /admin.');
 } else {
   console.log(
     `${manquantes} objet(s) manquant(s) : coller docs/sql/migrations-chantier-consolidees.sql\n` +
