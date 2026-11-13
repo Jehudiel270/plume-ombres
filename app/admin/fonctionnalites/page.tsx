@@ -3,9 +3,13 @@
 //
 // Page d'administration du chantier post-lancement : liste des
 // interrupteurs du registre (lib/fonctionnalites/registre.ts) avec
-// leur état effectif. Page SÉPARÉE du tableau de bord (ajout pur,
-// conformément aux règles du chantier) : le tableau de bord existant
-// n'est pas modifié, seule une entrée y est ajoutée.
+// leur état effectif. CETTE PAGE ET L'ONGLET « Fonctionnalités » du
+// tableau de bord (juste après « Clés API ») montrent le même contenu
+// via le mapper partagé lib/fonctionnalites/interrupteurs-admin.ts :
+// une seule mise en forme, deux chemins d'accès.
+//
+// Les CLÉS D'API ne sont plus ici : elles vivent dans l'onglet
+// « Clés API » du tableau de bord (/admin?onglet=cles).
 //
 // GARDE SERVEUR : la permission `admin.fonctionnalites.gerer` est
 // vérifiée ici (source de vérité). Les états sont lus directement
@@ -17,17 +21,10 @@ import Link from 'next/link';
 
 import { exigerPermission } from '@/lib/roles-garde';
 import { listeAvecEtats } from '@/lib/fonctionnalites/etats';
-import {
-  CLE_PARAMETRE_GEMINI,
-  lireParametreMeta,
-  masquerCle,
-} from '@/lib/parametres';
+import { versInterrupteursAdmin } from '@/lib/fonctionnalites/interrupteurs-admin';
 import { creerClientServeur, utilisateurConnecte } from '@/lib/supabase/server';
 import BarreNavigation from '@/components/BarreNavigation';
-import PanneauFonctionnalites, {
-  type InterrupteurAdmin,
-} from '@/components/admin/PanneauFonctionnalites';
-import CleModeleIa from '@/components/admin/CleModeleIa';
+import PanneauFonctionnalites from '@/components/admin/PanneauFonctionnalites';
 
 export const metadata: Metadata = {
   title: 'Fonctionnalités — Administration',
@@ -55,31 +52,9 @@ export default async function PageAdminFonctionnalites() {
 
   const liste = await listeAvecEtats();
 
-  // État de la clé du modèle d'IA (lisible ici : session admin). La
-  // valeur complète ne quitte JAMAIS le serveur — seul l'aperçu
-  // masqué est passé à l'interface.
-  const metaCle = await lireParametreMeta(supabase, CLE_PARAMETRE_GEMINI);
-
-  const interrupteurs: InterrupteurAdmin[] = liste.map(({ def, etat }) => ({
-    cle: def.cle,
-    code: def.code,
-    libelle: def.libelle,
-    groupe: def.groupe,
-    description: def.description,
-    itineraires: def.itineraires,
-    api: def.api,
-    risqueJuridique: def.risqueJuridique === true,
-    noteJuridique: def.noteJuridique ?? null,
-    sansItineraire: def.sansItineraire ?? null,
-    etat: {
-      actif: etat.actif,
-      planMinimal: etat.planMinimal,
-      deploiement: etat.deploiement,
-      juristeOk: etat.juristeOk === true,
-      majLe: etat.majLe ?? null,
-      majPar: etat.majPar ?? null,
-    },
-  }));
+  // Mise en forme partagée avec l'onglet « Fonctionnalités » du
+  // tableau de bord (lib/fonctionnalites/interrupteurs-admin.ts).
+  const interrupteurs = versInterrupteursAdmin(liste);
 
   return (
     <>
@@ -109,13 +84,17 @@ export default async function PageAdminFonctionnalites() {
 
         <PanneauFonctionnalites interrupteurs={interrupteurs} />
 
-        <CleModeleIa
-          etatInitial={{
-            defini: metaCle !== null,
-            apercu: metaCle ? masquerCle(metaCle.valeur) : null,
-            majLe: metaCle?.majLe ?? null,
-          }}
-        />
+        <p className="text-sm text-encre-500 rounded-lg border border-nuit-700 bg-nuit-800/40 px-4 py-3">
+          Les clés d’API du site (Gemini, DeepSeek et autres, avec succession)
+          ont déménagé :{' '}
+          <Link
+            href="/admin?onglet=cles"
+            className="text-grenat-300 underline underline-offset-4 hover:text-grenat-200"
+          >
+            onglet « Clés API » du tableau de bord
+          </Link>
+          .
+        </p>
       </main>
     </>
   );
