@@ -47,6 +47,23 @@ import JournalActions from '@/components/admin/JournalActions';
 import AnomaliesComptes from '@/components/admin/AnomaliesComptes';
 import ExportsAdmin from '@/components/admin/ExportsAdmin';
 import { verifierChaine, type SanteChaine } from '@/lib/providers/sante';
+import { listeAvecEtats } from '@/lib/fonctionnalites/etats';
+import {
+  compterModulesOuverts,
+  versInterrupteursAdmin,
+} from '@/lib/fonctionnalites/interrupteurs-admin';
+import { CLE_PARAMETRE_GEMINI, lireParametreMeta, masquerCle } from '@/lib/parametres';
+import PanneauFonctionnalites from '@/components/admin/PanneauFonctionnalites';
+import RevenusAbonnements from '@/components/admin/RevenusAbonnements';
+import JournalWebhooks from '@/components/admin/JournalWebhooks';
+import ClesApi, {
+  type CoteCle,
+  type EtatAncienneCle,
+} from '@/components/admin/ClesApi';
+import { listerClesApi } from '@/lib/cles-api';
+import { collecterStatsRevenus } from '@/lib/admin-revenus';
+import { normaliserWebhooks } from '@/lib/admin-webhooks';
+import { aLaPermission, estAdmin, estSuperAdmin, normaliserRole } from '@/lib/roles';
 import {
   collecterStatsAbonnements,
   collecterStatsAdmin,
@@ -63,7 +80,6 @@ import {
   type StatsAdmin,
 } from '@/lib/admin-stats';
 import type { ClientRpc } from '@/lib/rate-limit';
-import { estAdmin, estSuperAdmin, normaliserRole } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,6 +139,12 @@ export default async function PageAdmin() {
     sante,
     mesAlertesResultat,
     { data: alertesAdminRows },
+    // Vague 2 : indicateurs de revenus (MRR, mouvements mensuels).
+    resultatRevenus,
+    // Vague 2 : journal des livraisons de webhook (RLS admin). La
+    // table peut être absente tant que la migration n'est pas
+    // appliquée : l'écran l'indique proprement.
+    { data: webhooksBruts, error: webhooksErreur },
   ] = await Promise.all([
     supabase.from('profiles').select('pseudo, role').eq('id', user?.id ?? '').maybeSingle(),
     collecterStatsAdmin(clientRpc),
@@ -151,6 +173,18 @@ export default async function PageAdmin() {
     // Réglages des autres administrateurs (le super-admin seul y a droit :
     // la fonction SQL lève une exception pour les autres, d'où `data` nulle).
     supabase.rpc('admin_alertes_liste'),
+    // Vague 2 : indicateurs de revenus (MRR, mouvements mensuels).
+    collecterStatsRevenus(clientRpc, 6),
+    // Vague 2 : journal des livraisons de webhook (RLS admin). La
+    // table peut être absente tant que la migration n'est pas
+    // appliquée : l'écran l'indique proprement.
+    supabase
+      .from('evenements_webhook')
+      .select(
+        'id, fournisseur, evenement, reference, statut_http, traite, deja_traite, erreur, cree_le'
+      )
+      .order('cree_le', { ascending: false })
+      .limit(30),
   ]);
 
   const pseudo =
@@ -165,6 +199,46 @@ export default async function PageAdmin() {
   const nbAdministrateurs = resultatComptes.comptes.filter((c) =>
     estAdmin(normaliserRole(c.role))
   ).length;
+
+  // -------- Chantier post-lancement + Clés API --------
+  // Même permission que la page dédiée /admin/fonctionnalites : les
+  // écrans sont équivalents. Les clés d'API vivent dans LEUR onglet
+  // (« Clés API »), plus dans « Fonctionnalités ». Chargés SEULEMENT
+  // si le compte peut gérer les fonctionnalités (aucune requête
+  // inutile sinon).
+  const peutGererFonctionnalites = aLaPermission(roleCourant, 'admin.fonctionnalites.gerer');
+  let interrupteursChantier: ReturnType<typeof versInterrupteursAdmin> = [];
+  let clesApi: CoteCle[] = [];
+  let ancienneCle: EtatAncienneCle = { defini: false, apercu: null, majLe: null };
+  if (peutGererFonctionnalites) {
+    const [listeChantier, lignesCles, metaCleChantier] = await Promise.all([
+      listeAvecEtats(),
+      // Réservoir de clés (table cles_api) : lisible ici (session
+      // admin + RLS). La valeur complète ne quitte JAMAIS le serveur :
+      // seul l'aperçu masqué (AIza…x9Qz) est transmis à l'interface.
+      listerClesApi(supabase),
+      lireParametreMeta(supabase, CLE_PARAMETRE_GEMINI),
+    ]);
+    interrupteursChantier = versInterrupteursAdmin(listeChantier);
+    clesApi = lignesCles.map((c) => ({
+      id: c.id,
+      fournisseur: c.fournisseur,
+      libelle: c.libelle,
+      apercu: masquerCle(c.valeur),
+      planMinimal: c.planMinimal,
+      position: c.position,
+      actif: c.actif,
+      echecsConsecutifs: c.echecsConsecutifs,
+      suspendueLe: c.suspendueLe,
+      derniereErreur: c.derniereErreur,
+      majLe: c.majLe,
+    }));
+    ancienneCle = {
+      defini: metaCleChantier !== null,
+      apercu: metaCleChantier ? masquerCle(metaCleChantier.valeur) : null,
+      majLe: metaCleChantier?.majLe ?? null,
+    };
+  }
 
   // -------- Alertes de paiement --------
   const ligneAlertes = (Array.isArray(mesAlertesResultat.data)
@@ -204,6 +278,16 @@ export default async function PageAdmin() {
 
   const stats: StatsAdmin | null = resultatStats.stats;
   const abonnementsDisponibles = stats !== null && stats.abonnementsActifs !== null;
+
+  // -------- Vague 2 : revenus et livraisons de webhook --------
+  const statsRevenus = resultatRevenus.stats;
+  const erreurRevenus = resultatRevenus.erreur;
+  const livraisonsWebhook = normaliserWebhooks(webhooksBruts);
+  const erreurWebhooks = webhooksErreur
+    ? webhooksErreur.message.includes('does not exist')
+      ? 'table non encore créée : appliquez la migration « evenements_webhook » (SQL consolidé).'
+      : webhooksErreur.message
+    : null;
 
   const plans: PlanAdmin[] = normaliserPlans(plansBruts);
   const actions = normaliserActions(actionsBrutes);
@@ -311,6 +395,26 @@ export default async function PageAdmin() {
   const encaissementCetteSemaine = serieEncaisse.slice(-7).some((montant) => montant > 0);
   const dateCourte = (iso: string) => iso.slice(0, 10).split('-').reverse().join('/');
 
+  // -------- Voyant IA : au moins une clé utilisable ? --------
+  // La variable d'environnement compte comme une clé (voie officielle).
+  const nbClesGeminiActives = clesApi.filter(
+    (c) => c.fournisseur === 'gemini' && c.actif
+  ).length;
+  const nbClesAutres = clesApi.filter((c) => c.fournisseur !== 'gemini').length;
+  const iaConfiguree =
+    Boolean(process.env.GEMINI_API_KEY?.trim()) ||
+    nbClesGeminiActives > 0 ||
+    ancienneCle.defini;
+  const detailClesIa = [
+    process.env.GEMINI_API_KEY?.trim() ? 'variable d’environnement' : null,
+    nbClesGeminiActives > 0
+      ? `${nbClesGeminiActives} clé${nbClesGeminiActives > 1 ? 's' : ''} Gemini`
+      : null,
+    nbClesAutres > 0 ? `${nbClesAutres} autre${nbClesAutres > 1 ? 's' : ''}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
   const voyants: VoyantSante[] = [
     {
       cle: 'base',
@@ -347,6 +451,15 @@ export default async function PageAdmin() {
           ? `${sante.moteurActif.nom} disponible`
           : 'aucun moteur disponible',
       onglet: 'systeme',
+    },
+    {
+      cle: 'ia',
+      libelle: 'Clés IA',
+      etat: iaConfiguree ? 'ok' : 'attention',
+      detail: iaConfiguree
+        ? detailClesIa || 'clés enregistrées'
+        : 'aucune clé : collez-en une dans « Clés API »',
+      onglet: 'cles',
     },
   ];
 
@@ -511,6 +624,7 @@ export default async function PageAdmin() {
       contenu: (
         <>
           <RepartitionAbonnements stats={resultatAgr.stats} erreur={resultatAgr.erreur} />
+          <RevenusAbonnements stats={statsRevenus} erreur={erreurRevenus} />
           <AnomaliesComptes anomalies={anomalies} plans={plans} />
         </>
       ),
@@ -523,10 +637,22 @@ export default async function PageAdmin() {
         libelle: 'paiements récents',
       },
       contenu: (
-        <PaiementsFiltrables
-          paiements={resultatPaiements.paiements}
-          erreur={resultatPaiements.erreur}
-        />
+        <>
+          <PaiementsFiltrables
+            paiements={resultatPaiements.paiements}
+            erreur={resultatPaiements.erreur}
+          />
+          <BlocRepliable
+            titre="Livraisons de webhook (paiement)"
+            resume={
+              erreurWebhooks
+                ? 'indisponible'
+                : `${livraisonsWebhook.length} livraison${livraisonsWebhook.length > 1 ? 's' : ''}`
+            }
+          >
+            <JournalWebhooks livraisons={livraisonsWebhook} erreur={erreurWebhooks} />
+          </BlocRepliable>
+        </>
       ),
     },
     // AJOUT : panneau de gestion des rôles, monté UNIQUEMENT pour un
@@ -597,6 +723,39 @@ export default async function PageAdmin() {
         </>
       ),
     },
+    // Clés d'API : réservoir multi-fournisseurs avec succession —
+    // même permission que « Fonctionnalités » (admin.fonctionnalites.gerer).
+    // La pastille compte les clés actives ; en alerte si aucune clé IA.
+    ...(peutGererFonctionnalites
+      ? [
+          {
+            id: 'cles',
+            libelle: 'Clés API',
+            pastille: clesApi.some((c) => c.actif)
+              ? { nombre: clesApi.filter((c) => c.actif).length, libelle: 'clés actives' }
+              : { nombre: 0, libelle: 'clés actives', alerte: true },
+            contenu: <ClesApi clesInitiales={clesApi} ancienne={ancienneCle} />,
+          } satisfies OngletAdmin,
+        ]
+      : []),
+    // Chantier post-lancement : interrupteurs des nouveaux modules, en
+    // TANT QU'ONGLET, après « Clés API » — même contenu que la page
+    // /admin/fonctionnalites (mapper partagé). La pastille compte les
+    // modules actuellement OUVERTS aux lecteurs. (Les clés d'API ont
+    // déménagé dans l'onglet « Clés API ».)
+    ...(peutGererFonctionnalites
+      ? [
+          {
+            id: 'chantier',
+            libelle: 'Fonctionnalités',
+            pastille: {
+              nombre: compterModulesOuverts(interrupteursChantier),
+              libelle: 'modules ouverts',
+            },
+            contenu: <PanneauFonctionnalites interrupteurs={interrupteursChantier} />,
+          } satisfies OngletAdmin,
+        ]
+      : []),
   ];
 
   // ------------------------------------------------------------
@@ -663,7 +822,8 @@ export default async function PageAdmin() {
           <div className="liseret mt-3" />
           <p className="text-encre-500 text-sm mt-3 italic">
             Comptes, usage, abonnements et paiements. Aucun contenu de livre d’autrui n’est
-            lisible ici.
+            lisible ici. Les interrupteurs des nouveaux modules sont dans l’onglet
+            « Fonctionnalités », les clés d’API dans « Clés API ».
           </p>
           {/* Chantier post-lancement : interrupteurs des nouveaux modules. */}
           <p className="text-sm mt-2">

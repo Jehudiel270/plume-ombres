@@ -14,6 +14,11 @@
 // `hidden` ni de `display:none`) : c'est ce qui raccourcit réellement
 // la page et évite de mesurer du contenu invisible.
 //
+// LIENS PROFONDS : l'onglet ouvert est reflété dans l'URL
+// (/admin?onglet=cles) et l'URL est lue au montage — un lien reçu du
+// bandeau de santé, de la palette ou d'un autre écran ouvre le bon
+// onglet directement.
+//
 // Composant CLIENT sans état serveur : le composant serveur appelant
 // (app/admin/page.tsx) reste le propriétaire des données et lui passe,
 // pour chaque onglet, le JSX déjà rendu (éléments React en props).
@@ -54,6 +59,8 @@ export default function OngletsAdmin({
   const suffixe = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [actif, setActif] = useState(0);
   const boutons = useRef<Array<HTMLButtonElement | null>>([]);
+  // Devient vrai après la lecture du lien profond (montage client).
+  const initialise = useRef(false);
 
   const idOnglet = (o: OngletAdmin) => `onglet-${o.id}-${suffixe}`;
   const idPanneau = (o: OngletAdmin) => `panneau-${o.id}-${suffixe}`;
@@ -100,6 +107,27 @@ export default function OngletsAdmin({
     window.addEventListener('plume:onglet', surDemande);
     return () => window.removeEventListener('plume:onglet', surDemande);
   }, [onglets]);
+
+  // Lien profond ENTRANT : /admin?onglet=cles ouvre l'onglet « Clés ».
+  useEffect(() => {
+    const slug = new URLSearchParams(window.location.search).get('onglet');
+    if (slug) {
+      const index = onglets.findIndex((onglet) => onglet.id === slug);
+      if (index >= 0) setActif(index);
+    }
+    initialise.current = true;
+  }, [onglets]);
+
+  // Lien profond SORTANT : l'onglet actif est reflété dans l'URL
+  // (replaceState : pas d'entrée d'historique par clic d'onglet).
+  useEffect(() => {
+    if (!initialise.current) return;
+    const slug = onglets[actif]?.id;
+    if (!slug) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('onglet', slug);
+    window.history.replaceState(null, '', url.toString());
+  }, [actif, onglets]);
 
   if (onglets.length === 0) return null;
 

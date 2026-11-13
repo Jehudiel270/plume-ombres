@@ -19,7 +19,13 @@ import {
   delaiModeleMs,
   modelesGemini,
 } from '@/lib/providers/gemini';
-import { resoudreCleGemini } from '@/lib/parametres';
+import type { NiveauPlan } from '@/lib/fonctionnalites/registre';
+import {
+  echecVautPourCle,
+  resoudreClesGemini,
+  signalerEchecCle,
+  signalerSuccesCle,
+} from '@/lib/cles-api';
 
 /** Plafond de contexte envoyé au modèle (caractères) : les derniers
  *  chapitres lus priment (le début est résumé de mémoire du texte
@@ -35,27 +41,70 @@ function indisponible(statut: number): boolean {
 
 /**
  * Appel MODELE unique (one-shot) : instruction système + contenu.
- * Retourne le texte du modèle, bascule de modèle en cas d'erreur
- * 404/429/503 ou de silence (même logique que la traduction).
+ * SUCCESSION COMPLÈTE : pour chaque clé (variable d'environnement
+ * d'abord, puis clés du réservoir « Clés API » compatibles avec le
+ * niveau d'abonnement de l'appelant), on essaie TOUS les modèles ;
+ * si la clé lâche (quota 429, accès refusé…), la clé suivante prend
+ * le relais. Un échec de clé est noté en base : après trois échecs
+ * de suite, la clé prend un temps de repos automatique.
+ * Retourne le texte du modèle, ou lève une erreur unique.
  *
- * `client` (facultatif) : la session courante — sans variable
- * d'environnement GEMINI_API_KEY, la clé collée par l'administrateur
- * dans son panneau n'est lisible que si CETTE session est admin.
+ * `client` (facultatif) : la session courante — sans rôle service,
+ * le réservoir n'est lisible que si CETTE session est admin.
+ * `niveau` (facultatif) : niveau d'abonnement de l'appelant, qui
+ * filtre les clés affectées (null = sans filtrage, essai admin).
  */
 export async function demanderModele(
   systeme: string,
   contenu: string,
   maxSortie = 1200,
-  client?: SupabaseClient
+  client?: SupabaseClient,
+  niveau: NiveauPlan | null = null
 ): Promise<string> {
-  const cle = await resoudreCleGemini(client);
-  if (!cle) {
+  const { cles, sourceEnv } = await resoudreClesGemini({ niveau, session: client });
+  const candidats: Array<{ valeur: string; id: string | null }> = [];
+  if (sourceEnv) candidats.push({ valeur: sourceEnv, id: null });
+  for (const ligne of cles) {
+    if (sourceEnv && ligne.valeur === sourceEnv) continue;
+    candidats.push({ valeur: ligne.valeur, id: ligne.id });
+  }
+  if (candidats.length === 0) {
     throw new Error(
-      'Le modèle d’aide à la lecture n’est pas configuré : collez la clé ' +
-        'dans le panneau d’administration (Fonctionnalités) ou définissez ' +
-        'la variable d’environnement GEMINI_API_KEY.'
+      'Le modèle d’aide à la lecture n’est pas configuré : collez une clé dans ' +
+        'l’onglet « Clés API » du tableau de bord, ou définissez la variable ' +
+        'd’environnement GEMINI_API_KEY.'
     );
   }
+
+  let derniereErreur = '';
+  for (const candidat of candidats) {
+    try {
+      const texte = await appelerModeleAvecCle(systeme, contenu, maxSortie, candidat.valeur);
+      if (candidat.id) {
+        await signalerSuccesCle(candidat.id).catch(() => {});
+      }
+      return texte;
+    } catch (e) {
+      const cause = e instanceof Error ? e.message : String(e);
+      derniereErreur = cause;
+      if (candidat.id && echecVautPourCle(cause)) {
+        await signalerEchecCle(candidat.id, cause).catch(() => {});
+      }
+    }
+  }
+  throw new Error(derniereErreur || 'Le modèle est indisponible.');
+}
+
+/**
+ * Un appel avec UNE clé : bascule au niveau du MODÈLE (404/429/503
+ * ou silence) avant d'abandonner cette clé.
+ */
+async function appelerModeleAvecCle(
+  systeme: string,
+  contenu: string,
+  maxSortie: number,
+  cle: string
+): Promise<string> {
   const corps = JSON.stringify({
     systemInstruction: { parts: [{ text: systeme }] },
     contents: [{ parts: [{ text: contenu }] }],
@@ -165,7 +214,8 @@ export interface ResumeReprise {
 export async function resumerReprise(
   client: SupabaseClient,
   livreId: string,
-  positionLue: number | null
+  positionLue: number | null,
+  niveau: NiveauPlan | null = null
 ): Promise<ResumeReprise | null> {
   if (positionLue === null || positionLue <= 0) return null;
 
@@ -195,7 +245,8 @@ export async function resumerReprise(
       's’est arrêtée.',
     contexte.contexte,
     800,
-    client
+    client,
+    niveau
   );
 
   const dernierTitre = contexte.chapitres[contexte.chapitres.length - 1] ?? null;
@@ -220,7 +271,8 @@ export async function questionnerIntrigue(
   client: SupabaseClient,
   livreId: string,
   positionLue: number | null,
-  question: string
+  question: string,
+  niveau: NiveauPlan | null = null
 ): Promise<string> {
   const propre = (question ?? '').trim().slice(0, MAX_QUESTION);
   if (propre.length < 3) {
@@ -244,6 +296,7 @@ export async function questionnerIntrigue(
       'au maximum.',
     `${contexte.contexte}\n\n=== Question du lecteur ===\n${propre}`,
     600,
-    client
+    client,
+    niveau
   );
 }

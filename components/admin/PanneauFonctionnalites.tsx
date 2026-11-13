@@ -5,10 +5,16 @@
 //
 // Portage React de la page d'administration des interrupteurs de la
 // maquette (/admin/fonctionnalites), habillé des classes du projet
-// réel. Un interrupteur par carte : actif, abonnement minimal,
-// déploiement progressif (aperçu sur 20 lecteurs de test), et, pour
-// les modules à risque, la case « validé par un juriste » — que le
-// serveur refuse de voir posée ailleurs ou d'activer sans elle.
+// réel. FORMAT COMPACT façon FAQ : chaque module est UNE LIGNE
+// dépliable (<details>/<summary> natifs — aucun JavaScript pour
+// l'accessibilité), avec les badges essentiels visibles d'un coup
+// d'œil (ouvert/fermé, abonnement, déploiement) et les réglages
+// complets à l'ouverture.
+//
+// Réglages par module : actif, abonnement minimal, déploiement
+// progressif (aperçu sur 20 lecteurs de test), et, pour les modules
+// à risque, la case « validé par un juriste » — que le serveur
+// refuse de voir posée ailleurs ou d'activer sans elle.
 //
 // Le serveur reste l'autorité : tout changement passe par
 // PATCH /api/admin/fonctionnalites, qui revalide tout (rôles,
@@ -48,7 +54,7 @@ const LIBELLES_PLAN: Record<string, string> = {
   illimite: 'Illimité',
 };
 
-function CarteInterrupteur({ interrupteur }: { interrupteur: InterrupteurAdmin }) {
+function LigneInterrupteur({ interrupteur }: { interrupteur: InterrupteurAdmin }) {
   const router = useRouter();
   const [etat, setEtat] = useState(interrupteur.etat);
   const [enCours, setEnCours] = useState(false);
@@ -98,35 +104,31 @@ function CarteInterrupteur({ interrupteur }: { interrupteur: InterrupteurAdmin }
   }
 
   const ouvert = etat.actif;
+  const planLabel = etat.planMinimal ? LIBELLES_PLAN[etat.planMinimal] : 'Tous';
 
   return (
-    <section
-      className="velours p-5 space-y-4 rounded-2xl border border-nuit-700"
+    <details
+      className="velours px-4 py-3 group rounded-[12px] border border-nuit-700"
       aria-labelledby={`titre-int-${interrupteur.cle}`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 id={`titre-int-${interrupteur.cle}`} className="font-display text-lg text-encre-100">
-            {interrupteur.libelle}{' '}
-            <span className="text-xs text-encre-500 font-sans">
-              ({interrupteur.code})
-            </span>
-          </h3>
-          <p className="text-sm text-encre-300 mt-1">{interrupteur.description}</p>
-          <p className="text-xs text-encre-500 mt-1.5">
-            {interrupteur.itineraires.length > 0 || interrupteur.api.length > 0 ? (
-              <>
-                Pages : {interrupteur.itineraires.join(', ') || '—'} · API :{' '}
-                {interrupteur.api.join(', ') || '—'}
-              </>
-            ) : (
-              interrupteur.sansItineraire
-            )}
-          </p>
-        </div>
+      <summary className="cursor-pointer list-none flex flex-wrap items-center gap-x-3 gap-y-1.5 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grenat-400 rounded-md">
+        <span
+          aria-hidden="true"
+          className="text-grenat-400 shrink-0 transition-transform duration-200 group-open:rotate-45"
+        >
+          ＋
+        </span>
+        <span
+          id={`titre-int-${interrupteur.cle}`}
+          className="font-display text-base text-encre-100"
+        >
+          {interrupteur.libelle}
+          <span className="text-xs text-encre-500 font-sans ml-1">({interrupteur.code})</span>
+        </span>
+        {/* Badges d'un coup d'œil, sans déplier. */}
         <span
           className={
-            'shrink-0 rounded-full px-3 py-1 text-xs font-medium border ' +
+            'shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium border ' +
             (ouvert
               ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40'
               : 'bg-nuit-800 text-encre-500 border-nuit-700')
@@ -134,109 +136,129 @@ function CarteInterrupteur({ interrupteur }: { interrupteur: InterrupteurAdmin }
         >
           {ouvert ? 'Ouvert' : 'Fermé'}
         </span>
-      </div>
+        <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium border bg-nuit-800 text-encre-300 border-nuit-700">
+          {planLabel}
+        </span>
+        <span className="shrink-0 text-[11px] text-encre-500 chiffres-tabulaires">
+          {etat.deploiement} %
+        </span>
+      </summary>
 
-      {interrupteur.risqueJuridique && (
-        <p className="text-xs text-grenat-300 rounded-lg border border-grenat-500/40 bg-grenat-500/10 px-3 py-2">
-          {interrupteur.noteJuridique}
+      <div className="mt-3 space-y-4">
+        <p className="text-sm text-encre-300">{interrupteur.description}</p>
+        <p className="text-xs text-encre-500">
+          {interrupteur.itineraires.length > 0 || interrupteur.api.length > 0 ? (
+            <>
+              Pages : {interrupteur.itineraires.join(', ') || '—'} · API :{' '}
+              {interrupteur.api.join(', ') || '—'}
+            </>
+          ) : (
+            interrupteur.sansItineraire
+          )}
         </p>
-      )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            disabled={enCours}
-            onClick={() => envoyer({ actif: !ouvert })}
-            className={(ouvert ? 'bouton-fantome' : 'bouton-principal') + ' min-h-11 text-sm'}
-            aria-pressed={ouvert}
-          >
-            {ouvert ? 'Fermer le module' : 'Ouvrir le module'}
-          </button>
-          {interrupteur.risqueJuridique && (
-            <label className="flex items-start gap-2 text-xs text-encre-300 cursor-pointer">
-              <input
-                type="checkbox"
-                className="mt-0.5 accent-[var(--color-grenat-500,oklch(0.55_0.18_20))] size-4"
-                checked={etat.juristeOk}
-                disabled={enCours}
-                onChange={(e) => envoyer({ juristeOk: e.target.checked })}
-              />
-              <span>
-                Validé par un juriste
-                <br />
-                <span className="text-encre-500">
-                  (obligatoire pour ouvrir ce module)
+        {interrupteur.risqueJuridique && (
+          <p className="text-xs text-grenat-300 rounded-lg border border-grenat-500/40 bg-grenat-500/10 px-3 py-2">
+            {interrupteur.noteJuridique}
+          </p>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={enCours}
+              onClick={() => envoyer({ actif: !ouvert })}
+              className={(ouvert ? 'bouton-fantome' : 'bouton-principal') + ' min-h-11 text-sm'}
+              aria-pressed={ouvert}
+            >
+              {ouvert ? 'Fermer le module' : 'Ouvrir le module'}
+            </button>
+            {interrupteur.risqueJuridique && (
+              <label className="flex items-start gap-2 text-xs text-encre-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-[var(--color-grenat-500,oklch(0.55_0.18_20))] size-4"
+                  checked={etat.juristeOk}
+                  disabled={enCours}
+                  onChange={(e) => envoyer({ juristeOk: e.target.checked })}
+                />
+                <span>
+                  Validé par un juriste
+                  <br />
+                  <span className="text-encre-500">
+                    (obligatoire pour ouvrir ce module)
+                  </span>
                 </span>
+              </label>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-xs text-encre-500">
+              Abonnement minimal
+              <select
+                className="select-sombre champ-sombre mt-1 w-full rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2.5 text-sm text-encre-100"
+                value={etat.planMinimal ?? ''}
+                disabled={enCours}
+                onChange={(e) =>
+                  envoyer({ planMinimal: e.target.value === '' ? null : e.target.value })
+                }
+              >
+                <option value="">Aucun (tous les comptes)</option>
+                {Object.entries(LIBELLES_PLAN).map(([valeur, libelle]) => (
+                  <option key={valeur} value={valeur}>
+                    {libelle}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-xs text-encre-500">
+              Déploiement progressif : {etat.deploiement} %
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={etat.deploiement}
+                disabled={enCours}
+                onChange={(e) => setEtat((s) => ({ ...s, deploiement: Number(e.target.value) }))}
+                onMouseUp={(e) =>
+                  envoyer({ deploiement: Number((e.target as HTMLInputElement).value) })
+                }
+                onTouchEnd={(e) =>
+                  envoyer({ deploiement: Number((e.target as HTMLInputElement).value) })
+                }
+                onKeyUp={(e) =>
+                  envoyer({ deploiement: Number((e.target as HTMLInputElement).value) })
+                }
+                className="w-full mt-2 accent-[var(--color-grenat-500,oklch(0.55_0.18_20))]"
+              />
+              <span className="text-encre-500">
+                Aperçu : {apercu} lecteur{apercu > 1 ? 's' : ''} sur 20 de test
+                {etat.deploiement === 100 ? ' (tout le monde)' : ''}
+                {etat.deploiement === 0 ? ' (personne)' : ''}
               </span>
             </label>
-          )}
+          </div>
         </div>
 
-        <div className="space-y-3">
-          <label className="block text-xs text-encre-500">
-            Abonnement minimal
-            <select
-              className="champ-sombre mt-1 w-full rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2.5 text-sm text-encre-100"
-              value={etat.planMinimal ?? ''}
-              disabled={enCours}
-              onChange={(e) =>
-                envoyer({ planMinimal: e.target.value === '' ? null : e.target.value })
-              }
-            >
-              <option value="">Aucun (tous les comptes)</option>
-              {Object.entries(LIBELLES_PLAN).map(([valeur, libelle]) => (
-                <option key={valeur} value={valeur}>
-                  {libelle}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-xs text-encre-500">
-            Déploiement progressif : {etat.deploiement} %
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={etat.deploiement}
-              disabled={enCours}
-              onChange={(e) => setEtat((s) => ({ ...s, deploiement: Number(e.target.value) }))}
-              onMouseUp={(e) =>
-                envoyer({ deploiement: Number((e.target as HTMLInputElement).value) })
-              }
-              onTouchEnd={(e) =>
-                envoyer({ deploiement: Number((e.target as HTMLInputElement).value) })
-              }
-              onKeyUp={(e) =>
-                envoyer({ deploiement: Number((e.target as HTMLInputElement).value) })
-              }
-              className="w-full mt-2 accent-[var(--color-grenat-500,oklch(0.55_0.18_20))]"
-            />
-            <span className="text-encre-500">
-              Aperçu : {apercu} lecteur{apercu > 1 ? 's' : ''} sur 20 de test
-              {etat.deploiement === 100 ? ' (tout le monde)' : ''}
-              {etat.deploiement === 0 ? ' (personne)' : ''}
-            </span>
-          </label>
-        </div>
+        {message && (
+          <p
+            role="status"
+            className={
+              'text-sm px-3 py-2 rounded-lg border ' +
+              (message.ton === 'ok'
+                ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10'
+                : 'text-grenat-300 border-grenat-500/40 bg-grenat-500/10')
+            }
+          >
+            {message.texte}
+          </p>
+        )}
       </div>
-
-      {message && (
-        <p
-          role="status"
-          className={
-            'text-sm px-3 py-2 rounded-lg border ' +
-            (message.ton === 'ok'
-              ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10'
-              : 'text-grenat-300 border-grenat-500/40 bg-grenat-500/10')
-          }
-        >
-          {message.texte}
-        </p>
-      )}
-    </section>
+    </details>
   );
 }
 
@@ -262,11 +284,12 @@ export default function PanneauFonctionnalites({
       <p className="text-encre-500 text-sm italic">
         {interrupteurs.length} interrupteurs, {ouverts} ouvert
         {ouverts > 1 ? 's' : ''}. Un module fermé renvoie 404 — comme si la route
-        n’existait pas. Tout changement est journalisé.
+        n’existait pas. Tout changement est journalisé. Cliquez sur un module
+        pour déplier ses réglages.
       </p>
 
       {groupes.map(([groupe, liste]) => (
-        <section key={groupe} className="space-y-4" aria-labelledby={`titre-groupe-${groupe}`}>
+        <section key={groupe} className="space-y-3" aria-labelledby={`titre-groupe-${groupe}`}>
           <h2
             id={`titre-groupe-${groupe}`}
             className="sur-titre text-encre-300"
@@ -274,9 +297,11 @@ export default function PanneauFonctionnalites({
             {groupe}
           </h2>
           <div className="liseret" />
-          {liste.map((interrupteur) => (
-            <CarteInterrupteur key={interrupteur.cle} interrupteur={interrupteur} />
-          ))}
+          <div className="space-y-2">
+            {liste.map((interrupteur) => (
+              <LigneInterrupteur key={interrupteur.cle} interrupteur={interrupteur} />
+            ))}
+          </div>
         </section>
       ))}
     </div>
