@@ -282,7 +282,7 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
     libelle: 'Univers multi-tomes',
     groupe: 'Univers',
     description: 'Sagas, carte des tomes, anti-spoilers par tome.',
-    itineraires: ['/univers'],
+    itineraires: ['/univers', '/univers/*'],
     api: ['/api/univers'],
     planMinimal: 'illimite',
     prod: false,
