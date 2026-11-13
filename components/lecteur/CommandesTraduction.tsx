@@ -47,8 +47,14 @@ interface Props {
   onTraduireSelection: () => void;
   onToutTraduire: () => void;
   /** Mode d'affichage courant du lecteur. */
-  lecture: 'source' | 'traduit';
-  onLecture: (mode: 'source' | 'traduit') => void;
+  lecture: 'source' | 'traduit' | 'bilingue';
+  onLecture: (mode: 'source' | 'traduit' | 'bilingue') => void;
+  /**
+   * Interrupteur `bilingue` (F7) ouvert pour ce lecteur ET chapitre
+   * traduit : affiche le troisième bouton de la bascule. Absent →
+   * la bascule reste source / traduction (comportement livré).
+   */
+  bilingueDisponible?: boolean;
   /** Le chapitre affiché possède une traduction (affiche la bascule). */
   texteTraduitDisponible: boolean;
   langueSource: string;
@@ -77,6 +83,7 @@ function CommandesTraduction({
   onToutTraduire,
   lecture,
   onLecture,
+  bilingueDisponible = false,
   texteTraduitDisponible,
   langueSource,
   langueCible,
@@ -218,6 +225,21 @@ function CommandesTraduction({
           >
             {LANGUES[langueCible as CodeLangue]}
           </button>
+          {bilingueDisponible && (
+            <button
+              type="button"
+              onClick={() => onLecture('bilingue')}
+              aria-pressed={lecture === 'bilingue'}
+              title="Afficher la source en face de la traduction"
+              className={`flex-1 sm:flex-none min-h-11 px-4 py-1.5 text-xs rounded-full transition-all cursor-pointer ${
+                lecture === 'bilingue'
+                  ? 'bg-nuit-700 text-encre-100'
+                  : 'text-encre-500 hover:text-encre-300'
+              }`}
+            >
+              Bilingue
+            </button>
+          )}
         </div>
       )}
     </>

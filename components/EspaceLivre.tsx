@@ -37,6 +37,8 @@ import {
   useLecture,
 } from '@/lib/useLecture';
 import { CLEF_PROGRESSION } from '@/lib/progression';
+import BoutonCarnet from '@/components/carnet/BoutonCarnet';
+import AssistanceLecture from '@/components/lecteur/AssistanceLecture';
 import {
   DUREE_BAIL_NAVIGATEUR_MS,
   creerTravail,
@@ -47,7 +49,13 @@ import {
 import Sommaire from '@/components/lecteur/Sommaire';
 import BarreActions from '@/components/lecteur/BarreActions';
 import CommandesTraduction from '@/components/lecteur/CommandesTraduction';
+import {
+  apparierDepuisSegments,
+  apparierParagraphes,
+  type PaireBilingue,
+} from '@/lib/bilingue';
 import Lecteur from '@/components/lecteur/Lecteur';
+import LectureVocale from '@/components/lecteur/LectureVocale';
 import { usePreferencesLecture } from '@/components/lecteur/ReglagesLecture';
 import { useExports } from '@/components/lecteur/useExports';
 import type { ChapitreLeger, Compteurs } from '@/components/lecteur/partages';
@@ -68,11 +76,50 @@ export default function EspaceLivre({
   livreInitial,
   chapitresInitiaux,
   totalCaracteres,
+  lectureVocaleOuverte = false,
+  bilingueOuverte = false,
+  carnetOuverte = false,
+  grapheOuvert = false,
+  assistanceOuverte = false,
+  progressionOuverte = false,
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
   /** Nombre total de caractères du livre (estimation du temps de lecture). */
   totalCaracteres: number;
+  /**
+   * Interrupteur `lecture_vocale` (F9) évalué CÔTÉ SERVEUR (registre +
+   * plan du compte) : la page ne passe vrai que si le module est ouvert
+   * pour ce lecteur. Défaut false : sans wire, rien ne s'affiche.
+   */
+  lectureVocaleOuverte?: boolean;
+  /**
+   * Interrupteur `carnet` (F2, ajout chantier) évalué CÔTÉ SERVEUR :
+   * le bouton du carnet n'existe que si le module est ouvert.
+   */
+  carnetOuverte?: boolean;
+  /**
+   * Interrupteur `graphe` (F25, ajout chantier) évalué CÔTÉ SERVEUR :
+   * le lien vers le graphe narratif n'existe que si le module est ouvert.
+   */
+  grapheOuvert?: boolean;
+  /**
+   * Interrupteur `reprise` (F6/F10, ajout chantier) évalué CÔTÉ
+   * SERVEUR : le panneau d'aide à la reprise n'existe que si le
+   * module est ouvert (abonnés).
+   */
+  assistanceOuverte?: boolean;
+  /**
+   * Interrupteur `progression` (A17, ajout chantier) évalué CÔTÉ
+   * SERVEUR : l'XP de découverte n'est envoyée que si le module est
+   * ouvert (sinon aucun appel réseau du tout).
+   */
+  progressionOuverte?: boolean;
+  /**
+   * Interrupteur `bilingue` (F7) évalué CÔTÉ SERVEUR : le bouton de la
+   * vue bilingue n'existe que si le module est ouvert pour ce lecteur.
+   */
+  bilingueOuverte?: boolean;
 }) {
   const supabaseRef = useRef(creerClientNavigateur());
   const requeteRef = useRef<string | null>(null);
@@ -83,7 +130,9 @@ export default function EspaceLivre({
     chapitresInitiaux[0]?.id ?? null
   );
   const [chapitreComplet, setChapitreComplet] = useState<Chapitre | null>(null);
-  const [lecture, setLecture] = useState<'source' | 'traduit'>('source');
+  const [lecture, setLecture] = useState<'source' | 'traduit' | 'bilingue'>(
+    'source'
+  );
   const [compteurs, setCompteurs] = useState<Compteurs | null>(null);
   /** Ce qui RESTE à traduire dans le livre (compté avec la vraie source). */
   const [aTraduire, setATraduire] = useState<{
@@ -391,6 +440,26 @@ export default function EspaceLivre({
     };
   }, [selection]);
 
+  // ---------- XP de découverte (A17) ----------
+  // Un seul envoi par chapitre OUVERT, seulement si l'interrupteur
+  // `progression` est ouvert (sinon aucun appel réseau) — l'API
+  // ignore les doublons (upsert on conflict do nothing) et ne
+  // renvoie rien d'obligatoire : fire-and-forget silencieux.
+  const progressionRef = useRef(false);
+  progressionRef.current = progressionOuverte;
+  useEffect(() => {
+    if (!progressionRef.current || !chapitreComplet) return;
+    const livreXp = livre.id;
+    const chapitreXp = chapitreComplet.id;
+    void fetch('/api/progression', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ livreId: livreXp, chapitreId: chapitreXp }),
+    }).catch(() => {
+      // Silencieux : la progression ne doit jamais gêner la lecture.
+    });
+  }, [chapitreComplet, livre.id]);
+
   // ---------- Compteurs de progression (ensemble du livre) ----------
   // Callback STABLE (deps = [livre.id]) : la pagination des segments n'est
   // plus relancée à chaque changement de `chapitres` (donc à chaque statut
@@ -657,7 +726,7 @@ export default function EspaceLivre({
   // ---------- Divers ----------
   const texteAffiche = useMemo(() => {
     if (!chapitreComplet) return '';
-    if (lecture === 'traduit')
+    if (lecture === 'traduit' || lecture === 'bilingue')
       return chapitreComplet.texte_traduit ?? chapitreComplet.texte_source;
     return chapitreComplet.texte_source;
   }, [chapitreComplet, lecture]);
@@ -669,9 +738,49 @@ export default function EspaceLivre({
    *  l'annonce du corps de texte aux lecteurs d'écran. */
   const langueAffichee = useMemo(() => {
     const brute =
-      lecture === 'traduit' ? livre.langue_cible : livre.langue_source;
+      lecture === 'source' ? livre.langue_source : livre.langue_cible;
     return /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(brute ?? '') ? brute : 'fr';
   }, [lecture, livre.langue_source, livre.langue_cible]);
+
+  // ---------- Vue bilingue (F7) : paires source ↔ traduit ----------
+  // Alignement SEGMENT par SEGMENT (les unités réellement traduites) ;
+  // repli paragraphe par paragraphe si la table est vide. Les paires
+  // restent en cache : basculer de vue ne relance pas la lecture.
+  const [pairesBilingue, setPairesBilingue] = useState<PaireBilingue[] | null>(
+    null
+  );
+  useEffect(() => {
+    if (lecture !== 'bilingue' || !chapitreComplet) return;
+    const idChapitre = chapitreComplet.id;
+    const texteSource = chapitreComplet.texte_source;
+    const texteTraduit = chapitreComplet.texte_traduit ?? '';
+    let annule = false;
+    (async () => {
+      try {
+        const { data } = await supabaseRef.current
+          .from('segments')
+          .select('source, traduit, position')
+          .eq('chapitre_id', idChapitre)
+          .order('position', { ascending: true });
+        if (annule) return;
+        const parSegments = apparierDepuisSegments(
+          (data ?? []) as Array<{ source: string | null; traduit: string | null }>
+        );
+        setPairesBilingue(
+          parSegments.length > 0
+            ? parSegments
+            : apparierParagraphes(texteSource, texteTraduit)
+        );
+      } catch {
+        if (!annule) {
+          setPairesBilingue(apparierParagraphes(texteSource, texteTraduit));
+        }
+      }
+    })();
+    return () => {
+      annule = true;
+    };
+  }, [lecture, chapitreComplet]);
 
   const chapitreActuel = useMemo(
     () => chapitres.find((c) => c.id === selection) ?? null,
@@ -722,6 +831,7 @@ export default function EspaceLivre({
           tempsEstime={tempsEstime}
           tempsLecture={tempsLecture}
           chapitreDisponible={!!chapitreComplet}
+          grapheOuvert={grapheOuvert}
           onChangerLangues={changerLangues}
           onExporterChapitre={exporterChapitre}
           onExporterLivre={exporterLivre}
@@ -759,6 +869,7 @@ export default function EspaceLivre({
           onToutTraduire={toutTraduire}
           lecture={lecture}
           onLecture={setLecture}
+          bilingueDisponible={bilingueOuverte && !!chapitreComplet?.texte_traduit}
           texteTraduitDisponible={!!chapitreComplet?.texte_traduit}
           langueSource={livre.langue_source}
           langueCible={livre.langue_cible}
@@ -804,6 +915,27 @@ export default function EspaceLivre({
               position={indexSelection + 1}
               total={chapitres.length}
               preferences={preferences}
+              pairesBilingue={
+                lecture === 'bilingue' ? pairesBilingue : null
+              }
+              langueSourceBilingue={livre.langue_source}
+              outils={
+                <>
+                  {lectureVocaleOuverte && chapitreComplet ? (
+                    <LectureVocale texte={texteNet} />
+                  ) : null}
+                  {carnetOuverte && chapitreComplet ? (
+                    <BoutonCarnet
+                      livreId={livre.id}
+                      chapitreId={chapitreComplet.id}
+                      chapitreTitre={chapitreComplet.titre}
+                    />
+                  ) : null}
+                  {assistanceOuverte && chapitreComplet ? (
+                    <AssistanceLecture livreId={livre.id} chapitreLu={indexSelection + 1} />
+                  ) : null}
+                </>
+              }
             />
           </div>
         )}

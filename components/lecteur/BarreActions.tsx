@@ -28,6 +28,8 @@ interface Props extends EtatExports {
   tempsLecture: string | null;
   /** Un chapitre est chargé (active l'export du chapitre courant). */
   chapitreDisponible: boolean;
+  /** Interrupteur `graphe` (F25) évalué côté serveur : lien masqué si fermé. */
+  grapheOuvert?: boolean;
   onChangerLangues: (source: string, cible: string) => void;
   onExporterChapitre: () => void;
   onExporterLivre: () => void;
@@ -42,6 +44,7 @@ function BarreActions({
   tempsEstime,
   tempsLecture,
   chapitreDisponible,
+  grapheOuvert = false,
   onChangerLangues,
   onExporterChapitre,
   onExporterLivre,
@@ -75,6 +78,17 @@ function BarreActions({
         <p className="text-[11px] text-encre-500">
           {LANGUES[livre.langue_source as CodeLangue]} →{' '}
           {LANGUES[livre.langue_cible as CodeLangue]}
+          {grapheOuvert && (
+            <>
+              {' · '}
+              <Link
+                href={`/livres/${livre.id}/graphe`}
+                className="hover:text-grenat-300 underline decoration-dotted"
+              >
+                Graphe narratif
+              </Link>
+            </>
+          )}
           {tempsEstime && (
             <span title="Temps estimé de lecture du livre entier">
               {' '}

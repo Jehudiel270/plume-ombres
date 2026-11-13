@@ -15,6 +15,7 @@ import {
   quotaPourPlan,
 } from '@/lib/abonnement';
 import { calculerComplement } from '@/lib/credits-manquants';
+import { verifierAccesModule } from '@/lib/fonctionnalites/etats';
 import {
   MagasinAbonnementSupabase,
   MagasinCreditsSupabase,
@@ -250,6 +251,38 @@ export default async function PageLivre({
     packsCredits()
   );
 
+  // ---------- Interrupteurs des modules du lecteur (F7, F9) ----------
+  // Barrière fine côté serveur : registre + plan effectif du compte.
+  // Un module fermé = composant/bouton jamais montés (le serveur est
+  // l'autorité).
+  const planCode = planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT;
+  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise, moduleProgression] = await Promise.all([
+    verifierAccesModule('lecture_vocale', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('bilingue', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('carnet', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('graphe', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('reprise', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('progression', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+  ]);
+
   return (
     <>
       <BarreNavigation email={utilisateur.email ?? ''} pseudo={pseudo} />
@@ -269,6 +302,12 @@ export default async function PageLivre({
           livreInitial={livre as Livre}
           chapitresInitiaux={chapitresLegers as Chapitre[]}
           totalCaracteres={totalCaracteres}
+          lectureVocaleOuverte={lectureVocale.ouvert}
+          bilingueOuverte={vueBilingue.ouvert}
+          carnetOuverte={moduleCarnet.ouvert}
+          grapheOuvert={moduleGraphe.ouvert}
+          assistanceOuverte={moduleReprise.ouvert}
+          progressionOuverte={moduleProgression.ouvert}
         />
       </main>
     </>

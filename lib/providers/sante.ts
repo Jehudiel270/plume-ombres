@@ -31,6 +31,7 @@ import {
 import { urlLibretranslate } from './libretranslate';
 import { cleGemini, modelesGemini } from './gemini';
 import type { IdFournisseur } from '@/lib/types';
+import { resoudreClesGemini } from '@/lib/cles-api';
 
 /** Phrase de sonde FIXE : aucun contenu utilisateur n'est envoyé. */
 const SONDE = 'hello world';
@@ -152,13 +153,16 @@ async function sonderLibreTranslate(): Promise<{
   }
 }
 
-/** Sonde Gemini : nécessite une clé, sinon non configuré. */
+/** Sonde Gemini : nécessite une clé, sinon non configuré. La clé
+ *  vient de la variable d'environnement, ou à défaut de la PREMIÈRE
+ *  clé du réservoir « Clés API » (lisible seulement si le rôle
+ *  service est configuré côté serveur). */
 async function sonderGemini(): Promise<{
   latenceMs: number | null;
   cause: CategorieEchec | null;
   nonConfigure?: boolean;
 }> {
-  const cle = cleGemini();
+  const cle = cleGemini() || (await resoudreClesGemini({ niveau: null })).cles[0]?.valeur || '';
   if (!cle) return { latenceMs: null, cause: null, nonConfigure: true };
   const debut = Date.now();
   let derniere: CategorieEchec = 'erreur';

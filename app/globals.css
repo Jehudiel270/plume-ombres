@@ -1032,6 +1032,18 @@ select.champ-sombre option {
   align-items: flex-start;
 }
 
+/* Correctif 13/11 : en dessous de `lg`, le lecteur affiche sa barre de
+   navigation collée au bas (Précédent / sommaire / Suivant, z-30) ;
+   le bouton flottant se posait DESSUS et masquait « Précédent ». On
+   relève donc la zone au-dessus de cette barre (~3,5 rem de haut,
+   plus la zone sûre) — sur les autres pages, le bouton flotte
+   simplement un peu plus haut, sans jamais quitter le pouce. */
+@media (max-width: 63.98em) {
+  .zone-apparence {
+    bottom: calc(4.4rem + env(safe-area-inset-bottom));
+  }
+}
+
 /* Sur les fonds d'ambiance animés, le bouton reste lisible :
    surface opaque + flou léger, sans jamais cacher la lumière. */
 .bouton-apparence {
@@ -1222,6 +1234,23 @@ html[data-fond='fixe'] .fond-fixe {
 /* Surface de lecture : marges respirantes RÉGLABLES (--pref-marges)
    et respiration verticale adaptée à la hauteur d'écran. */
 .surface-lecture {
+  padding-block: clamp(1.25rem, 3.5vw, 2.75rem);
+  padding-inline: var(--pref-marges, 1.75rem);
+}
+
+/* Plein écran du lecteur (ConfortLecture, socle) : le conteneur du
+   chapitre devient l'élément plein écran ET le conteneur défilant.
+   Le fond suit la palette active (les palettes redéfinissent toutes
+   --color-nuit-900) ; la mesure reste celle des préférences. */
+#lecteur-chapitre:fullscreen {
+  overflow-y: auto;
+  background:
+    radial-gradient(
+      ellipse 70% 40% at 50% 0%,
+      color-mix(in srgb, var(--color-grenat-700) 10%, transparent),
+      transparent
+    ),
+    var(--color-nuit-900);
   padding-block: clamp(1.25rem, 3.5vw, 2.75rem);
   padding-inline: var(--pref-marges, 1.75rem);
 }
@@ -1512,4 +1541,55 @@ html[data-economie='1'] .reveler {
 .densite-compacte .ligne-dense {
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;
+}
+
+/* ============================================================
+   Lecture à voix haute (F9) — signal du paragraphe en cours.
+   Sans déplacement de texte : un simple liseré à gauche, visible
+   sur toutes les palettes, retiré dès que la lecture avance.
+   ============================================================ */
+.corps-livre p[data-lecture-vocale='true'] {
+  box-shadow: inset 3px 0 0 0 var(--color-grenat-400, oklch(0.62 0.16 25));
+  border-radius: 2px;
+  transition: box-shadow 0.4s ease;
+}
+
+/* ============================================================
+   Vue bilingue (F7) — paire source ↔ traduction.
+   Côte à côte dès 640 px, empilée au-dessus (mobile). La colonne
+   source est visuellement secondaire (plus petite, pâle, italique)
+   : c'est un repère de fidélité, pas le texte principal.
+   ============================================================ */
+.paire-bilingue {
+  margin-block-end: var(--pref-espace-paragraphe, 0.9rem);
+}
+
+@media (min-width: 640px) {
+  .paire-bilingue {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 1.25rem;
+    align-items: start;
+  }
+}
+
+.paire-bilingue .bilingue-source {
+  font-size: 0.82em;
+  font-style: italic;
+  color: var(--color-encre-500, oklch(0.62 0.02 260));
+  opacity: 0.92;
+  border-left: 2px solid var(--color-nuit-700, oklch(0.32 0.02 260));
+  padding-left: 0.6rem;
+  margin-block-end: 0.35rem;
+}
+
+@media (min-width: 640px) {
+  .paire-bilingue .bilingue-source {
+    margin-block-end: 0;
+  }
+}
+
+.paire-bilingue .bilingue-attente {
+  opacity: 0.35;
+  text-align: center;
 }

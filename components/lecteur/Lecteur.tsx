@@ -50,9 +50,11 @@ import {
   TAILLE_BLOC_TEXTE,
 } from '@/lib/pagination';
 import { preferencesEnCss } from '@/lib/lecture';
+import type { PaireBilingue } from '@/lib/bilingue';
 import Recherche from '@/components/Recherche';
 import type { ControlePreferences } from '@/components/lecteur/ReglagesLecture';
 import ReglagesLecture from '@/components/lecteur/ReglagesLecture';
+import ConfortLecture from '@/components/lecteur/ConfortLecture';
 
 const ID_LECTEUR = 'lecteur-chapitre';
 const ID_CORPS = 'corps-livre';
@@ -118,6 +120,22 @@ interface Props {
   total: number;
   /** Préférences de confort (état détenu par l'espace de travail). */
   preferences: ControlePreferences;
+  /**
+   * Outils SUPPLÉMENTAIREs de la barre du chapitre (ajout chantier :
+   * lecture à voix haute). Optionnel : le lecteur livré reste
+   * inchangé quand aucun outil n'est passé.
+   */
+  outils?: ReactNode;
+  /**
+   * Vue bilingue (F7, ajout chantier) : paires source ↔ traduit. Non
+   * null → le corps affiche les paires au lieu du texte simple. La
+   * recherche garde son texte (`texteNet`) ; le surlignage ne porte
+   * que les paires dont l'offset traduit est connu (repli
+   * paragraphe), celles venant des segments s'affichent sans marque.
+   */
+  pairesBilingue?: PaireBilingue[] | null;
+  /** Code de langue de la colonne source (attribut lang de la paire). */
+  langueSourceBilingue?: string;
 }
 
 /**
@@ -145,6 +163,9 @@ function Lecteur({
   position,
   total,
   preferences,
+  outils,
+  pairesBilingue = null,
+  langueSourceBilingue,
 }: Props) {
   const { prefs, maj, reinitialiser } = preferences;
   // ---------- Recherche plein texte (chapitre affiché) ----------
@@ -184,6 +205,31 @@ function Lecteur({
   // Garde-fou défensif : si les plaques ont rétréci, on borne l'index.
   const indexAffiche =
     plaques.length > 0 ? Math.min(indexActif, plaques.length - 1) : 0;
+
+  // ---------- Raccourcis clavier : chapitres (← / →) ----------
+  // Uniquement quand AUCUN contrôle n'a le focus (un cadre deux
+  // colonnes focalisé gère ses propres flèches, les champs de saisie
+  // ne doivent pas naviguer) : on exige un corps de page neutre.
+  const naviguerPrecedent = useCallback(() => {
+    if (chapitrePrecedentId) onNaviguer(chapitrePrecedentId);
+  }, [chapitrePrecedentId, onNaviguer]);
+  const naviguerSuivant = useCallback(() => {
+    if (chapitreSuivantId) onNaviguer(chapitreSuivantId);
+  }, [chapitreSuivantId, onNaviguer]);
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === 'ArrowLeft' && document.activeElement === document.body) {
+        e.preventDefault();
+        naviguerPrecedent();
+      } else if (e.key === 'ArrowRight' && document.activeElement === document.body) {
+        e.preventDefault();
+        naviguerSuivant();
+      }
+    };
+    document.addEventListener('keydown', surTouche);
+    return () => document.removeEventListener('keydown', surTouche);
+  }, [naviguerPrecedent, naviguerSuivant]);
   // La plaque active est ramenée à l'écran (marque spéciale montée
   // dans le corps du chapitre).
   useEffect(() => {
@@ -264,6 +310,49 @@ function Lecteur({
   const contenu = useMemo(() => {
     const avecLettrine = prefs.lettrine;
     const paresseux = !deuxColonnes;
+    // Vue bilingue (F7) : paires source ↔ traduit, regroupées en
+    // paquets portant content-visibility (comme le texte simple).
+    if (pairesBilingue) {
+      const TAILLE_PAIQUET_PAIRES = 6;
+      const paquetsPaires: PaireBilingue[][] = [];
+      for (let i = 0; i < pairesBilingue.length; i += TAILLE_PAIQUET_PAIRES) {
+        paquetsPaires.push(pairesBilingue.slice(i, i + TAILLE_PAIQUET_PAIRES));
+      }
+      return paquetsPaires.map((paquet, iP) => (
+        <div
+          key={iP}
+          className={
+            paresseux
+              ? '[content-visibility:auto] [contain-intrinsic-size:auto_800px]'
+              : undefined
+          }
+        >
+          {paquet.map((paire, iB) => {
+            const absolu = iP * TAILLE_PAIQUET_PAIRES + iB;
+            return (
+              <div key={iB} className="paire-bilingue">
+                {paire.source && (
+                  <p className="bilingue-source" lang={langueSourceBilingue}>
+                    {paire.source}
+                  </p>
+                )}
+                {paire.traduit ? (
+                  <p className={avecLettrine && absolu === 0 ? 'lettrine' : undefined}>
+                    {paire.debutTraduit >= 0
+                      ? surligne(paire.traduit, paire.debutTraduit)
+                      : paire.traduit}
+                  </p>
+                ) : (
+                  <p className="bilingue-attente" aria-hidden="true">
+                    —
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ));
+    }
     return paquets.map((paquet, iP) => (
       <div
         key={iP}
@@ -300,7 +389,7 @@ function Lecteur({
         })}
       </div>
     ));
-  }, [paquets, surligne, prefs.lettrine, deuxColonnes]);
+  }, [paquets, surligne, prefs.lettrine, deuxColonnes, pairesBilingue, langueSourceBilingue]);
 
   /** Tourne d'une colonne (le cadre défile horizontalement). */
   const tournerColonne = useCallback(
@@ -331,15 +420,20 @@ function Lecteur({
   const basDePage = (
     <nav
       aria-label="Navigation de chapitre"
-      className="lg:hidden sticky bottom-0 z-30 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+      className="lg:hidden sticky bottom-0 z-30 pt-2 pb-[max(0.4rem,env(safe-area-inset-bottom))]"
     >
-      <div className="flex items-stretch gap-2 rounded-2xl border border-nuit-700 bg-nuit-900/95 p-1.5 shadow-2xl shadow-black/60 backdrop-blur-md">
+      {/* Compact (correctif 13/11) : hauteur 40 px, libellés sur une
+          seule ligne (ils se repliaient en deux lignes et le bouton
+          « Précédent » débordait), fond OPAQUE (le texte du chapitre
+          se voyait en transparence à travers la barre pendant le
+          défilement), largeur plafonnée des deux boutons de bord. */}
+      <div className="flex items-stretch gap-1.5 rounded-2xl border border-nuit-700 bg-nuit-900 p-1 shadow-2xl shadow-black/60">
         <button
           type="button"
           onClick={() => chapitrePrecedentId && onNaviguer(chapitrePrecedentId)}
           disabled={!chapitrePrecedentId}
           aria-label="Chapitre précédent"
-          className="bouton-fantome flex-1 min-h-12 text-xs disabled:opacity-35"
+          className="bouton-fantome flex-1 max-w-36 min-h-10 px-2 text-[11px] whitespace-nowrap disabled:opacity-35"
         >
           ‹ Précédent
         </button>
@@ -347,10 +441,10 @@ function Lecteur({
           type="button"
           onClick={onOuvrirTiroir}
           aria-label="Ouvrir le sommaire"
-          className="bouton-fantome flex-1 min-h-12 flex flex-col items-center justify-center leading-none"
+          className="bouton-fantome w-16 shrink-0 min-h-10 flex items-center justify-center gap-1 whitespace-nowrap"
         >
           <span className="text-sm" aria-hidden="true">☰</span>
-          <span className="text-[10px] text-encre-500 mt-0.5">
+          <span className="text-[10px] text-encre-500">
             {position}/{total}
           </span>
         </button>
@@ -359,7 +453,7 @@ function Lecteur({
           onClick={() => chapitreSuivantId && onNaviguer(chapitreSuivantId)}
           disabled={!chapitreSuivantId}
           aria-label="Chapitre suivant"
-          className="bouton-principal flex-1 min-h-12 text-xs disabled:opacity-35"
+          className="bouton-principal flex-1 max-w-36 min-h-10 px-2 text-[11px] whitespace-nowrap disabled:opacity-35"
         >
           Suivant ›
         </button>
@@ -395,20 +489,36 @@ function Lecteur({
               <div className="liseret mx-auto mt-5" />
             </header>
 
-            {/* Barre outils du chapitre : recherche + réglages confort */}
-            <div className="flex items-center gap-2 mb-6 -mx-1 px-1">
-              <Recherche
-                term={term}
-                texte={texteNet}
-                plaques={plaques}
-                indexActif={indexAffiche}
-                onTerm={setTerm}
-                onIndexActif={setIndexActif}
-              />
+            {/* Barre outils du chapitre : recherche + réglages confort.
+                RESPONSIVE (correctif 13/11) : la barre REPOUSSE sur
+                plusieurs lignes (`flex-wrap`) au lieu de compresser puis
+                faire déborder ses éléments ; la recherche occupe une
+                ligne entière en dessous de `sm` (elle était écrasée à
+                0 px : seule la loupe débordait, coupée par le bord
+                gauche). Les marges négatives sont retirées : elles
+                faisaient sortir la barre du cadre sur mobile. */}
+            <div className="flex flex-wrap items-center gap-2 gap-y-2.5 mb-6">
+              <div className="order-first basis-full sm:basis-auto sm:flex-1 min-w-0">
+                <Recherche
+                  term={term}
+                  texte={texteNet}
+                  plaques={plaques}
+                  indexActif={indexAffiche}
+                  onTerm={setTerm}
+                  onIndexActif={setIndexActif}
+                />
+              </div>
               <ReglagesLecture
                 prefs={prefs}
                 maj={maj}
                 reinitialiser={reinitialiser}
+              />
+              {outils}
+              <ConfortLecture
+                cibleId={ID_LECTEUR}
+                cadreRef={cadreRef}
+                deuxColonnes={deuxColonnes}
+                cleChapitre={chapitreComplet?.id ?? ''}
               />
               {deuxColonnes && (
                 <div className="hidden lg:flex items-center gap-1">

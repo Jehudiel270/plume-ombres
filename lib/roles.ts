@@ -67,6 +67,10 @@ export type Permission =
   //    `super_admin` (et toucher un compte qui l'est déjà).
   | 'admin.roles.attribuer'
   | 'admin.roles.super_admin'
+  // Interrupteurs de fonctionnalités du chantier post-lancement :
+  // ouvrir / fermer un module, choisir l'abonnement minimal et le
+  // déploiement progressif (page /admin/fonctionnalites).
+  | 'admin.fonctionnalites.gerer'
   // Contenu des livres APPARTENANT À UN AUTRE COMPTE : interdit à
   // tout le monde, admins et super-admins compris. Explicite pour
   // qu'un test le vérifie, et pour qu'un « super_admin » ne
@@ -85,6 +89,7 @@ export const PERMISSIONS: readonly Permission[] = [
   'admin.abonnements.revoquer',
   'admin.roles.attribuer',
   'admin.roles.super_admin',
+  'admin.fonctionnalites.gerer',
   'contenu.tiers.lire',
 ];
 
@@ -104,6 +109,7 @@ const PERMISSIONS_ADMIN: readonly Permission[] = [
   'admin.abonnements.lire',
   'admin.abonnements.attribuer',
   'admin.abonnements.revoquer',
+  'admin.fonctionnalites.gerer',
 ];
 
 /**
