@@ -30,7 +30,9 @@ export const NIVEAUX_PLAN: readonly NiveauPlan[] = [
   'illimite',
 ];
 
-const ORDRE_PLAN: Record<NiveauPlan, number> = {
+/** Hiérarchie des plans (exportée : les gardes fines d'abonnement
+ *  hors interrupteur — export du carnet F24… — l'utilisent). */
+export const ORDRE_PLAN: Record<NiveauPlan, number> = {
   gratuit: 0,
   lecteur: 1,
   passionne: 2,
@@ -166,6 +168,19 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
   },
 
   // --- Lecture et carnet (atelier personnel) ---
+  {
+    cle: 'carnet',
+    code: 'F2',
+    libelle: 'Carnet de lecture',
+    groupe: 'Lecture et carnet',
+    description:
+      'Notes, citations et surlignages pris pendant la lecture, conservés par ' +
+      'livre. Export portable (MD/JSON, sans texte intégral) réservé aux abonnés (F24).',
+    itineraires: ['/carnet'],
+    api: ['/api/carnet'],
+    planMinimal: null,
+    prod: false,
+  },
   {
     cle: 'lecture_vocale',
     code: 'F9',

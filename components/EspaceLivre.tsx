@@ -37,6 +37,7 @@ import {
   useLecture,
 } from '@/lib/useLecture';
 import { CLEF_PROGRESSION } from '@/lib/progression';
+import BoutonCarnet from '@/components/carnet/BoutonCarnet';
 import {
   DUREE_BAIL_NAVIGATEUR_MS,
   creerTravail,
@@ -76,6 +77,7 @@ export default function EspaceLivre({
   totalCaracteres,
   lectureVocaleOuverte = false,
   bilingueOuverte = false,
+  carnetOuverte = false,
 }: {
   livreInitial: Livre;
   chapitresInitiaux: ChapitreLeger[];
@@ -87,6 +89,11 @@ export default function EspaceLivre({
    * pour ce lecteur. Défaut false : sans wire, rien ne s'affiche.
    */
   lectureVocaleOuverte?: boolean;
+  /**
+   * Interrupteur `carnet` (F2, ajout chantier) évalué CÔTÉ SERVEUR :
+   * le bouton du carnet n'existe que si le module est ouvert.
+   */
+  carnetOuverte?: boolean;
   /**
    * Interrupteur `bilingue` (F7) évalué CÔTÉ SERVEUR : le bouton de la
    * vue bilingue n'existe que si le module est ouvert pour ce lecteur.
@@ -871,9 +878,18 @@ export default function EspaceLivre({
               }
               langueSourceBilingue={livre.langue_source}
               outils={
-                lectureVocaleOuverte && chapitreComplet ? (
-                  <LectureVocale texte={texteNet} />
-                ) : undefined
+                <>
+                  {lectureVocaleOuverte && chapitreComplet ? (
+                    <LectureVocale texte={texteNet} />
+                  ) : null}
+                  {carnetOuverte && chapitreComplet ? (
+                    <BoutonCarnet
+                      livreId={livre.id}
+                      chapitreId={chapitreComplet.id}
+                      chapitreTitre={chapitreComplet.titre}
+                    />
+                  ) : null}
+                </>
               }
             />
           </div>

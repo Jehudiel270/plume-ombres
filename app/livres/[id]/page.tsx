@@ -256,12 +256,16 @@ export default async function PageLivre({
   // Un module fermé = composant/bouton jamais montés (le serveur est
   // l'autorité).
   const planCode = planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT;
-  const [lectureVocale, vueBilingue] = await Promise.all([
+  const [lectureVocale, vueBilingue, moduleCarnet] = await Promise.all([
     verifierAccesModule('lecture_vocale', {
       utilisateurId: utilisateur.id,
       codePlan: planCode,
     }),
     verifierAccesModule('bilingue', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
+    verifierAccesModule('carnet', {
       utilisateurId: utilisateur.id,
       codePlan: planCode,
     }),
@@ -288,6 +292,7 @@ export default async function PageLivre({
           totalCaracteres={totalCaracteres}
           lectureVocaleOuverte={lectureVocale.ouvert}
           bilingueOuverte={vueBilingue.ouvert}
+          carnetOuverte={moduleCarnet.ouvert}
         />
       </main>
     </>
