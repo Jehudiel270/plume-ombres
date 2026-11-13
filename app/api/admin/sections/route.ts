@@ -24,6 +24,8 @@ export const runtime = 'nodejs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Miroir de public.sections_admin_connues() (source de vérité côté
+// base ; la RPC revérifie de toute façon).
 const SECTIONS_CONNUES = [
   'comptes',
   'abonnements',
@@ -31,6 +33,8 @@ const SECTIONS_CONNUES = [
   'audience',
   'notifications',
   'systeme',
+  'cles_api',
+  'fonctionnalites',
 ] as const;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
