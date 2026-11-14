@@ -151,6 +151,7 @@ export async function POST(requete: NextRequest): Promise<NextResponse> {
             club_id: clubId,
             utilisateur_id: c.utilisateurId,
             position_lecture: 0,
+            role: 'admin',
           });
         if (!erreurMembre) {
           return NextResponse.json({ id: clubId }, { status: 201 });
