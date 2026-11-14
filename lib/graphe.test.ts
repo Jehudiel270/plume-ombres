@@ -1,17 +1,29 @@
 // ============================================================
-// lib/graphe.test.ts — Preuves du filtrage ANTI-SPOILERS (F25) et
-// du layout circulaire.
+// lib/graphe.test.ts — Preuves du filtrage ANTI-SPOILERS (F25),
+// du layout (cercle, anneaux par importance), de la phrase de
+// relation et des bornes d'intensité/importance.
 // ============================================================
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  borneImportance,
+  borneIntensite,
+  estFiabilite,
+  estGenreEvenement,
   estRole,
+  estSens,
+  estTypeRelation,
   filtrerGraphe,
+  libelleGenre,
   libelleRole,
+  phraseRelation,
   positionsCercle,
+  positionsToile,
+  TYPES_RELATION,
   type AreteGraphe,
+  type EvenementGraphe,
   type NoeudGraphe,
 } from './graphe';
 
@@ -19,6 +31,7 @@ const noeud = (id: string, premierePosition: number | null): NoeudGraphe => ({
   id,
   nom: id,
   role: 'secondaire',
+  importance: 2,
   description: null,
   premierePosition,
 });
@@ -33,7 +46,26 @@ const arete = (
   origineId,
   destinationId,
   libelle: 'lié à',
+  type: 'autre',
+  sens: 'none',
+  intensite: 2,
+  etat: null,
+  fiabilite: 'fait',
   premierePosition,
+});
+
+const evenement = (
+  id: string,
+  position: number,
+  personnageIds: string[]
+): EvenementGraphe => ({
+  id,
+  position,
+  genre: 'rencontre',
+  titre: `Événement ${id}`,
+  texte: null,
+  relationId: null,
+  personnageIds,
 });
 
 test('le filtrage ne révèle que ce qui est couvert par la lecture', () => {
@@ -52,6 +84,29 @@ test('le filtrage ne révèle que ce qui est couvert par la lecture', () => {
   assert.deepEqual(rien.aretes, []);
 });
 
+test('les événements suivent le même filtrage que le reste', () => {
+  const noeuds = [noeud('a', null), noeud('b', 4)];
+  const evenements = [
+    evenement('e1', 2, ['a']),
+    evenement('e2', 6, ['a', 'b']), // b apparaît au chapitre 4 : couvert au ch. 6
+  ];
+
+  const jusqu5 = filtrerGraphe(noeuds, [], 5, evenements);
+  assert.deepEqual(jusqu5.evenements.map((e) => e.id), ['e1']);
+
+  const jusqu7 = filtrerGraphe(noeuds, [], 7, evenements);
+  assert.deepEqual(jusqu7.evenements.map((e) => e.id), ['e1', 'e2']);
+  assert.equal(jusqu7.masquees, 0);
+
+  // Un événement citant un personnage non couvert reste caché
+  // (le personnage d caché + l'événement e3 caché = 2 masqués).
+  const piege = filtrerGraphe([noeud('a', null), noeud('d', 9)], [], 5, [
+    evenement('e3', 2, ['a', 'd']),
+  ]);
+  assert.deepEqual(piege.evenements, []);
+  assert.equal(piege.masquees, 2);
+});
+
 test('une arête ne peut pas révéler un personnage non couvert', () => {
   // r3 relie a (début) et d (chapitre 9) : tant que d est caché,
   // l'arête est cachée, même si sa propre apparition est tôt.
@@ -62,14 +117,15 @@ test('une arête ne peut pas révéler un personnage non couvert', () => {
   assert.deepEqual(toutLu.aretes.map((a) => a.id), ['r3']);
 });
 
-test('le nombre de masqués compte nœuds ET arêtes', () => {
+test('le nombre de masqués compte nœuds, arêtes ET événements', () => {
   const filtre = filtrerGraphe(
     [noeud('a', null), noeud('b', 3)],
     [arete('r1', 'a', 'b', 3)],
-    null
+    null,
+    [evenement('e1', 3, ['a'])]
   );
-  // b caché + r1 cachée (b non couvert) = 2.
-  assert.equal(filtre.masquees, 2);
+  // b caché + r1 cachée (b non couvert) + e1 caché (b non couvert) = 3.
+  assert.equal(filtre.masquees, 3);
 });
 
 test('rôles fermés et libellés français', () => {
@@ -91,4 +147,73 @@ test('le cercle répartit uniformément (et gère 0, 1, 2)', () => {
   for (const p of cinq) {
     assert.ok(Math.abs(Math.hypot(p.x, p.y) - 1) < 1e-9);
   }
+});
+
+test('la toile place les principaux au centre, les secondaires autour', () => {
+  const pos = positionsToile([
+    { id: 'p1', importance: 3 },
+    { id: 'p2', importance: 3 },
+    { id: 'n1', importance: 2 },
+    { id: 's1', importance: 1 },
+    { id: 's2', importance: 1 },
+  ]);
+  const centre = { x: 500, y: 350 };
+  const dist = (id: string) =>
+    Math.hypot(pos[id].x - centre.x, pos[id].y - centre.y);
+  // Principaux sur l'anneau interne (rayon 130, aplati à 0.82) : ≤ 130.
+  assert.ok(dist('p1') < 140 && dist('p2') < 140, 'principaux sur l’anneau interne');
+  // Un groupe d'un seul membre reste SUR son anneau (jamais au centre).
+  assert.ok(dist('n1') > 180 && dist('n1') < 260, 'notables sur l’anneau médian');
+  assert.ok(dist('s1') > 250 && dist('s2') > 250, 'secondaires en périphérie');
+  // Une toile d'un seul personnage occupe le centre exact.
+  const seul = positionsToile([{ id: 'x', importance: 2 }]);
+  assert.deepEqual(seul.x, { x: 500, y: 350 });
+});
+
+test('phraseRelation respecte le sens du lien', () => {
+  const nomDe = (id: string) => (id === 'a' ? 'Elwenn' : 'Thaddeus');
+  const base = { origineId: 'a', destinationId: 'b', libelle: 'sœur de' };
+  assert.equal(
+    phraseRelation({ ...base, sens: 'ab' }, nomDe),
+    'Elwenn sœur de Thaddeus'
+  );
+  assert.equal(
+    phraseRelation({ ...base, sens: 'ba' }, nomDe),
+    'Thaddeus sœur de Elwenn'
+  );
+  assert.equal(
+    phraseRelation({ ...base, sens: 'none', libelle: 'alliés' }, nomDe),
+    'Elwenn et Thaddeus — alliés'
+  );
+  assert.equal(
+    phraseRelation({ ...base, sens: 'both', libelle: 'liés par le sang' }, nomDe),
+    'Elwenn et Thaddeus — liés par le sang'
+  );
+});
+
+test('validateurs fermés pour les valeurs venues du client', () => {
+  assert.equal(estTypeRelation('trahison'), true);
+  assert.equal(estTypeRelation('amour_fou'), false);
+  assert.equal(estSens('ab'), true);
+  assert.equal(estSens('diagonal'), false);
+  assert.equal(estFiabilite('hypothese'), true);
+  assert.equal(estFiabilite('sur'), false);
+  assert.equal(estGenreEvenement('revelation'), true);
+  assert.equal(estGenreEvenement('fete'), false);
+  assert.equal(libelleGenre('rupture'), 'Rupture');
+  // Palette : chaque type a une couleur et un libellé.
+  for (const t of Object.keys(TYPES_RELATION) as Array<keyof typeof TYPES_RELATION>) {
+    assert.ok(TYPES_RELATION[t].couleur.startsWith('#'));
+    assert.ok(TYPES_RELATION[t].libelle.length > 0);
+  }
+});
+
+test('bornes d\'intensité et d\'importance', () => {
+  assert.equal(borneIntensite(3), 3);
+  assert.equal(borneIntensite(99), 5);
+  assert.equal(borneIntensite(-2), 1);
+  assert.equal(borneIntensite('x'), 2);
+  assert.equal(borneImportance(1), 1);
+  assert.equal(borneImportance(7), 3);
+  assert.equal(borneImportance(undefined), 2);
 });
