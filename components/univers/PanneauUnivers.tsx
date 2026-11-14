@@ -8,6 +8,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface Props {
   univers: Array<{
@@ -119,6 +120,14 @@ export default function PanneauUnivers({ univers, livresDisponibles }: Props) {
                 <span className="text-xs text-encre-500 ml-auto">
                   {u.tomes.length} tome{u.tomes.length > 1 ? 's' : ''}
                 </span>
+                {u.tomes.length > 0 && (
+                  <Link
+                    href={`/univers/${u.id}`}
+                    className="bouton-fantome min-h-8 px-3 text-xs border border-nuit-700 text-grenat-300 hover:text-grenat-400"
+                  >
+                    Explorer la saga
+                  </Link>
+                )}
               </div>
               {u.description && (
                 <p className="text-xs text-encre-400 italic">{u.description}</p>

@@ -10,6 +10,7 @@ import test from 'node:test';
 import {
   borneImportance,
   borneIntensite,
+  calculerSuggestions,
   estFiabilite,
   estGenreEvenement,
   estRole,
@@ -24,6 +25,7 @@ import {
   TYPES_RELATION,
   type AreteGraphe,
   type EvenementGraphe,
+  type GrapheFiltre,
   type NoeudGraphe,
 } from './graphe';
 
@@ -216,4 +218,101 @@ test('bornes d\'intensité et d\'importance', () => {
   assert.equal(borneImportance(1), 1);
   assert.equal(borneImportance(7), 3);
   assert.equal(borneImportance(undefined), 2);
+});
+
+// ---------- SUGGESTIONS LOCALES (sans IA) ----------
+
+function noeudTest(id: string, nom: string): NoeudGraphe {
+  return {
+    id,
+    nom,
+    role: 'secondaire',
+    importance: 2,
+    description: null,
+    premierePosition: null,
+  };
+}
+
+function areteTest(id: string, origine: string, destination: string): AreteGraphe {
+  return {
+    id,
+    origineId: origine,
+    destinationId: destination,
+    libelle: 'alliés',
+    type: 'alliance',
+    sens: 'none',
+    intensite: 2,
+    etat: null,
+    fiabilite: 'fait',
+    premierePosition: 1,
+  };
+}
+
+test('calculerSuggestions propose les paires co-apparentées sans relation', () => {
+  const graphe: GrapheFiltre = {
+    noeuds: [
+      noeudTest('a', 'Aldéric'),
+      noeudTest('b', 'Morana'),
+      noeudTest('c', 'Lucan'),
+    ],
+    aretes: [areteTest('r1', 'a', 'b')],
+    evenements: [
+      {
+        id: 'e1',
+        position: 2,
+        genre: 'rencontre',
+        titre: 'Scène',
+        texte: null,
+        relationId: null,
+        personnageIds: ['a', 'b', 'c'],
+      },
+    ],
+    masquees: 0,
+  };
+  const suggestions = calculerSuggestions(graphe);
+  // a-b sont reliés : pas de suggestion ; a-c et b-c sont proposés.
+  assert.equal(suggestions.pairesSansLien.length, 2);
+  assert.deepEqual(
+    suggestions.pairesSansLien.map((p) => [p.nomOrigine, p.nomDestination]),
+    [
+      ['Aldéric', 'Lucan'],
+      ['Morana', 'Lucan'],
+    ]
+  );
+  // Personnages isolés : tous de degré 0 sauf a et b.
+  assert.deepEqual(
+    suggestions.isoles.map((n) => n.nom),
+    ['Lucan']
+  );
+  assert.equal(suggestions.fragiles.length, 0);
+});
+
+test('calculerSuggestions liste les relations fragiles et ignore les paires déjà reliées', () => {
+  const fragile: AreteGraphe = {
+    ...areteTest('r2', 'b', 'c'),
+    libelle: 'rumeurs',
+    fiabilite: 'hypothese',
+  };
+  const graphe: GrapheFiltre = {
+    noeuds: [noeudTest('a', 'Aldéric'), noeudTest('b', 'Morana'), noeudTest('c', 'Lucan')],
+    aretes: [areteTest('r1', 'a', 'b'), fragile],
+    evenements: [
+      {
+        id: 'e1',
+        position: 1,
+        genre: 'rencontre',
+        titre: 'Scène',
+        texte: null,
+        relationId: null,
+        personnageIds: ['a', 'b'],
+      },
+    ],
+    masquees: 0,
+  };
+  const suggestions = calculerSuggestions(graphe);
+  // a-b déjà reliés → aucune paire suggérée malgré la co-apparition.
+  assert.equal(suggestions.pairesSansLien.length, 0);
+  assert.equal(suggestions.fragiles.length, 1);
+  assert.equal(suggestions.fragiles[0]!.libelle, 'rumeurs');
+  assert.equal(suggestions.fragiles[0]!.fiabilite, 'hypothese');
 });

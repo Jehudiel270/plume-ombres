@@ -51,3 +51,61 @@ deux tables.
 - Limites assumées : pas de chronologie transversale ni de matrice
   personnages multi-tomes (v2, adossée au graphe F25) ; l'ordre des tomes
   est géré à l'ajout (position suivante) — réordonnancement manuel fin en v2.
+
+## Vue saga (v2, portage fidèle de la maquette) — 14/11/2026
+
+Branche `fonctionnalite/univers-saga-vue`. La maquette (`components/universe`)
+imaginait « la saga en un regard » : c'est porté, ADOSsé au graphe narratif
+(F25) — les données de la saga viennent des graphes de chaque tome, elles
+n'existent nulle part ailleurs (aucune donnée d'intrigue inventée).
+
+1. **`lib/univers-saga.ts`** (pur, testé) — agrège les graphes DÉJÀ filtrés
+   par `chargerGraphe` (chapitre lu de chaque tome) : rapprochement des
+   personnages inter-tomes par NOM NORMALISÉ (casse/accents ignorés),
+   personnages communs entre tomes adjacents, chronologie inter-tomes,
+   évolutions de relations par paire, comptes de masqués. Principe : rien de
+   masqué n'entre dans l'agrégation — le rapprochement inter-tomes ne voit
+   que du visible, donc ne révèle jamais un personnage d'un tome non entamé.
+2. **`/univers/[id]` refondue** — quatre statistiques de saga ; **frise
+   arborée des tomes** (`FriseSaga`, portage de `UniverseTomeMap`) : nœud par
+   tome avec état (lu / en cours / non commencé), LIENS inter-tomes avec le
+   nombre de personnages communs, « racines » (avatars des personnages
+   visibles de chaque tome), tome actif partagé par `?tome=N` ;
+   **détail du tome** : personnages (avec apparitions et relations
+   documentées), relations avec MINI-GRAPHE SVG (`MiniGrapheTome`, portage de
+   `UniverseMiniGraph` — couleurs par type, tirets par fiabilité,
+   importance par rayon), événements ; liens « Ouvrir le livre » et « Graphe
+   du tome » ; **« La saga, tomes confondus »** (`OngletsSaga`, portage des
+   trois onglets de la maquette) : MATRICE personnage × tome dépliable
+   (`UniverseCharacterMatrix`), CHRONOLOGIE filtrable par personnage
+   (`UniverseTimeline`), ÉVOLUTIONS de relations en frises par paire
+   (`UniverseRelations`).
+3. **Page `/univers`** — bouton « Explorer la saga » vers le détail.
+4. **Plafond** : la vue saga charge au plus 20 tomes (une saga de lecteur
+   reste modeste) ; requêtes groupées (`in`) pour chapitres, lectures et
+   totaux.
+
+## Graphe : aide et suggestions locales (même branche)
+
+Portage des `Modals.vue` et des propositions de la maquette, adaptés SANS IA
+et sans contenu inventé (tout est calculé sur les données réelles) :
+
+- **Modale d'aide** (`ModaleAide`) : mode d'emploi exact de la toile
+  (déplacements, zoom, légende cliquable, trait/fiabilité, anti-spoilers,
+  vues).
+- **`lib/graphe.ts::calculerSuggestions`** (pur, testé) — co-apparitions
+  d'événements SANS relation déjà documentée, personnages isolés, relations
+  à fiabilité faible (hypothèse/incertain).
+- **Panneau « Suggestions »** dans la toile : pistes affichées avec compte,
+  bouton « Préremplir une relation » qui ouvre l'édition avec les deux
+  personnages choisis — le lecteur reste l'unique décideur, rien ne
+  s'ajoute sans confirmation.
+
+## Tests et vérifications (v2)
+
+- `lib/univers-saga.test.ts` : 9 tests (normalisation des noms,
+  regroupement inter-tomes, liens adjacents, anti-spoilers, apparitions et
+  liens par tome, évolutions groupées, chronologie triée, tri, saga vide).
+- `lib/graphe.test.ts` : +2 tests de suggestions.
+- Suite complète : 314/314. `tsc --noEmit` OK. `check:flags` OK (aucune
+  route nouvelle : tout vit sous les itinéraires `univers` existants).
