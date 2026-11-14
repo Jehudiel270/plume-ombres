@@ -11,12 +11,17 @@
 -- ============================================================
 
 -- ---------- MESSAGES PRIVÉS ----------
+-- destinataire_id vise auth.users (PAS profiles) : clubs_messages a
+-- déjà une FK vers profiles via auteur_id, et deux FK vers la même
+-- table rendraient l'embarqué `profiles ( pseudo )` ambigu pour
+-- PostgREST (le fil resterait vide). Le pseudo du destinataire est
+-- résolu côté application depuis la liste des membres.
 alter table public.clubs_messages
   add column if not exists prive boolean not null default false;
 
 alter table public.clubs_messages
   add column if not exists destinataire_id uuid
-  references public.profiles (id) on delete set null;
+  references auth.users (id) on delete set null;
 
 -- Lecture : membre du club ET (message public OU je suis concerné).
 drop policy if exists "clubs_messages_select_membre" on public.clubs_messages;

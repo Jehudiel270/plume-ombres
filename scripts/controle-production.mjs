@@ -60,6 +60,18 @@ try {
   });
   const corps = await rClubs.json();
   point('Création de club e2e', rClubs.status === 201, `HTTP ${rClubs.status} ${JSON.stringify(corps).slice(0, 80)}`);
+  // Auto-nettoyage : le club de contrôle ne doit pas s'accumuler.
+  if (rClubs.status === 201 && corps.id) {
+    const rNettoyage = await fetch(`${URL_SITE}/api/clubs/${corps.id}?mode=supprimer`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `sb-${REF}-auth-token=base64-${b64url}`,
+      },
+      signal: AbortSignal.timeout(25_000),
+    });
+    point('Nettoyage du club de contrôle', rNettoyage.status === 200, `HTTP ${rNettoyage.status}`);
+  }
 } catch (e) {
   point('Création de club e2e', false, e.message);
 }
