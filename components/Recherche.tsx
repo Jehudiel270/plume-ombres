@@ -8,6 +8,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { chercherTermes, type Plaque, type ResultatRechercheLivre } from '@/lib/recherche';
 
 interface Props {
@@ -155,7 +156,7 @@ export default function Recherche({
           title="Occurrence précédente"
           aria-label="Occurrence précédente"
         >
-          ↑
+          <ChevronUp className="w-4 h-4" aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -165,7 +166,7 @@ export default function Recherche({
           title="Occurrence suivante"
           aria-label="Occurrence suivante"
         >
-          ↓
+          <ChevronDown className="w-4 h-4" aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -178,7 +179,7 @@ export default function Recherche({
           title="Fermer la recherche"
           aria-label="Fermer la recherche"
         >
-          ✕
+          <X className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
 

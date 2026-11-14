@@ -29,6 +29,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Power, ShieldCheck } from 'lucide-react';
 
 import { apercuDeploiement } from '@/lib/fonctionnalites/registre';
 
@@ -170,6 +171,7 @@ function BlocToutOuvrir({
         disabled={enCours}
         className="bouton-principal min-h-11 text-sm px-4"
       >
+        <ShieldCheck className="w-4 h-4" aria-hidden="true" />
         {enCours
           ? 'Ouverture en cours…'
           : avecRisque
@@ -311,6 +313,7 @@ function LigneInterrupteur({ interrupteur }: { interrupteur: InterrupteurAdmin }
               className={(ouvert ? 'bouton-fantome' : 'bouton-principal') + ' min-h-11 text-sm'}
               aria-pressed={ouvert}
             >
+              <Power className="w-4 h-4" aria-hidden="true" />
               {ouvert ? 'Fermer le module' : 'Ouvrir le module'}
             </button>
             {interrupteur.risqueJuridique && (

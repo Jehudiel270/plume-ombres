@@ -10,6 +10,7 @@
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Download, RotateCcw, Rows3 } from 'lucide-react';
 
 import { formaterDateHeure, formaterMontant, type PaiementAdmin } from '@/lib/admin-stats';
 import {
@@ -213,6 +214,7 @@ export default function PaiementsFiltrables({ paiements, erreur }: Props) {
           Suivi des paiements
         </h2>
         <button type="button" onClick={exporter} className="bouton-fantome !px-3 text-xs">
+          <Download className="w-3.5 h-3.5" aria-hidden="true" />
           Exporter la sélection (CSV)
         </button>
       </div>
@@ -317,8 +319,9 @@ export default function PaiementsFiltrables({ paiements, erreur }: Props) {
             <button
               type="button"
               onClick={() => setFiltres(FILTRES_VIDES)}
-              className="ml-2 text-xs text-encre-500 underline underline-offset-4 hover:text-encre-300"
+              className="ml-2 text-xs text-encre-500 underline underline-offset-4 hover:text-encre-300 inline-flex items-center gap-1"
             >
+              <RotateCcw className="w-3 h-3" aria-hidden="true" />
               Réinitialiser
             </button>
           )}
@@ -333,6 +336,7 @@ export default function PaiementsFiltrables({ paiements, erreur }: Props) {
             }`}
             title="Affiche plus de lignes à l’écran (mémorisé sur cet appareil)"
           >
+            <Rows3 className="w-3.5 h-3.5" aria-hidden="true" />
             Vue compacte
           </button>
         </div>
@@ -457,6 +461,7 @@ export default function PaiementsFiltrables({ paiements, erreur }: Props) {
                   disabled={pageSure === 0}
                   className="rounded border border-nuit-700 px-2 py-1 disabled:opacity-40"
                 >
+                  <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
                   Précédent
                 </button>
                 <span>
@@ -469,6 +474,7 @@ export default function PaiementsFiltrables({ paiements, erreur }: Props) {
                   className="rounded border border-nuit-700 px-2 py-1 disabled:opacity-40"
                 >
                   Suivant
+                  <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </span>
             )}
