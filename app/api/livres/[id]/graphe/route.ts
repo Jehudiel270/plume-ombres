@@ -2,15 +2,19 @@
 // app/api/livres/[id]/graphe/route.ts — Graphe narratif (F25).
 //
 //   GET    ?chapitreLu=<position 1..n | 0>
-//          → graphe FILTRÉ PAR LE SERVEUR : rien au-delà du chapitre
-//            lu ne quitte la base (anti-spoilers par construction) ;
-//   POST   { type: 'personnage' | 'relation', … } → ajout manuel ;
-//   DELETE ?type=personnage|relation&id=<uuid>   → suppression.
+//          → graphe FILTRÉ PAR LE SERVEUR : personnages, relations
+//            (type, sens, intensité, état, fiabilité) et ÉVÉNEMENTS
+//            couverts par le chapitre lu ; rien au-delà ne quitte la
+//            base (anti-spoilers par construction) ;
+//   POST   { type: 'personnage' | 'relation' | 'evenement', … }
+//          → ajout manuel (propriétaire seulement) ;
+//   DELETE ?type=personnage|relation|evenement&id=<uuid>
+//          → suppression (propriétaire seulement).
 //
 // GARDES : session 401, interrupteur `graphe` (éteint → 404, plan
 // insuffisant → 403), livre du compte par RLS (404 sinon). L'édition
-// manuelle est réservée au PROPRIÉTAIRE du livre (c'est lui qui
-// construit son graphe) ; la lecture filtrée suit la progression.
+// manuelle est réservée au PROPRIÉTAIRE du livre ; la lecture
+// filtrée suit la progression.
 // ============================================================
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -20,10 +24,16 @@ import { verifierModuleApi } from '@/lib/fonctionnalites/etats';
 import { planEnVigueur, CODE_PLAN_GRATUIT } from '@/lib/abonnement';
 import { MagasinAbonnementSupabase } from '@/lib/paiement/magasin';
 import {
+  ajouterEvenement,
   ajouterPersonnage,
   ajouterRelation,
   chargerGraphe,
+  estFiabilite,
+  estGenreEvenement,
   estRole,
+  estSens,
+  estTypeRelation,
+  supprimerEvenement,
   supprimerPersonnage,
   supprimerRelation,
 } from '@/lib/graphe';
@@ -52,12 +62,12 @@ async function contexte(): Promise<Contexte> {
   const abonnement = await new MagasinAbonnementSupabase(client)
     .lire(utilisateur.id)
     .catch(() => null);
-  const module = await verifierModuleApi('graphe', {
+  const garde = await verifierModuleApi('graphe', {
     utilisateurId: utilisateur.id,
     codePlan: planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT,
   });
-  if (!module.ouvert && module.reponseApi) {
-    return { ok: false, reponse: module.reponseApi };
+  if (!garde.ouvert && garde.reponseApi) {
+    return { ok: false, reponse: garde.reponseApi };
   }
   return { ok: true, client, utilisateurId: utilisateur.id };
 }
@@ -154,6 +164,7 @@ export async function POST(
         livreId: id,
         nom: typeof corps.nom === 'string' ? corps.nom : '',
         role: estRole(corps.role) ? corps.role : 'secondaire',
+        importance: Number(corps.importance),
         description: typeof corps.description === 'string' ? corps.description : null,
         premiereChapitreId: chapitreApparition,
       });
@@ -174,7 +185,50 @@ export async function POST(
         origineId,
         destinationId,
         libelle: typeof corps.libelle === 'string' ? corps.libelle : '',
+        type: estTypeRelation(corps.typeRelation) ? corps.typeRelation : 'autre',
+        sens: estSens(corps.sens) ? corps.sens : 'none',
+        intensite: Number(corps.intensite),
+        etat: typeof corps.etat === 'string' ? corps.etat : null,
+        fiabilite: estFiabilite(corps.fiabilite) ? corps.fiabilite : 'fait',
         premiereChapitreId: chapitreApparition,
+      });
+      return NextResponse.json({ ok: true });
+    }
+    if (corps.type === 'evenement') {
+      const chapitreId = typeof corps.chapitreId === 'string' ? corps.chapitreId : '';
+      if (!UUID.test(chapitreId)) {
+        return NextResponse.json({ erreur: 'Chapitre invalide.' }, { status: 400 });
+      }
+      // Les personnages cités doivent appartenir au graphe du livre.
+      const cites = Array.isArray(corps.personnageIds)
+        ? (corps.personnageIds as unknown[]).filter(
+            (v): v is string => typeof v === 'string' && UUID.test(v)
+          )
+        : [];
+      if (cites.length > 0) {
+        const { data: existants } = await ctx.client
+          .from('graphe_personnages')
+          .select('id')
+          .eq('livre_id', id);
+        const connus = new Set(((existants ?? []) as Array<{ id: string }>).map((p) => p.id));
+        if (cites.some((c) => !connus.has(c))) {
+          return NextResponse.json(
+            { erreur: 'Personnage cité inconnu dans ce graphe.' },
+            { status: 400 }
+          );
+        }
+      }
+      await ajouterEvenement(ctx.client, {
+        livreId: id,
+        chapitreId,
+        genre: estGenreEvenement(corps.genre) ? corps.genre : 'rencontre',
+        titre: typeof corps.titre === 'string' ? corps.titre : '',
+        texte: typeof corps.texte === 'string' ? corps.texte : null,
+        relationId:
+          typeof corps.relationId === 'string' && UUID.test(corps.relationId)
+            ? corps.relationId
+            : null,
+        personnageIds: cites,
       });
       return NextResponse.json({ ok: true });
     }
@@ -211,6 +265,7 @@ export async function DELETE(
   try {
     if (type === 'personnage') await supprimerPersonnage(ctx.client, cible);
     else if (type === 'relation') await supprimerRelation(ctx.client, cible);
+    else if (type === 'evenement') await supprimerEvenement(ctx.client, cible);
     else {
       return NextResponse.json({ erreur: 'Type inconnu.' }, { status: 400 });
     }
