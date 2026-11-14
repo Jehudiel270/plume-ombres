@@ -4,6 +4,7 @@ import {
   creerClientServeur,
 } from '@/lib/supabase/server';
 import EspaceLivre from '@/components/EspaceLivre';
+import BoutonSuivi from '@/components/suivis/BoutonSuivi';
 import AvertissementsLivre from '@/components/AvertissementsLivre';
 import BarreNavigation from '@/components/BarreNavigation';
 import ComplementCreditsBandeau from '@/components/ComplementCredits';
@@ -256,7 +257,7 @@ export default async function PageLivre({
   // Un module fermé = composant/bouton jamais montés (le serveur est
   // l'autorité).
   const planCode = planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT;
-  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise, moduleProgression, moduleTheories, moduleCartes, moduleUnivers, moduleAmbiance, moduleGlossaire, moduleDefis, moduleClubs, moduleCollections, moduleCalendrier, moduleCatalogue] = await Promise.all([
+  const [lectureVocale, vueBilingue, moduleCarnet, moduleGraphe, moduleReprise, moduleProgression, moduleTheories, moduleCartes, moduleUnivers, moduleAmbiance, moduleGlossaire, moduleDefis, moduleClubs, moduleCollections, moduleCalendrier, moduleCatalogue, moduleSuivis] = await Promise.all([
     verifierAccesModule('lecture_vocale', {
       utilisateurId: utilisateur.id,
       codePlan: planCode,
@@ -321,7 +322,23 @@ export default async function PageLivre({
       utilisateurId: utilisateur.id,
       codePlan: planCode,
     }),
+    verifierAccesModule('suivis', {
+      utilisateurId: utilisateur.id,
+      codePlan: planCode,
+    }),
   ]);
+
+  // Suivi de CE livre (état initial du bouton « Je suis cette
+  // œuvre ») : lu seulement si le module est ouvert, sinon invisible.
+  let suiviInitial = false;
+  if (moduleSuivis.ouvert) {
+    const { data: suiviLigne } = await supabase
+      .from('suivis_oeuvres')
+      .select('livre_id')
+      .eq('livre_id', id)
+      .maybeSingle();
+    suiviInitial = !!suiviLigne;
+  }
 
   // ---------- Portes d'entrée des modules ouverts ----------
   // Un module activé au tableau de bord doit être TROUVABLE par le
@@ -436,6 +453,12 @@ export default async function PageLivre({
         {/* AVANT de lancer la traduction : taille du livre, déficit et,
             s'il y a lieu, le complément de crédits au prorata. */}
         <ComplementCreditsBandeau complement={complement} />
+        {/* Suivi de l'œuvre : alimente /suivis (agenda des sorties). */}
+        {moduleSuivis.ouvert && (
+          <div className="flex justify-end -mt-2 mb-2">
+            <BoutonSuivi livreId={id} suiviInitial={suiviInitial} titre={(livre as Livre).titre} />
+          </div>
+        )}
         <EspaceLivre
           livreInitial={livre as Livre}
           chapitresInitiaux={chapitresLegers as Chapitre[]}

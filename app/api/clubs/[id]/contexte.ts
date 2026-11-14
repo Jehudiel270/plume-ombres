@@ -23,6 +23,8 @@ export type ContexteClub = {
   client: Awaited<ReturnType<typeof creerClientServeur>>;
   utilisateurId: string;
   clubId: string;
+  /** Titre du club (libellés des notifications de club). */
+  titre: string;
   maPosition: number;
   monRole: RoleClub;
   estCreateur: boolean;
@@ -66,27 +68,28 @@ export async function contexteClub(
       .maybeSingle(),
     client
       .from('clubs')
-      .select('createur_id')
+      .select('createur_id, titre')
       .eq('id', id)
       .maybeSingle(),
   ]);
   const adhesion = monAdhesion.data as
     | { position_lecture: number; role: string | null }
     | null;
-  if (!adhesion || !club.data) {
+  const clubLigne = club.data as { createur_id: string; titre: string } | null;
+  if (!adhesion || !clubLigne) {
     return {
       ok: false,
       reponse: NextResponse.json({ erreur: 'Club inconnu.' }, { status: 404 }),
     };
   }
-  const estCreateur =
-    (club.data as { createur_id: string }).createur_id === utilisateur.id;
+  const estCreateur = clubLigne.createur_id === utilisateur.id;
   const monRole: RoleClub = estRoleClub(adhesion.role) ? adhesion.role : 'membre';
   return {
     ok: true,
     client,
     utilisateurId: utilisateur.id,
     clubId: id,
+    titre: clubLigne.titre,
     maPosition: adhesion.position_lecture,
     monRole,
     estCreateur,

@@ -180,6 +180,15 @@ export async function POST(
     return NextResponse.json({ erreur: 'Création refusée.' }, { status: 500 });
   }
 
+  // Les membres sont prévenus du nouveau sondage.
+  await c.client.rpc('notifier_club', {
+    p_club_id: c.clubId,
+    p_titre: `Nouveau sondage — ${c.titre}`,
+    p_corps: question,
+    p_lien: `/clubs/${c.clubId}`,
+    p_exclure: c.utilisateurId,
+  });
+
   return NextResponse.json({ ok: true, sondageId });
 }
 

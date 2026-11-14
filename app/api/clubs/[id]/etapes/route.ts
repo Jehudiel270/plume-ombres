@@ -142,11 +142,13 @@ export async function PATCH(
 
   const { data: lignes } = await c.client
     .from('clubs_etapes')
-    .select('numero, debloque_le')
+    .select('numero, chapitre_a, debloque_le')
     .eq('club_id', c.clubId)
     .order('numero', { ascending: true })
     .limit(MAX_ETAPES);
-  const etapes = (lignes ?? []) as Array<{ numero: number; debloque_le: string | null }>;
+  const etapes = (
+    lignes ?? []
+  ) as Array<{ numero: number; chapitre_a: number; debloque_le: string | null }>;
   const cible = etapes.find((e) => e.numero === numero);
   if (!cible) {
     return NextResponse.json({ erreur: 'Étape inconnue.' }, { status: 404 });
@@ -173,6 +175,16 @@ export async function PATCH(
   if (error) {
     return NextResponse.json({ erreur: 'Ouverture refusée.' }, { status: 500 });
   }
+
+  // Les membres sont prévenus : la discussion s'ouvre jusqu'au
+  // chapitre X (RPC SECURITY DEFINER, hors auteur de l'action).
+  await c.client.rpc('notifier_club', {
+    p_club_id: c.clubId,
+    p_titre: `Étape ${numero} ouverte — ${c.titre}`,
+    p_corps: `La discussion s'ouvre jusqu'au chapitre ${cible.chapitre_a}.`,
+    p_lien: `/clubs/${c.clubId}`,
+    p_exclure: c.utilisateurId,
+  });
 
   return NextResponse.json({ ok: true });
 }

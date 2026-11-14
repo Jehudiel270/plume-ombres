@@ -140,6 +140,15 @@ export async function POST(
     .from('clubs_rencontres_participants')
     .insert({ rencontre_id: rencontreId, utilisateur_id: c.utilisateurId });
 
+  // Les membres sont prévenus de la nouvelle rencontre.
+  await c.client.rpc('notifier_club', {
+    p_club_id: c.clubId,
+    p_titre: `Nouvelle rencontre — ${c.titre}`,
+    p_corps: `${titre} · ${prevu.toLocaleString('fr-FR')} (${mode})`,
+    p_lien: `/clubs/${c.clubId}`,
+    p_exclure: c.utilisateurId,
+  });
+
   return NextResponse.json({ ok: true, rencontreId });
 }
 

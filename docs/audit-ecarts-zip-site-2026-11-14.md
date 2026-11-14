@@ -25,14 +25,19 @@ ont été remplacées proprement par le schéma cible.
 
 ## 2. Écarts RESTANTS détectés (décision requise)
 
-| Écart du zip | Où | Recommandation |
+**Décision de l'administrateur (15/11/2026)** : les deux écarts à risque
+juridique sont laissés de côté ; les deux suivants sont rétablis en
+variante atelier (migration 20261115000005, module `suivis`).
+
+| Écart du zip | Décision du 15/11/2026 | Réalisation |
 |---|---|---|
-| Avis de lecteurs (`reviews` : note 1-5 + texte, unique par livre) | data/bookpage-reviews.ts | P1 — nourrit directement les recommandations d'œuvres ; reste privé si souhaité |
-| Suivi des sorties (`follows` : notifier les nouveaux chapitres d'un livre) | schema.sql | P1 — s'articule avec les notifications existantes |
-| Calendrier de sorties (`chapter_releases` + BOOK_PREMIERES : sortie anticipée abonnés, sortie gratuite) | schema.sql, data/discover-releases.ts | P2 — lié au modèle d'abonnement |
-| Demandes de retrait (`takedown_requests`) | schema.sql | P2 — complément juridique des pages légales |
-| Commentaires publics par chapitre (`comments` + `comment_votes` + balise spoiler + abonnés) | schema.sql | Écart VOLONTAIRE — la décision d'architecture du 12/11/2026 (clubs privés, rien de public) prime ; couvert par le salon vivant des clubs |
-| Page « À la une » (discover : nouveautés, sorties, communautés) | pages/index.vue (partie discover), data/discover-* | P2 — fusionnable avec le catalogue existant |
+| Avis de lecteurs (`reviews`) | **LAISSÉ de côté** — avis publics sur des œuvres : diffamation, LCEN, droit de réponse ; exposition éditoriale du site | — |
+| Demandes de retrait (`takedown_requests`) | **LAISSÉ de côté** — procédure légale de retrait de contenu (notifications, délais, voies de recours) | — |
+| Suivi des sorties (`follows`) | **RÉTABLI** (variante atelier) | `suivis_oeuvres` (RLS : ses livres seulement), bouton « Suivre cette œuvre » sur /livres/[id] et /ambiance/[id], page `/suivis` |
+| Calendrier de sorties (`chapter_releases` + accès anticipé) | **RÉTABLI en variante atelier** — la version « la plateforme publie des chapitres avec accès anticipé abonnés » reste derrière `calendrier` (éteint, risque juridique) | `/suivis` : agenda des sorties RÉELLES (rencontres des clubs à venir, échéances de défis, traductions terminées) |
+| Notifications de club (transversal, "vous serez prévenu" du cahier) | **RÉTABLI** | type `club` + RPC `notifier_club` (SECURITY DEFINER) : étape ouverte, rencontre proposée, sondage publié → notification aux membres, hors auteur |
+| Commentaires publics par chapitre (`comments` + `comment_votes` + balise spoiler + abonnés) | Écart VOLONTAIRE — la décision d'architecture du 12/11/2026 (clubs privés, rien de public) prime ; couvert par le salon vivant des clubs | — |
+| Page « À la une » (discover : nouveautés, sorties, communautés) | P2 — fusionnable avec le catalogue existant | — |
 
 ## 3. Ce qui était DÉJÀ aligné (vérifié)
 

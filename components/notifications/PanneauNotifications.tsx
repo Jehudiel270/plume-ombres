@@ -15,6 +15,7 @@ const LIBELLES_TYPE: Record<TypeNotification, string> = {
   traduction: 'Traduction',
   paiement: 'Paiement',
   erreur: 'Alerte',
+  club: 'Club',
 };
 
 const COULEURS_TYPE: Record<TypeNotification, string> = {
@@ -22,6 +23,7 @@ const COULEURS_TYPE: Record<TypeNotification, string> = {
   traduction: 'border-emerald-700/50',
   paiement: 'border-nuit-600',
   erreur: 'border-grenat-700/60',
+  club: 'border-or-ros-300/50',
 };
 
 /** Seul un lien INTERNE (commençant par /) est suiviable — un lien

@@ -332,6 +332,25 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
     prod: false,
   },
 
+  // --- Suivis et agenda (variante atelier du cahier initial) ---
+  {
+    cle: 'suivis',
+    code: 'A7/A22',
+    libelle: 'Suivis des œuvres et agenda des sorties',
+    groupe: 'Lecture et carnet',
+    description:
+      '« Je suis cette œuvre » posé sur les livres de SON atelier, agenda des sorties '
+      + 'réelles du compte (rencontres des clubs, échéances de défis, traductions '
+      + 'terminées) et notifications de club (étape ouverte, rencontre, sondage). '
+      + 'La version du cahier « la plateforme publie des chapitres avec accès '
+      + 'anticipé » reste derrière l’interrupteur `calendrier`, éteint (risque '
+      + 'juridique) ; ici, rien n’est exposé à des tiers (décision du 15/11/2026).',
+    itineraires: ['/suivis'],
+    api: ['/api/suivis'],
+    planMinimal: null,
+    prod: false,
+  },
+
   // --- Progression ---
   {
     cle: 'progression',

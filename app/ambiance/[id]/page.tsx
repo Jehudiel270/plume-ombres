@@ -28,6 +28,7 @@ import {
 } from '@/lib/ambiance';
 import { prive } from '@/lib/metadata';
 import BarreNavigation from '@/components/BarreNavigation';
+import BoutonSuivi from '@/components/suivis/BoutonSuivi';
 
 export const metadata = prive('Fiche d’ambiance');
 
@@ -52,6 +53,22 @@ export default async function PageAmbianceDetail({
     codePlan: planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT,
   });
   if (!moduleVerdict.ouvert) notFound();
+
+  // Module « suivis » : le bouton « Je suis cette œuvre » n'est
+  // monté que si l'interrupteur est ouvert (le serveur est l'autorité).
+  const moduleSuivis = await verifierAccesModule('suivis', {
+    utilisateurId: utilisateur.id,
+    codePlan: planEnVigueur(abonnement) ?? CODE_PLAN_GRATUIT,
+  });
+  let suiviInitial = false;
+  if (moduleSuivis.ouvert) {
+    const { data: suiviLigne } = await supabase
+      .from('suivis_oeuvres')
+      .select('livre_id')
+      .eq('livre_id', id)
+      .maybeSingle();
+    suiviInitial = !!suiviLigne;
+  }
 
   // Le livre (RLS : autrui → rien) et TOUTES les fiches (pour les
   // recommandations et le rappel de rayonnage).
@@ -129,6 +146,11 @@ export default async function PageAmbianceDetail({
           </p>
           <h1 className="font-display text-3xl text-encre-100 mt-2">{livre.titre}</h1>
           {livre.auteur && <p className="text-encre-500 text-sm mt-1">{livre.auteur}</p>}
+          {moduleSuivis.ouvert && (
+            <div className="mt-3">
+              <BoutonSuivi livreId={id} suiviInitial={suiviInitial} titre={livre.titre} />
+            </div>
+          )}
           <div className="liseret mt-3" />
           {fiche.motsCles.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">

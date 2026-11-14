@@ -92,6 +92,12 @@ const PAGES_ATIELIER: Array<{
     detail: 'Vos listes privées : à relire, série du moment…',
   },
   {
+    cle: 'suivis',
+    href: '/suivis',
+    libelle: 'Suivis & sorties',
+    detail: 'Vos œuvres suivies, l’agenda des rencontres et échéances',
+  },
+  {
     cle: 'calendrier',
     href: '/calendrier',
     libelle: 'Calendrier de lecture',

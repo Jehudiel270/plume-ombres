@@ -113,7 +113,7 @@ async function main() {
   const rOpt = await fetch(`${SITE}/api/clubs/${clubId}/sondages`, { headers: { Cookie: cookie } });
   const listeS = (await rOpt.json()) as { sondages?: Array<{ id: string; options: Array<{ id: string; label: string }>; repartition: Record<string, number>; parMoi: boolean }> };
   const s1 = listeS.sondages?.[0];
-  console.log('GET sondages →', rOpt.status, `options=${s1?.options.length}, total=${s1?.total}, repartition=${Object.keys(s1?.repartition ?? {}).length}`);
+  console.log('GET sondages →', rOpt.status, `options=${s1?.options.length}, repartition=${Object.keys(s1?.repartition ?? {}).length}`);
   const opt1 = s1?.options[0]?.id;
   const rVote = await fetch(`${SITE}/api/clubs/${clubId}/sondages/vote`, { method: 'POST', headers: H, body: JSON.stringify({ sondageId: s1?.id, optionId: opt1 }) });
   console.log('POST vote →', rVote.status);

@@ -6,7 +6,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** Nature d'une notification (aligné sur la contrainte CHECK en base). */
-export type TypeNotification = 'info' | 'traduction' | 'paiement' | 'erreur';
+export type TypeNotification = 'info' | 'traduction' | 'paiement' | 'erreur' | 'club';
 
 /** Une notification telle que lue depuis public.notifications. */
 export interface Notification {
@@ -25,6 +25,7 @@ const TYPES_VALIDES: readonly TypeNotification[] = [
   'traduction',
   'paiement',
   'erreur',
+  'club',
 ];
 
 /** Nombre de notifications listées par défaut. */
