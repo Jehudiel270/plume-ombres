@@ -18,6 +18,16 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  EyeOff,
+  Plus,
+  Power,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 
 import ModaleConfirmation from '@/components/admin/ModaleConfirmation';
 import { FOURNISSEURS, metaFournisseur } from '@/lib/cles-api-fournisseurs';
@@ -348,6 +358,11 @@ export default function ClesApi({
                 className="bouton-fantome min-h-11 text-sm shrink-0"
                 onClick={() => setAfficher((a) => !a)}
               >
+                {afficher ? (
+                  <EyeOff className="w-4 h-4" aria-hidden="true" />
+                ) : (
+                  <Eye className="w-4 h-4" aria-hidden="true" />
+                )}
                 {afficher ? 'Masquer' : 'Afficher'}
               </button>
             </div>
@@ -360,6 +375,7 @@ export default function ClesApi({
             disabled={enCours || valeur.trim().length === 0}
             onClick={ajouter}
           >
+            <Plus className="w-4 h-4" aria-hidden="true" />
             Ajouter la clé
           </button>
           <span className="text-xs text-encre-500">
@@ -484,7 +500,7 @@ export default function ClesApi({
                                 title="Faire monter (servie avant la précédente)"
                                 onClick={() => deplacer(cle, 'monter')}
                               >
-                                ↑
+                                <ChevronUp className="w-4 h-4" aria-hidden="true" />
                               </button>
                               <button
                                 type="button"
@@ -494,7 +510,7 @@ export default function ClesApi({
                                 title="Faire descendre (servie après)"
                                 onClick={() => deplacer(cle, 'descendre')}
                               >
-                                ↓
+                                <ChevronDown className="w-4 h-4" aria-hidden="true" />
                               </button>
                               <button
                                 type="button"
@@ -503,6 +519,7 @@ export default function ClesApi({
                                 title="Envoyer une requête de contrôle au fournisseur (sans consommer de quota de génération)"
                                 onClick={() => tester(cle)}
                               >
+                                <Zap className="w-3.5 h-3.5" aria-hidden="true" />
                                 {testEnCours === cle.id ? 'Test…' : 'Tester'}
                               </button>
                               <button
@@ -511,6 +528,7 @@ export default function ClesApi({
                                 disabled={enCours}
                                 onClick={() => basculer(cle)}
                               >
+                                <Power className="w-3.5 h-3.5" aria-hidden="true" />
                                 {cle.actif ? 'Désactiver' : 'Réactiver'}
                               </button>
                               <button
@@ -519,6 +537,7 @@ export default function ClesApi({
                                 disabled={enCours}
                                 onClick={() => setRetirerCible(cle)}
                               >
+                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                                 Retirer
                               </button>
                             </div>

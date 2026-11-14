@@ -20,6 +20,7 @@
 // ============================================================
 
 import { useState } from 'react';
+import { CheckCheck, Save, X } from 'lucide-react';
 
 import type { CompteAdmin } from '@/lib/admin-stats';
 import { estAdmin, normaliserRole } from '@/lib/roles';
@@ -216,6 +217,7 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales, mo
                         }))
                       }
                     >
+                      <CheckCheck className="w-3.5 h-3.5" aria-hidden="true" />
                       Tout cocher
                     </button>
                     <button
@@ -224,6 +226,7 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales, mo
                       disabled={enCours === compte.id}
                       onClick={() => void enregistrer(compte.id, [])}
                     >
+                      <X className="w-3.5 h-3.5" aria-hidden="true" />
                       Tout fermer
                     </button>
                   </div>
@@ -255,6 +258,7 @@ export default function SectionsAdministrateurs({ comptes, sectionsInitiales, mo
                       disabled={enCours === compte.id}
                       onClick={() => void enregistrer(compte.id, ouvertes)}
                     >
+                      <Save className="w-3.5 h-3.5" aria-hidden="true" />
                       {enCours === compte.id ? 'Enregistrement…' : 'Enregistrer'}
                     </button>
                     {message && message.texte && (

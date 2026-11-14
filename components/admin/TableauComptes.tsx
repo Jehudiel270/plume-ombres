@@ -23,6 +23,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check, RotateCcw, Trash2, TriangleAlert } from 'lucide-react';
 import {
   DUREES_ADMIN,
   JOURS_PAR_DUREE,
@@ -368,10 +369,12 @@ export default function TableauComptes({
             aria-pressed={anomaliesSeules}
             className={anomaliesSeules ? 'bouton-principal' : 'bouton-fantome'}
           >
+            <TriangleAlert className="w-4 h-4" aria-hidden="true" />
             Anomalies seules
           </button>
           {actifFiltre && (
             <button type="button" onClick={reinitialiser} className="bouton-fantome">
+              <RotateCcw className="w-4 h-4" aria-hidden="true" />
               Réinitialiser
             </button>
           )}
@@ -509,6 +512,7 @@ export default function TableauComptes({
                         }
                         className="bouton-fantome !px-3 text-xs"
                       >
+                        <Check className="w-3.5 h-3.5" aria-hidden="true" />
                         Accorder
                       </button>
                       <button
@@ -516,6 +520,7 @@ export default function TableauComptes({
                         disabled={enCours !== null || !actif}
                         className="bouton-fantome !px-3 text-xs"
                       >
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                         Retirer
                       </button>
                     </div>

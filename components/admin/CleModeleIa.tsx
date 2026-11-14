@@ -18,6 +18,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Save, Trash2 } from 'lucide-react';
 
 export interface EtatCleIa {
   defini: boolean;
@@ -158,6 +159,11 @@ export default function CleModeleIa({ etatInitial }: { etatInitial: EtatCleIa })
               className="bouton-fantome min-h-11 text-sm shrink-0"
               onClick={() => setAfficher((a) => !a)}
             >
+              {afficher ? (
+                <EyeOff className="w-4 h-4" aria-hidden="true" />
+              ) : (
+                <Eye className="w-4 h-4" aria-hidden="true" />
+              )}
               {afficher ? 'Masquer' : 'Afficher'}
             </button>
           </div>
@@ -169,6 +175,7 @@ export default function CleModeleIa({ etatInitial }: { etatInitial: EtatCleIa })
             disabled={enCours || champ.trim().length === 0}
             onClick={enregistrer}
           >
+            <Save className="w-4 h-4" aria-hidden="true" />
             Enregistrer la clé
           </button>
           {etatInitial.defini && (
@@ -178,6 +185,7 @@ export default function CleModeleIa({ etatInitial }: { etatInitial: EtatCleIa })
               disabled={enCours}
               onClick={retirer}
             >
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
               Retirer
             </button>
           )}

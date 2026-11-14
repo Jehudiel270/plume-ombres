@@ -31,6 +31,7 @@
 // ============================================================
 
 import { useMemo, useState, type ReactNode } from 'react';
+import { Check, UserCheck } from 'lucide-react';
 import {
   LIBELLES_ROLES,
   ROLES,
@@ -353,6 +354,11 @@ export default function GestionRoles({ comptes, emails, moiId, roleCourant }: Pr
                           disabled={enCours !== null || inchange}
                           className="bouton-fantome !px-3 text-xs"
                         >
+                          {promotionSuper ? (
+                            <UserCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                          ) : (
+                            <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                          )}
                           {promotionSuper ? 'Nommer…' : 'Appliquer'}
                         </button>
                       </div>

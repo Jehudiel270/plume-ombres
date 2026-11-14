@@ -24,6 +24,33 @@
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  CalendarClock,
+  Check,
+  ChevronLeft,
+  CircleHelp,
+  CircleQuestionMark,
+  Crosshair,
+  Crown,
+  Funnel,
+  Image as ImageIcon,
+  Info,
+  Lightbulb,
+  Link2,
+  Maximize2,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Tags,
+  Trash2,
+  Users,
+  Waypoints,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 
 import {
   FIABILITES,
@@ -764,7 +791,11 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             }}
             placeholder="Personnage, rôle, description…"
             aria-label="Rechercher un personnage"
-            className="champ-sombre w-56 rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2 text-sm text-encre-100"
+            className="champ-sombre w-56 rounded-lg border border-nuit-700 bg-nuit-850 pl-9 pr-3 py-2 text-sm text-encre-100"
+          />
+          <Search
+            className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-encre-500 pointer-events-none"
+            aria-hidden="true"
           />
           {resultatsOuverts && recherche.trim() && (
             <div className="absolute z-30 mt-1 w-72 velours rounded-xl border border-nuit-700 shadow-xl overflow-hidden">
@@ -797,11 +828,11 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
         <div className="flex gap-1 ml-auto" role="group" aria-label="Vue du graphe">
           {(
             [
-              ['graphe', 'Graphe'],
-              ['personnages', 'Personnages'],
-              ['chronologie', 'Chronologie'],
+              ['graphe', 'Graphe', Waypoints],
+              ['personnages', 'Personnages', Users],
+              ['chronologie', 'Chronologie', CalendarClock],
             ] as const
-          ).map(([v, libelle]) => (
+          ).map(([v, libelle, Icone]) => (
             <button
               key={v}
               type="button"
@@ -809,6 +840,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
               aria-pressed={vue === v}
               className={`min-h-10 text-xs px-3 ${vue === v ? 'bouton-principal' : 'bouton-fantome'}`}
             >
+              <Icone className="w-3.5 h-3.5" aria-hidden="true" />
               {libelle}
             </button>
           ))}
@@ -829,21 +861,24 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             />
           </div>
           <button type="button" className="bouton-fantome min-h-10 text-xs px-3" aria-label="Dézoomer" onClick={() => zoomVers(zoom / 1.25)}>
-            −
+            <ZoomOut className="w-4 h-4" aria-hidden="true" />
           </button>
           <span className="text-xs text-encre-500 chiffres-tabulaires w-12 text-center" aria-live="polite">
             {Math.round(zoom * 100)} %
           </span>
           <button type="button" className="bouton-fantome min-h-10 text-xs px-3" aria-label="Zoomer" onClick={() => zoomVers(zoom * 1.25)}>
-            +
+            <ZoomIn className="w-4 h-4" aria-hidden="true" />
           </button>
           <button type="button" className="bouton-fantome min-h-10 text-xs px-3" onClick={recentrer}>
+            <Crosshair className="w-3.5 h-3.5" aria-hidden="true" />
             Recentrer
           </button>
           <button type="button" className="bouton-fantome min-h-10 text-xs px-3" onClick={replacer}>
+            <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
             Réinitialiser la disposition
           </button>
           <button type="button" className="bouton-fantome min-h-10 text-xs px-3" onClick={pleinEcran}>
+            <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
             Plein écran
           </button>
           <button
@@ -852,6 +887,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             aria-expanded={aideOuverte}
             onClick={() => setAideOuverte((v) => !v)}
           >
+            <CircleHelp className="w-3.5 h-3.5" aria-hidden="true" />
             Aide
           </button>
           <button
@@ -862,6 +898,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             aria-pressed={suggestionsOuvertes}
             onClick={() => setSuggestionsOuvertes((v) => !v)}
           >
+            <Lightbulb className="w-3.5 h-3.5" aria-hidden="true" />
             Suggestions
             {graphe && compteurSuggestions > 0 ? ` · ${compteurSuggestions}` : ''}
           </button>
@@ -871,6 +908,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             aria-pressed={portraits}
             onClick={() => setPortraits((v) => !v)}
           >
+            <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" />
             Portraits
           </button>
           <button
@@ -879,6 +917,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             aria-pressed={toujoursLabels}
             onClick={() => setToujoursLabels((v) => !v)}
           >
+            <Tags className="w-3.5 h-3.5" aria-hidden="true" />
             Libellés
           </button>
           <button
@@ -887,6 +926,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             aria-pressed={principauxSeuls}
             onClick={() => setPrincipauxSeuls((v) => !v)}
           >
+            <Crown className="w-3.5 h-3.5" aria-hidden="true" />
             Principaux
           </button>
           <button
@@ -895,6 +935,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             aria-pressed={fiabiliteFiltre === 'unsure'}
             onClick={() => setFiabiliteFiltre((v) => (v === 'unsure' ? 'all' : 'unsure'))}
           >
+            <CircleQuestionMark className="w-3.5 h-3.5" aria-hidden="true" />
             Incertaines seules
           </button>
           <button
@@ -903,6 +944,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
             aria-expanded={filtresOuverts}
             onClick={() => setFiltresOuverts((v) => !v)}
           >
+            <Funnel className="w-3.5 h-3.5" aria-hidden="true" />
             Filtres{nbFiltres > 0 ? ` · ${nbFiltres}` : ''}
           </button>
         </div>
@@ -954,6 +996,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
               setSelection(null);
             }}
           >
+            <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
             Réinitialiser les filtres et la vue
           </button>
         </div>
@@ -1307,6 +1350,7 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
                             setFeuille(true);
                           }}
                         >
+                          <Info className="w-3 h-3" aria-hidden="true" />
                           Fiche
                         </button>
                       </td>
@@ -1516,6 +1560,7 @@ function FicheGraphe({
       <div className="flex items-center justify-between">
         <h2 className="sur-titre text-encre-300">Fiche</h2>
         <button type="button" className="bouton-fantome text-xs min-h-8 px-2" onClick={fermer}>
+          <X className="w-3.5 h-3.5" aria-hidden="true" />
           Fermer
         </button>
       </div>
@@ -1525,7 +1570,8 @@ function FicheGraphe({
         <div className="space-y-4">
           {retour && retour.k === 'personnage' && (
             <button type="button" className="bouton-fantome text-xs min-h-8 px-2" onClick={onRetour}>
-              ← {nomDe(retour.id)}
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
+              {nomDe(retour.id)}
             </button>
           )}
           <div className="flex items-center gap-3">
@@ -1621,6 +1667,7 @@ function FicheGraphe({
               className="bouton-fantome text-xs min-h-9 px-3 text-grenat-400"
               onClick={() => supprimer('personnage', perso.id)}
             >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
               Retirer ce personnage
             </button>
           )}
@@ -1632,7 +1679,8 @@ function FicheGraphe({
         <div className="space-y-4">
           {retour && retour.k === 'personnage' && (
             <button type="button" className="bouton-fantome text-xs min-h-8 px-2" onClick={onRetour}>
-              ← {nomDe(retour.id)}
+              <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
+              {nomDe(retour.id)}
             </button>
           )}
           <div className="flex flex-wrap items-center gap-2">
@@ -1674,6 +1722,7 @@ function FicheGraphe({
               className="bouton-fantome text-xs min-h-9 px-3"
               onClick={() => localiser([relation.origineId, relation.destinationId])}
             >
+              <Crosshair className="w-3.5 h-3.5" aria-hidden="true" />
               Localiser sur la toile
             </button>
           </div>
@@ -1712,6 +1761,7 @@ function FicheGraphe({
               className="bouton-fantome text-xs min-h-9 px-3 text-grenat-400"
               onClick={() => supprimer('relation', relation.id)}
             >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
               Retirer cette relation
             </button>
           )}
@@ -1759,6 +1809,7 @@ function FicheGraphe({
               className="bouton-principal text-xs min-h-9 px-3"
               onClick={() => localiser(evenement.personnageIds)}
             >
+              <Crosshair className="w-3.5 h-3.5" aria-hidden="true" />
               Localiser sur la toile
             </button>
             {evenement.relationId && (
@@ -1767,6 +1818,7 @@ function FicheGraphe({
                 className="bouton-fantome text-xs min-h-9 px-3"
                 onClick={() => ouvrirRelation(evenement.relationId as string)}
               >
+                <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
                 Voir la relation
               </button>
             )}
@@ -1778,6 +1830,7 @@ function FicheGraphe({
               className="bouton-fantome text-xs min-h-9 px-3 text-grenat-400"
               onClick={() => supprimer('evenement', evenement.id)}
             >
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
               Retirer cet événement
             </button>
           )}
@@ -1846,6 +1899,7 @@ function ModaleAide({ fermer }: { fermer: () => void }) {
           className="bouton-principal min-h-9 px-4 text-sm"
           onClick={fermer}
         >
+          <Check className="w-4 h-4" aria-hidden="true" />
           Compris
         </button>
       </div>
@@ -1920,6 +1974,7 @@ function PanneauSuggestions({
                     className="bouton-fantome text-xs min-h-8 px-2 ml-auto border border-nuit-700"
                     onClick={() => preRemplir(paire.origineId, paire.destinationId)}
                   >
+                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                     Préremplir une relation
                   </button>
                 )}
@@ -2166,6 +2221,7 @@ function EditionGraphe({
           onClick={ajouterPersonnage}
           className="bouton-principal min-h-10 text-sm w-full disabled:opacity-40"
         >
+          <Plus className="w-4 h-4" aria-hidden="true" />
           Ajouter à la toile
         </button>
       </section>
@@ -2277,6 +2333,7 @@ function EditionGraphe({
           onClick={ajouterRelation}
           className="bouton-principal min-h-10 text-sm w-full disabled:opacity-40"
         >
+          <Link2 className="w-4 h-4" aria-hidden="true" />
           Relier
         </button>
         {relations.length > 0 && (
@@ -2291,9 +2348,10 @@ function EditionGraphe({
                   <button
                     type="button"
                     disabled={enCours}
-                    className="text-grenat-400 hover:underline"
+                    className="text-grenat-400 hover:underline inline-flex items-center gap-1"
                     onClick={() => supprimer('relation', a.id)}
                   >
+                    <Trash2 className="w-3 h-3" aria-hidden="true" />
                     Retirer
                   </button>
                 </li>
@@ -2389,6 +2447,7 @@ function EditionGraphe({
           onClick={ajouterEvenement}
           className="bouton-principal min-h-10 text-sm w-full disabled:opacity-40"
         >
+          <CalendarClock className="w-4 h-4" aria-hidden="true" />
           Consigner dans la chronologie
         </button>
       </section>
