@@ -87,6 +87,16 @@ export default async function PageAmbiance() {
                 genresInitiaux={fiches.get(l.id)?.genres ?? []}
                 tropesInitiaux={fiches.get(l.id)?.tropes ?? []}
                 intensiteInitiale={fiches.get(l.id)?.intensite ?? 3}
+                paletteInitiale={fiches.get(l.id)?.palette ?? []}
+                atmosphereInitiale={fiches.get(l.id)?.atmosphere ?? null}
+                tonInitial={fiches.get(l.id)?.ton ?? null}
+                rythmeNiveauInitial={fiches.get(l.id)?.rythmeNiveau ?? null}
+                rythmeLabelInitial={fiches.get(l.id)?.rythmeLabel ?? null}
+                promessesInitiales={fiches.get(l.id)?.promesses ?? []}
+                playlistNomInitial={fiches.get(l.id)?.playlistNom ?? null}
+                playlistInitiale={fiches.get(l.id)?.playlist ?? []}
+                citationInitiale={fiches.get(l.id)?.citationOuverture ?? null}
+                motsClesInitiaux={fiches.get(l.id)?.motsCles ?? []}
               />
             ))}
           </ul>

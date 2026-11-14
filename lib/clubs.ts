@@ -131,3 +131,202 @@ export function libelleModifie(modifieLe: string | null | undefined): string | n
   if (!modifieLe) return null;
   return 'modifié';
 }
+
+// ============================================================
+// RÔLES (admin / moderateur / membre)
+//
+// Le créateur est admin. Le staff (admin ou moderateur) épingle,
+// masque, traite la file de signalements ; l'admin seul change les
+// rôles. Un rôle n'accorde JAMAIS accès au contenu au-delà du
+// plafond anti-spoilers : le pouvoir de modération n'ouvre pas le
+// texte des chapitres non lus.
+// ============================================================
+
+export const ROLES_CLUB = ['admin', 'moderateur', 'membre'] as const;
+export type RoleClub = (typeof ROLES_CLUB)[number];
+
+export function estRoleClub(valeur: unknown): valeur is RoleClub {
+  return (
+    typeof valeur === 'string' &&
+    (ROLES_CLUB as readonly string[]).includes(valeur)
+  );
+}
+
+export function libelleRole(role: RoleClub): string {
+  switch (role) {
+    case 'admin':
+      return 'Administrateur';
+    case 'moderateur':
+      return 'Modérateur';
+    default:
+      return 'Membre';
+  }
+}
+
+/** Le rôle donne-t-il un pouvoir de modération ? (admin ou modo) */
+export function estStaff(role: RoleClub): boolean {
+  return role === 'admin' || role === 'moderateur';
+}
+
+// ============================================================
+// PROGRAMME DE LECTURE PAR ÉTAPES
+//
+// Rythme du cahier initial : QUATRE chapitres par semaine, avec un
+// focus de discussion. Chaque étape s'ouvre quand la précédente est
+// terminée ; la discussion du club ne dépasse jamais l'étape
+// ouverte (croisée avec la position de lecture de CHACUN).
+// ============================================================
+
+export const CHAPITRES_PAR_ETAPE = 4;
+export const MAX_ETAPES = 52;
+
+export const FOCUS_ETAPES: readonly string[] = [
+  'Mise en place et premiers indices',
+  'Les relations se tendent',
+  'Un secret se précise',
+  'Le premier tournant',
+  'Les alliances se déplacent',
+  'Le point de non-retour',
+  'Conséquences',
+  'Dernière ligne droite',
+  'Conclusion et débat final',
+  'Épilogue',
+];
+
+export interface EtapeProgramme {
+  numero: number;
+  chapitreDe: number;
+  chapitreA: number;
+  focus: string;
+}
+
+/** Génère le programme : étapes de `parEtape` chapitres jusqu'au
+ *  dernier chapitre du livre. PUR, testé. Toute taille invalide
+ *  (0, négatif, non numérique) retombe sur les 4 chapitres/semaine
+ *  du cahier. */
+export function genererEtapes(
+  totalChapitres: number,
+  parEtape: number = CHAPITRES_PAR_ETAPE
+): EtapeProgramme[] {
+  const total = Math.max(1, Math.round(Number(totalChapitres) || 1));
+  const demandee = Number(parEtape);
+  const taille =
+    Number.isFinite(demandee) && demandee >= 1
+      ? Math.min(12, Math.round(demandee))
+      : CHAPITRES_PAR_ETAPE;
+  const nombre = Math.min(MAX_ETAPES, Math.ceil(total / taille));
+  const programme: EtapeProgramme[] = [];
+  for (let i = 0; i < nombre; i += 1) {
+    const de = i * taille + 1;
+    const a = Math.min(total, (i + 1) * taille);
+    programme.push({
+      numero: i + 1,
+      chapitreDe: de,
+      chapitreA: a,
+      focus: FOCUS_ETAPES[i % FOCUS_ETAPES.length] ?? '',
+    });
+  }
+  return programme;
+}
+
+/**
+ * Plafond de discussion EFFECTIF d'un membre (PUR, testé) :
+ *   • sans programme → sa position de lecture seule ;
+ *   • avec programme → le PLUS PETIT de sa position et du dernier
+ *     chapitre de la dernière étape DÉBLOQUÉE. Jamais au-delà de
+ *     la lecture personnelle : le rythme du groupe ne force pas
+ *     personne.
+ */
+export function plafondEffectif(
+  positionLecture: number,
+  dernierChapitreDebloque: number | null
+): number {
+  const lu = Math.max(0, Math.round(Number(positionLecture) || 0));
+  if (dernierChapitreDebloque === null || dernierChapitreDebloque === undefined) {
+    return lu;
+  }
+  const ouvert = Math.max(0, Math.round(Number(dernierChapitreDebloque) || 0));
+  return Math.min(lu, ouvert);
+}
+
+// ============================================================
+// SONDAGES
+// ============================================================
+
+export const MAX_QUESTION_SONDAGE = 200;
+export const MAX_OPTION_SONDAGE = 120;
+export const MAX_OPTIONS_SONDAGE = 4;
+export const MIN_OPTIONS_SONDAGE = 2;
+/** Durée de vote par défaut (7 jours), en jours. */
+export const JOURS_SONDAGE = 7;
+
+/** Nettoie la liste des options saisies : bornée, sans doublon vide. */
+export function nettoyerOptionsSondage(brut: unknown): string[] {
+  if (!Array.isArray(brut)) return [];
+  const vues = new Set<string>();
+  const options: string[] = [];
+  for (const element of brut) {
+    if (typeof element !== 'string') continue;
+    const propre = element.trim().slice(0, MAX_OPTION_SONDAGE);
+    if (!propre || vues.has(propre)) continue;
+    vues.add(propre);
+    options.push(propre);
+    if (options.length >= MAX_OPTIONS_SONDAGE) break;
+  }
+  return options;
+}
+
+/** Date de clôture demandée : maintenant + `jours` (borné 1 → 60). */
+export function dateClotureSondage(jours: number = JOURS_SONDAGE): string {
+  const j = Math.max(1, Math.min(60, Math.round(Number(jours) || JOURS_SONDAGE)));
+  return new Date(Date.now() + j * 86_400_000).toISOString();
+}
+
+/** Le sondage accepte-t-il encore un vote ? (PUR, testé) */
+export function sondageOuvert(fermeLe: string, maintenant: number = Date.now()): boolean {
+  const t = new Date(fermeLe).getTime();
+  if (!Number.isFinite(t)) return false;
+  return maintenant < t;
+}
+
+// ============================================================
+// RENCONTRES
+// ============================================================
+
+export const MODES_RENCONTRE = ['en ligne', 'salon écrit'] as const;
+export type ModeRencontre = (typeof MODES_RENCONTRE)[number];
+
+export function estModeRencontre(valeur: unknown): valeur is ModeRencontre {
+  return (
+    typeof valeur === 'string' &&
+    (MODES_RENCONTRE as readonly string[]).includes(valeur)
+  );
+}
+
+export const MAX_TITRE_RENCONTRE = 120;
+export const MAX_NOTE_CHAPITRES = 200;
+
+// ============================================================
+// FILE DE MODÉRATION
+// ============================================================
+
+/** Motifs proposés au signalement (liste fermée, sans juge). */
+export const MOTIFS_SIGNALEMENT: readonly string[] = [
+  'Spoiler non signalé',
+  'Message répété',
+  'Hors sujet',
+  'Contenu inapproprié',
+  'Autre',
+];
+
+export function estMotifValide(motif: unknown): motif is string {
+  return typeof motif === 'string' && (MOTIFS_SIGNALEMENT as readonly string[]).includes(motif);
+}
+
+export const MAX_MOTIF = 200;
+
+/** Nettoie un motif de signalement : motif de liste ou précision libre. */
+export function propreMotif(brut: unknown): string {
+  if (typeof brut !== 'string') return '';
+  return brut.trim().slice(0, MAX_MOTIF);
+}
