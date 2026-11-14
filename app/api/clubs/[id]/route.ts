@@ -27,11 +27,18 @@ import { MagasinAbonnementSupabase } from '@/lib/paiement/magasin';
 import {
   bornePosition,
   codeInvitation,
-  editionPossible,
   messageVisiblePour,
   propreMessage,
   propreTexte,
 } from '@/lib/clubs';
+import {
+  agregerReactions,
+  triFil,
+  versMessageSalon,
+  type LigneMessageBrute,
+  type LigneReactionBrute,
+  type ReactionSalon,
+} from '@/lib/salon';
 
 export const runtime = 'nodejs';
 
@@ -135,7 +142,7 @@ export async function GET(
     c.client
       .from('clubs_messages')
       .select(
-        'id, auteur_id, contenu, chapitre_max, created_at, modifie_le, epingle, reponse_a, signale, profiles ( pseudo )'
+        'id, auteur_id, contenu, chapitre_max, created_at, modifie_le, epingle, reponse_a, signale, prive, destinataire_id, profiles ( pseudo )'
       )
       .eq('club_id', c.clubId)
       .lt('id', pageAnciens ? Math.floor(avant) : Number.MAX_SAFE_INTEGER)
@@ -151,72 +158,61 @@ export async function GET(
     position_lecture: number;
     profiles: { pseudo: string | null } | null;
   };
-  type MessageLigne = {
-    id: number;
-    auteur_id: string;
-    contenu: string;
-    chapitre_max: number;
-    created_at: string;
-    modifie_le: string | null;
-    epingle: boolean;
-    reponse_a: number | null;
-    signale: boolean;
-    profiles: { pseudo: string | null } | null;
-  };
 
-  const lignes = (messages.data ?? []) as unknown as MessageLigne[];
+  const lignes = (messages.data ?? []) as unknown as LigneMessageBrute[];
   const plusAnciens = lignes.length > PAGE_MESSAGES;
   const page = plusAnciens ? lignes.slice(0, PAGE_MESSAGES) : lignes;
 
+  // Pseudos des membres : pour nommer le destinataire d'un message
+  // privé (la RLS ne m'envoie de toute façon QUE les MP concernés).
+  const pseudosMembres = new Map<string, string>(
+    ((membres.data ?? []) as unknown as MembreLigne[]).map((m) => [
+      m.utilisateur_id,
+      m.profiles?.pseudo ?? 'Lecteur',
+    ])
+  );
+
   // FILTRAGE ANTI-SPOILERS côté serveur : le contenu hors de ma
-  // lecture N'EST PAS ENVOYÉ (compte tenu dans `masques`). La
-  // fenêtre d'édition est calculée ICI (horloge serveur, la même
-  // que celle de l'API qui l'applique).
-  type MessageVisible = {
-    id: number;
-    auteur: string;
-    auteurId: string;
-    mien: boolean;
-    contenu: string;
-    plafond: number;
-    le: string;
-    modifieLe: string | null;
-    epingle: boolean;
-    reponseA: number | null;
-    editionPossible: boolean;
-    signale: boolean;
-  };
-  const visibles: MessageVisible[] = [];
+  // lecture N'EST PAS ENVOYÉ (compte tenu dans `masques`).
+  const visibles = [];
   let masques = 0;
   for (const m of page) {
-    if (!messageVisiblePour(m.chapitre_max, c.maPosition)) {
+    const salon = versMessageSalon(m, {
+      monId: c.utilisateurId,
+      maPosition: c.maPosition,
+      estCreateur: c.estCreateur,
+      pseudosMembres,
+    });
+    if (!salon) {
       masques += 1;
       continue;
     }
-    visibles.push({
-      id: m.id,
-      auteur: m.profiles?.pseudo ?? 'Lecteur',
-      auteurId: m.auteur_id,
-      mien: m.auteur_id === c.utilisateurId,
-      contenu: m.contenu,
-      plafond: m.chapitre_max,
-      le: m.created_at,
-      modifieLe: m.modifie_le,
-      epingle: m.epingle,
-      reponseA: m.reponse_a,
-      editionPossible: editionPossible(m.created_at, m.modifie_le),
-      // Le signalement reste une affaire de modération : visible du
-      // créateur seulement, jamais renvoyé comme arme entre membres.
-      signale: m.signale === true && c.estCreateur,
-    });
+    visibles.push(salon);
+  }
+
+  // Réactions des messages de CETTE page (la RLS n'envoie que celles
+  // des messages que je peux lire), agrégées par émoji.
+  const idsPage = page.map((m) => m.id);
+  let reactionsParMessage = new Map<number, ReactionSalon[]>();
+  if (idsPage.length > 0) {
+    const { data: reactionsLignes } = await c.client
+      .from('clubs_reactions')
+      .select('message_id, utilisateur_id, emoji')
+      .eq('club_id', c.clubId)
+      .in('message_id', idsPage)
+      .limit(3000);
+    reactionsParMessage = agregerReactions(
+      ((reactionsLignes ?? []) as unknown as LigneReactionBrute[]),
+      c.utilisateurId
+    );
+  }
+  for (const m of visibles) {
+    m.reactions = reactionsParMessage.get(m.id) ?? [];
   }
 
   // Les épinglés remontent, sans quitter l'ordre chronologique du
   // reste du fil (l'interface les met en avant elle-même).
-  visibles.sort((a, b) => {
-    if (a.epingle !== b.epingle) return a.epingle ? -1 : 1;
-    return b.le.localeCompare(a.le);
-  });
+  visibles.sort(triFil);
 
   const club = clubLigne.data as unknown as {
     titre: string;
@@ -310,6 +306,35 @@ export async function POST(
   }
   const chapitreMax = Math.max(0, Math.round(Number(corps.chapitreMax) || 0));
 
+  // Message privé : le destinataire DOIT être un membre du club,
+  // autre que moi. La RLS ne montrera ce message qu'à nous deux —
+  // ni le créateur, ni les autres membres.
+  let prive = false;
+  let destinataireId: string | null = null;
+  if (corps.prive === true) {
+    const propose = typeof corps.destinataireId === 'string' ? corps.destinataireId : '';
+    if (!UUID.test(propose) || propose === c.utilisateurId) {
+      return NextResponse.json(
+        { erreur: 'Choisissez le destinataire de votre message privé.' },
+        { status: 422 }
+      );
+    }
+    const { data: membreCible } = await c.client
+      .from('clubs_membres')
+      .select('utilisateur_id')
+      .eq('club_id', c.clubId)
+      .eq('utilisateur_id', propose)
+      .maybeSingle();
+    if (!membreCible) {
+      return NextResponse.json(
+        { erreur: 'Ce destinataire n’est pas membre du club.' },
+        { status: 422 }
+      );
+    }
+    prive = true;
+    destinataireId = propose;
+  }
+
   // Réponse à un message : il doit exister dans CE club ET être
   // visible pour moi (on ne répond pas à ce qu'on ne peut pas lire).
   let reponseA: number | null = null;
@@ -318,16 +343,24 @@ export async function POST(
     if (Number.isFinite(idReponse) && idReponse > 0) {
       const { data: cible } = await c.client
         .from('clubs_messages')
-        .select('id, chapitre_max')
+        .select('id, chapitre_max, prive, auteur_id, destinataire_id')
         .eq('id', idReponse)
         .eq('club_id', c.clubId)
         .maybeSingle();
+      const cibleLigne = cible as
+        | {
+            chapitre_max: number;
+            prive: boolean;
+            auteur_id: string;
+            destinataire_id: string | null;
+          }
+        | null;
       if (
-        cible &&
-        messageVisiblePour(
-          (cible as { chapitre_max: number }).chapitre_max,
-          c.maPosition
-        )
+        cibleLigne &&
+        messageVisiblePour(cibleLigne.chapitre_max, c.maPosition) &&
+        (!cibleLigne.prive ||
+          cibleLigne.auteur_id === c.utilisateurId ||
+          cibleLigne.destinataire_id === c.utilisateurId)
       ) {
         reponseA = idReponse;
       }
@@ -356,6 +389,8 @@ export async function POST(
     contenu,
     chapitre_max: chapitreMax,
     reponse_a: reponseA,
+    prive,
+    destinataire_id: destinataireId,
   });
   if (error) {
     return NextResponse.json({ erreur: 'Publication refusée.' }, { status: 500 });

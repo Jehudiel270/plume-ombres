@@ -13,7 +13,13 @@ import { utilisateurConnecte, creerClientServeur } from '@/lib/supabase/server';
 import { verifierAccesModule } from '@/lib/fonctionnalites/etats';
 import { planEnVigueur, CODE_PLAN_GRATUIT } from '@/lib/abonnement';
 import { MagasinAbonnementSupabase } from '@/lib/paiement/magasin';
-import { editionPossible, messageVisiblePour } from '@/lib/clubs';
+import {
+  agregerReactions,
+  triFil,
+  versMessageSalon,
+  type LigneMessageBrute,
+  type LigneReactionBrute,
+} from '@/lib/salon';
 import { prive } from '@/lib/metadata';
 import BarreNavigation from '@/components/BarreNavigation';
 import SalonClub from '@/components/clubs/SalonClub';
@@ -86,7 +92,7 @@ export default async function PageSalonClub({
     supabase
       .from('clubs_messages')
       .select(
-        'id, auteur_id, contenu, chapitre_max, created_at, modifie_le, epingle, reponse_a, signale, profiles ( pseudo )'
+        'id, auteur_id, contenu, chapitre_max, created_at, modifie_le, epingle, reponse_a, signale, prive, destinataire_id, profiles ( pseudo )'
       )
       .eq('club_id', id)
       .order('created_at', { ascending: false })
@@ -105,67 +111,63 @@ export default async function PageSalonClub({
     position_lecture: number;
     profiles: { pseudo: string | null } | null;
   };
-  type MessageLigne = {
-    id: number;
-    auteur_id: string;
-    contenu: string;
-    chapitre_max: number;
-    created_at: string;
-    modifie_le: string | null;
-    epingle: boolean;
-    reponse_a: number | null;
-    signale: boolean;
-    profiles: { pseudo: string | null } | null;
-  };
 
-  const lignes = (messagesLignes.data ?? []) as unknown as MessageLigne[];
+  const membresListe = ((membres.data ?? []) as unknown as MembreLigne[]).map((m) => ({
+    utilisateurId: m.utilisateur_id,
+    pseudo: m.profiles?.pseudo ?? 'Lecteur',
+    moi: m.utilisateur_id === utilisateur.id,
+    createur: m.utilisateur_id === club.createur_id,
+    position: m.position_lecture,
+  }));
+
+  const lignes = (messagesLignes.data ?? []) as unknown as LigneMessageBrute[];
   const plusAnciens = lignes.length > PAGE_MESSAGES;
   const page = plusAnciens ? lignes.slice(0, PAGE_MESSAGES) : lignes;
 
+  // Pseudos des membres : pour nommer le destinataire d'un MP.
+  const pseudosMembres = new Map(
+    membresListe.map((m) => [m.utilisateurId, m.pseudo])
+  );
+
   // FILTRAGE ANTI-SPOILERS côté serveur : au-delà de ma lecture, le
   // contenu n'est pas rendu — un compteur le dit, sans le trahir.
-  type MessageSalon = {
-    id: number;
-    auteur: string;
-    auteurId: string;
-    mien: boolean;
-    contenu: string;
-    plafond: number;
-    le: string;
-    modifieLe: string | null;
-    epingle: boolean;
-    reponseA: number | null;
-    editionPossible: boolean;
-    signale: boolean;
-  };
-  const messages: MessageSalon[] = [];
+  const messages = [];
   let masques = 0;
   for (const m of page) {
-    if (!messageVisiblePour(m.chapitre_max, maPosition)) {
+    const salon = versMessageSalon(m, {
+      monId: utilisateur.id,
+      maPosition,
+      estCreateur,
+      pseudosMembres,
+    });
+    if (!salon) {
       masques += 1;
       continue;
     }
-    messages.push({
-      id: m.id,
-      auteur: m.profiles?.pseudo ?? 'Lecteur',
-      auteurId: m.auteur_id,
-      mien: m.auteur_id === utilisateur.id,
-      contenu: m.contenu,
-      plafond: m.chapitre_max,
-      le: m.created_at,
-      modifieLe: m.modifie_le,
-      epingle: m.epingle,
-      reponseA: m.reponse_a,
-      editionPossible: editionPossible(m.created_at, m.modifie_le),
-      signale: m.signale === true && estCreateur,
-    });
+    messages.push(salon);
+  }
+
+  // Réactions des messages de CETTE page, agrégées (la RLS n'envoie
+  // que celles des messages que je peux lire).
+  const idsPage = page.map((m) => m.id);
+  if (idsPage.length > 0) {
+    const { data: reactionsLignes } = await supabase
+      .from('clubs_reactions')
+      .select('message_id, utilisateur_id, emoji')
+      .eq('club_id', id)
+      .in('message_id', idsPage)
+      .limit(3000);
+    const agregees = agregerReactions(
+      ((reactionsLignes ?? []) as unknown as LigneReactionBrute[]),
+      utilisateur.id
+    );
+    for (const m of messages) {
+      m.reactions = agregees.get(m.id) ?? [];
+    }
   }
 
   // Les épinglés remontent en tête, le fil garde son ordre.
-  messages.sort((a, b) => {
-    if (a.epingle !== b.epingle) return a.epingle ? -1 : 1;
-    return b.le.localeCompare(a.le);
-  });
+  messages.sort(triFil);
 
   const { data: profil } = await supabase
     .from('profiles')
@@ -195,13 +197,7 @@ export default async function PageSalonClub({
             (mesLivres.data as Array<{ id: string; titre: string }> | null) ?? []
           }
           maPosition={maPosition}
-          membres={((membres.data ?? []) as unknown as MembreLigne[]).map((m) => ({
-            utilisateurId: m.utilisateur_id,
-            pseudo: m.profiles?.pseudo ?? 'Lecteur',
-            moi: m.utilisateur_id === utilisateur.id,
-            createur: m.utilisateur_id === club.createur_id,
-            position: m.position_lecture,
-          }))}
+          membres={membresListe}
           messages={messages}
           masques={masques}
           plusAnciens={plusAnciens}

@@ -22,6 +22,22 @@ export const MAX_MESSAGE = 2000;
 export const MAX_TITRE = 120;
 export const MAX_DESCRIPTION = 600;
 
+/**
+ * Palette des RÉACTIONS rapides : vrais émojis Unicode, liste
+ * blanche stricte — la base n'accepte qu'eux (l'API vérifie, la
+ * RLS double). Assez large pour exprimer une lecture : approbation,
+ * émotion, choc, tendresse, ambiance de lecture.
+ */
+export const EMOJIS_REACTIONS: readonly string[] = [
+  '👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🤔',
+  '😱', '🥹', '💀', '✨', '📚', '☕', '🕯️', '🌙',
+];
+
+/** L'émoji proposé fait-il partie de la liste blanche ? */
+export function estEmojiReaction(brut: unknown): brut is string {
+  return typeof brut === 'string' && (EMOJIS_REACTIONS as readonly string[]).includes(brut);
+}
+
 /** Fenêtre d'édition d'un message (15 minutes après publication).
  *  Passé ce délai, le fil garde sa mémoire : on supprime et on
  *  réécrit, on ne réécrit pas l'histoire en silence. */
@@ -66,10 +82,19 @@ export function libellePlafond(chapitreMax: number): string {
   return `Jusqu’au chapitre ${chapitreMax}`;
 }
 
-/** Nettoie un message saisi : borné, sans espaces extrêmes. */
+/** Nettoie un message saisi : borné, sans espaces extrêmes. La
+ *  coupe éventuelle ne casse jamais un émoji en deux (paire de
+ *  substitution UTF-16 respectée). */
 export function propreMessage(brut: unknown): string {
   if (typeof brut !== 'string') return '';
-  return brut.trim().replace(/\s+\n/g, '\n').slice(0, MAX_MESSAGE);
+  const nettoye = brut.trim().replace(/\s+\n/g, '\n');
+  if (nettoye.length <= MAX_MESSAGE) return nettoye;
+  const coupe = nettoye.slice(0, MAX_MESSAGE);
+  const dernier = coupe.charCodeAt(coupe.length - 1);
+  if (dernier >= 0xd800 && dernier <= 0xdbff) {
+    return coupe.slice(0, -1);
+  }
+  return coupe;
 }
 
 /** Nettoie un titre / une description de club. */

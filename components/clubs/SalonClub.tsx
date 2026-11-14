@@ -1,15 +1,18 @@
 'use client';
 
 // ============================================================
-// components/clubs/SalonClub.tsx — Salon d'un club PRIVÉ (F11 v2).
+// components/clubs/SalonClub.tsx — Salon d'un club PRIVÉ (F11 v3,
+// « salon vivant »).
 //
 // Le salon complet : fil avec réponses, épinglage, édition sous
 // fenêtre de 15 minutes, suppression (auteur ou créateur),
-// signalement, gestion des membres (exclusion par le créateur),
-// réglages du club (titre, description, livre lié, code
-// d'invitation, suppression du club). Chaque action donne un
-// retour visible immédiat, sans trahir les plafonds anti-spoilers :
-// les messages masqués par le serveur ne sont PAS dans les données.
+// signalement, RÉACTIONS ÉMOJIS, MESSAGES PRIVÉS entre membres,
+// PALETTE D'ÉMOJIS dans la composition, gestion des membres
+// (exclusion par le créateur), réglages du club (titre,
+// description, livre lié, code d'invitation, suppression du club).
+// Chaque action donne un retour visible immédiat (optimiste pour
+// les réactions), sans trahir les plafonds anti-spoilers : les
+// messages masqués par le serveur ne sont PAS dans les données.
 // ============================================================
 
 import { useEffect, useRef, useState, useTransition } from 'react';
@@ -19,20 +22,29 @@ import {
   Copy,
   Flag,
   FlagOff,
+  Lock,
   Pencil,
   Pin,
   PinOff,
   Reply,
   Settings,
+  Smile,
   Trash2,
   UserMinus,
+  X,
 } from 'lucide-react';
 
 import {
+  EMOJIS_REACTIONS,
   libellePlafond,
   MAX_DESCRIPTION,
   MAX_TITRE,
 } from '@/lib/clubs';
+import type { MessageSalon, ReactionSalon } from '@/lib/salon';
+import { triFil } from '@/lib/salon';
+import SelecteurEmojis from '@/components/clubs/SelecteurEmojis';
+
+export type { MessageSalon, ReactionSalon } from '@/lib/salon';
 
 export interface InfoClub {
   titre: string;
@@ -41,21 +53,6 @@ export interface InfoClub {
   estCreateur: boolean;
   livreId: string | null;
   livreTitre: string | null;
-}
-
-export interface MessageSalon {
-  id: number;
-  auteur: string;
-  auteurId: string;
-  mien: boolean;
-  contenu: string;
-  plafond: number;
-  le: string;
-  modifieLe: string | null;
-  epingle: boolean;
-  reponseA: number | null;
-  editionPossible: boolean;
-  signale: boolean;
 }
 
 export interface MembreSalon {
@@ -80,12 +77,6 @@ const dateCourte = (iso: string) => {
     return '';
   }
 };
-
-/** Tri du fil : épinglés d'abord, puis du plus récent au plus ancien. */
-function triFil(a: MessageSalon, b: MessageSalon): number {
-  if (a.epingle !== b.epingle) return a.epingle ? -1 : 1;
-  return b.le.localeCompare(a.le);
-}
 
 export default function SalonClub({
   clubId,
@@ -145,6 +136,11 @@ export default function SalonClub({
   const [contenu, setContenu] = useState('');
   const [chapitreMax, setChapitreMax] = useState('');
   const [reponse, setReponse] = useState<MessageSalon | null>(null);
+  const [prive, setPrive] = useState(false);
+  const [destinataire, setDestinataire] = useState('');
+  const [pickerOuvert, setPickerOuvert] = useState(false);
+  const [pickerMessage, setPickerMessage] = useState<number | null>(null);
+  const champMessage = useRef<HTMLTextAreaElement | null>(null);
 
   // — Position de lecture —
   const [positionSaisie, setPositionSaisie] = useState(String(maPosition));
@@ -181,16 +177,22 @@ export default function SalonClub({
     }
   };
 
-  // — Publier (avec réponse facultative) —
+  // — Publier (avec réponse, émojis et mode privé facultatifs) —
   const poster = () => {
     desarmer();
     demarrer(async () => {
+      if (prive && !destinataire) {
+        notifier('Choisissez le destinataire de votre message privé.', 'erreur');
+        return;
+      }
       const { ok, donnees } = await appeler(`/api/clubs/${encodeURIComponent(clubId)}`, {
         method: 'POST',
         body: JSON.stringify({
           contenu,
           chapitreMax: chapitreMax ? Number(chapitreMax) : 0,
           reponseA: reponse?.id ?? undefined,
+          prive: prive || undefined,
+          destinataireId: prive ? destinataire : undefined,
         }),
       });
       if (!ok) {
@@ -200,7 +202,10 @@ export default function SalonClub({
       setContenu('');
       setChapitreMax('');
       setReponse(null);
-      notifier('Message publié.');
+      setPrive(false);
+      setDestinataire('');
+      setPickerOuvert(false);
+      notifier(prive ? 'Message privé envoyé.' : 'Message publié.');
       router.refresh();
     });
   };
@@ -218,6 +223,63 @@ export default function SalonClub({
       }
       notifier('Position de lecture mise à jour.');
       router.refresh();
+    });
+  };
+
+  // — Réagir à un message (bascule OPTIMISTE : le compteur bouge
+  //    aussitôt, la base confirme en arrière-plan) —
+  const reagir = (m: MessageSalon, emoji: string) => {
+    setPickerMessage(null);
+    const avant = m.reactions;
+    const bascule = (presentes: ReactionSalon[]): ReactionSalon[] => {
+      const existante = presentes.find((r) => r.emoji === emoji);
+      if (existante?.moi) {
+        return presentes
+          .map((r) => (r.emoji === emoji ? { ...r, total: r.total - 1, moi: false } : r))
+          .filter((r) => r.total > 0);
+      }
+      if (existante) {
+        return presentes.map((r) =>
+          r.emoji === emoji ? { ...r, total: r.total + 1, moi: true } : r
+        );
+      }
+      return [...presentes, { emoji, total: 1, moi: true }];
+    };
+    setFil((precedent) =>
+      precedent.map((x) => (x.id === m.id ? { ...x, reactions: bascule(x.reactions) } : x))
+    );
+    demarrer(async () => {
+      const { ok, donnees } = await appeler(
+        `/api/clubs/${encodeURIComponent(clubId)}/reactions`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ messageId: m.id, emoji }),
+        }
+      );
+      if (!ok) {
+        // Retour à l'état connu du serveur.
+        setFil((precedent) =>
+          precedent.map((x) => (x.id === m.id ? { ...x, reactions: avant } : x))
+        );
+        notifier((donnees.erreur as string) ?? 'Réaction refusée.', 'erreur');
+      }
+    });
+  };
+
+  // — Insérer un émoji dans le message, à l'endroit du curseur —
+  const insererEmoji = (emoji: string) => {
+    const el = champMessage.current;
+    if (!el) {
+      setContenu((c) => c + emoji);
+      return;
+    }
+    const debut = el.selectionStart ?? contenu.length;
+    const fin = el.selectionEnd ?? contenu.length;
+    setContenu(contenu.slice(0, debut) + emoji + contenu.slice(fin));
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = debut + emoji.length;
+      el.setSelectionRange(pos, pos);
     });
   };
 
@@ -433,6 +495,12 @@ export default function SalonClub({
               {libellePlafond(m.plafond)}
             </span>
           )}
+          {m.prive && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-nuit-600 bg-nuit-850/80 px-2 py-0.5 text-encre-400">
+              <Lock size={11} aria-hidden="true" />
+              Privé{m.destinataire ? ` — à ${m.destinataire}` : ''}
+            </span>
+          )}
           {m.epingle && (
             <span className="inline-flex items-center gap-1 rounded-full border border-or-ros-300/40 px-2 py-0.5 text-or-ros-300">
               <Pin size={11} aria-hidden="true" /> Épinglé
@@ -449,6 +517,14 @@ export default function SalonClub({
           <p className="mt-1 text-xs text-encre-500 italic flex items-center gap-1">
             <Reply size={11} aria-hidden="true" />
             en réponse à <span className="text-encre-300">{parent.auteur}</span>
+          </p>
+        )}
+
+        {m.prive && (
+          <p className="mt-1 text-xs text-encre-500 italic flex items-center gap-1">
+            <Lock size={11} aria-hidden="true" />
+            Message privé — visible uniquement de vous
+            {m.mien && m.destinataire ? ` et de ${m.destinataire}` : ''}.
           </p>
         )}
 
@@ -483,6 +559,36 @@ export default function SalonClub({
           <p className="mt-1 text-sm whitespace-pre-line text-encre-200">{m.contenu}</p>
         )}
 
+        {/* Réactions posées : un médaillon par émoji, cliquable
+            pour se joindre ou se retirer — retour immédiat. */}
+        {m.reactions.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {m.reactions.map((r) => (
+              <button
+                key={r.emoji}
+                type="button"
+                onClick={() => reagir(m, r.emoji)}
+                aria-pressed={r.moi}
+                aria-label={
+                  r.moi
+                    ? `Retirer votre réaction ${r.emoji} (${r.total} en tout)`
+                    : `Réagir aussi avec ${r.emoji} (${r.total} en tout)`
+                }
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-all cursor-pointer active:scale-95 ${
+                  r.moi
+                    ? 'border-grenat-500 bg-grenat-950/50 text-grenat-200'
+                    : 'border-nuit-700 text-encre-300 hover:border-nuit-500 hover:text-encre-100'
+                }`}
+              >
+                <span aria-hidden="true" className="text-base leading-none">
+                  {r.emoji}
+                </span>
+                {r.total}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Actions du message — visibles selon le rôle et l'état. */}
         {!enEdition && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -498,6 +604,33 @@ export default function SalonClub({
             >
               <Reply size={12} aria-hidden="true" /> Répondre
             </button>
+
+            {/* Réagir : ouvre la palette des réactions (liste blanche). */}
+            <span className="relative inline-block">
+              <button
+                type="button"
+                onClick={() => {
+                  setPickerMessage(pickerMessage === m.id ? null : m.id);
+                  desarmer();
+                }}
+                aria-expanded={pickerMessage === m.id}
+                title="Réagir avec un émoji"
+                aria-label={`Réagir au message de ${m.auteur} avec un émoji`}
+                className="inline-flex items-center gap-1 rounded-full border border-nuit-700 px-2.5 py-1 text-xs text-encre-400 hover:text-encre-100 hover:border-nuit-500 transition-colors cursor-pointer"
+              >
+                <Smile size={12} aria-hidden="true" /> Réagir
+              </button>
+              {pickerMessage === m.id && (
+                <div className="absolute left-0 top-9">
+                  <SelecteurEmojis
+                    mode="reaction"
+                    titre={`Réagir au message de ${m.auteur}`}
+                    onChoisir={(emoji) => reagir(m, emoji)}
+                    onFermer={() => setPickerMessage(null)}
+                  />
+                </div>
+              )}
+            </span>
 
             {m.mien && m.editionPossible && (
               <button
@@ -833,6 +966,7 @@ export default function SalonClub({
         <label className="block text-sm text-encre-400">
           Votre message
           <textarea
+            ref={champMessage}
             value={contenu}
             onChange={(e) => setContenu(e.target.value)}
             rows={3}
@@ -841,31 +975,116 @@ export default function SalonClub({
             className="champ-sombre mt-1 w-full rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2 text-sm text-encre-100"
           />
         </label>
-        <label className="block text-sm text-encre-400 max-w-56">
-          Plafond anti-spoilers (0 = hors intrigue)
-          <input
-            type="number"
-            min={0}
-            max={2000}
-            value={chapitreMax}
-            onChange={(e) => setChapitreMax(e.target.value)}
-            placeholder="0"
-            className="champ-sombre mt-1 w-full rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2 text-sm text-encre-100"
-          />
-        </label>
+
+        {/* Outils du message : émojis, mode privé. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="relative inline-block">
+            <button
+              type="button"
+              onClick={() => setPickerOuvert(!pickerOuvert)}
+              aria-expanded={pickerOuvert}
+              title="Insérer un émoji"
+              aria-label="Insérer un émoji dans le message"
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors cursor-pointer ${
+                pickerOuvert
+                  ? 'border-grenat-500 text-grenat-200 bg-grenat-950/40'
+                  : 'border-nuit-700 text-encre-400 hover:text-encre-100 hover:border-nuit-500'
+              }`}
+            >
+              <Smile size={13} aria-hidden="true" /> Émojis
+            </button>
+            {pickerOuvert && (
+              <div className="absolute left-0 top-10">
+                <SelecteurEmojis
+                  mode="composition"
+                  titre="Insérer un émoji"
+                  onChoisir={insererEmoji}
+                  onFermer={() => setPickerOuvert(false)}
+                />
+              </div>
+            )}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPrive(!prive);
+              setDestinataire('');
+              desarmer();
+            }}
+            aria-pressed={prive}
+            title="Visible uniquement du destinataire choisi"
+            aria-label="Basculer en message privé"
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors cursor-pointer ${
+              prive
+                ? 'border-grenat-500 text-grenat-200 bg-grenat-950/40'
+                : 'border-nuit-700 text-encre-400 hover:text-encre-100 hover:border-nuit-500'
+            }`}
+          >
+            <Lock size={13} aria-hidden="true" />
+            {prive ? 'Message privé activé' : 'Message privé'}
+          </button>
+
+          {prive && (
+            <label className="inline-flex items-center gap-2 text-xs text-encre-400">
+              À
+              <select
+                value={destinataire}
+                onChange={(e) => setDestinataire(e.target.value)}
+                aria-label="Destinataire du message privé"
+                className="champ-sombre rounded-lg border border-nuit-700 bg-nuit-850 px-2 py-1.5 text-xs text-encre-100"
+              >
+                <option value="">Choisir un membre…</option>
+                {membres
+                  .filter((m) => !m.moi)
+                  .map((m) => (
+                    <option key={m.utilisateurId} value={m.utilisateurId}>
+                      {m.pseudo}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {prive && (
+          <p className="text-xs text-encre-500 italic">
+            Un message privé n’est visible que de son destinataire — ni le
+            créateur du club, ni les autres membres. Le plafond anti-spoilers
+            continue de s’appliquer.
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="block text-sm text-encre-400 max-w-56">
+            Plafond anti-spoilers (0 = hors intrigue)
+            <input
+              type="number"
+              min={0}
+              max={2000}
+              value={chapitreMax}
+              onChange={(e) => setChapitreMax(e.target.value)}
+              placeholder="0"
+              className="champ-sombre mt-1 w-full rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2 text-sm text-encre-100"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={poster}
+            disabled={enCours || !contenu.trim() || (prive && !destinataire)}
+            className="bouton-principal cursor-pointer disabled:opacity-50"
+          >
+            {enCours
+              ? 'Publication…'
+              : prive
+                ? 'Envoyer en privé'
+                : 'Publier'}
+          </button>
+        </div>
         <p className="text-xs text-encre-500">
           Un message marqué « jusqu’au chapitre N » sera invisible pour les
           membres qui n’ont pas encore lu ce chapitre — le serveur le retient,
           il ne part même pas vers leur navigateur.
         </p>
-        <button
-          type="button"
-          onClick={poster}
-          disabled={enCours || !contenu.trim()}
-          className="bouton-principal cursor-pointer disabled:opacity-50"
-        >
-          {enCours ? 'Publication…' : 'Publier'}
-        </button>
       </section>
 
       {/* Fil */}
