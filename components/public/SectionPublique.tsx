@@ -15,6 +15,8 @@ interface Props {
   niveau?: 1 | 2;
   /** Largeur de lecture : `large` pour les grilles, `etroit` pour le texte. */
   gabarit?: 'large' | 'etroit';
+  /** Sens de révélation au défilement (défaut : montée douce). */
+  reveal?: 'haut' | 'gauche' | 'droite' | 'zoom';
   children: React.ReactNode;
 }
 
@@ -25,6 +27,7 @@ export default function SectionPublique({
   id,
   niveau = 2,
   gabarit = 'large',
+  reveal = 'haut',
   children,
 }: Props) {
   const classesTitre =
@@ -32,7 +35,7 @@ export default function SectionPublique({
   return (
     <section
       id={id}
-      data-reveler="haut"
+      data-reveler={reveal}
       className={`mx-auto px-4 sm:px-6 py-12 sm:py-16 ${
         gabarit === 'etroit' ? 'max-w-3xl' : 'max-w-5xl'
       }`}

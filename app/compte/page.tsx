@@ -234,6 +234,33 @@ export default async function PageCompte() {
                 </>
               )}
             </p>
+
+            {/* Jauge du quota : l'état se lit d'un coup d'œil. */}
+            {usageQuota && usageQuota.limite > 0 && (
+              <div className="mt-4" aria-hidden="true">
+                <div className="flex items-center justify-between text-[11px] text-encre-500 mb-1.5">
+                  <span>Consommation du mois</span>
+                  <span>
+                    {Math.min(
+                      100,
+                      Math.round((usageQuota.utilise / usageQuota.limite) * 100)
+                    )}{' '}
+                    %
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-nuit-700/70 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-grenat-600 via-grenat-500 to-violet-rom-500 transition-[width] duration-700"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.round((usageQuota.utilise / usageQuota.limite) * 100)
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-3 mt-5">
               <span className="rounded-full border border-violet-rom-500/60 bg-violet-rom-500/15 text-violet-rom-300 text-[10px] uppercase tracking-wider px-2.5 py-1">
                 formules payantes ouvertes
