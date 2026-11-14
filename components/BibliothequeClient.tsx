@@ -16,6 +16,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { LayoutGrid, List } from 'lucide-react';
 import type { Livre } from '@/lib/types';
 import type { StatutLivre } from '@/lib/types';
 import { libelleLangue } from '@/lib/types';
@@ -66,6 +67,19 @@ function dateCourte(iso: string): string {
   });
 }
 
+/** Monogramme : initiales du titre (2 lettres au plus, sans accents). */
+function initialesDe(titre: string): string {
+  const mots = titre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (mots.length === 0) return '···';
+  if (mots.length === 1) return (mots[0]!.slice(0, 2) || '···').toUpperCase();
+  return ((mots[0]![0] ?? '') + (mots[1]![0] ?? '')).toUpperCase();
+}
+
 interface Props {
   livresInitiaux: Livre[];
   /**
@@ -108,6 +122,24 @@ export default function BibliothequeClient({
   // ---------------- Tri + filtre (état local, purement visuel) ----------------
   const [critereTri, setCritereTri] = useState<CritereTriLivres>('recents');
   const [filtreStatut, setFiltreStatut] = useState<FiltreStatut>(null);
+  // Vue ÉTAGÈRE (cartes riches) ou LISTE (compacte) — mémorisée.
+  const [vue, setVue] = useState<'grille' | 'liste'>(() => {
+    try {
+      return window.localStorage.getItem('plume-vue-bibliotheque') === 'liste'
+        ? 'liste'
+        : 'grille';
+    } catch {
+      return 'grille';
+    }
+  });
+  const basculerVue = (v: 'grille' | 'liste') => {
+    setVue(v);
+    try {
+      window.localStorage.setItem('plume-vue-bibliotheque', v);
+    } catch {
+      // Stockage indisponible : la vue reste en mémoire.
+    }
+  };
 
   // Helpers pures : filtre d'abord, tri ensuite (ordres cohérents).
   const compteurs = compterParStatut(livres);
@@ -217,8 +249,36 @@ export default function BibliothequeClient({
               )}
             </div>
 
+            {/* Vue : étagère (cartes) ou liste compacte. */}
+            <div
+              role="group"
+              aria-label="Mode d'affichage"
+              className="ml-auto flex items-center gap-1 rounded-full border border-nuit-700 p-0.5"
+            >
+              {([
+                { v: 'grille' as const, I: LayoutGrid, l: 'Étagère' },
+                { v: 'liste' as const, I: List, l: 'Liste' },
+              ]).map(({ v, I, l }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => basculerVue(v)}
+                  aria-pressed={vue === v}
+                  title={l}
+                  className={`inline-flex items-center gap-1.5 rounded-full min-h-8 px-2.5 text-[11px] transition-colors cursor-pointer ${
+                    vue === v
+                      ? 'bg-grenat-500/20 text-grenat-300'
+                      : 'text-encre-500 hover:text-encre-300'
+                  }`}
+                >
+                  <I size={14} aria-hidden />
+                  <span className="hidden sm:inline">{l}</span>
+                </button>
+              ))}
+            </div>
+
             {/* Tri : select compact aligné à droite (responsive : bascule sous les pastilles) */}
-            <div className="ml-auto">
+            <div className="ml-auto flex">
               <label
                 htmlFor="tri-bibliotheque"
                 className="sr-only"
@@ -341,7 +401,7 @@ export default function BibliothequeClient({
                 Tout afficher
               </button>
             </div>
-          ) : (
+          ) : vue === 'grille' ? (
             <div
               role="list"
               aria-label={`Livres (${livresAffiches.length})`}
@@ -376,15 +436,25 @@ export default function BibliothequeClient({
                   }}
                 >
                   <div className="flex items-start justify-between gap-2 min-w-0">
-                    <div className="min-w-0">
-                      <h3 className="font-display text-lg text-encre-100 leading-snug group-hover:text-grenat-300 transition-colors line-clamp-2">
-                        {livre.titre}
-                      </h3>
-                      {livre.auteur && (
-                        <p className="text-encre-500 text-xs mt-0.5 italic truncate">
-                          {livre.auteur}
-                        </p>
-                      )}
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      {/* Dos de livre : monogramme dégradé, comme une
+                          tranche dorée sur l'étagère. */}
+                      <span
+                        aria-hidden
+                        className="shrink-0 grid place-items-center h-10 w-10 rounded-lg bg-gradient-to-br from-grenat-700 via-grenat-600 to-violet-rom-700 font-display text-[13px] text-encre-100/95 shadow-inner"
+                      >
+                        {initialesDe(livre.titre)}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="font-display text-lg text-encre-100 leading-snug group-hover:text-grenat-300 transition-colors line-clamp-2">
+                          {livre.titre}
+                        </h3>
+                        {livre.auteur && (
+                          <p className="text-encre-500 text-xs mt-0.5 italic truncate">
+                            {livre.auteur}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <span
                       className={`shrink-0 text-[10px] uppercase tracking-wider rounded-full px-2.5 py-1 ${COULEURS_STATUT[livre.statut]}`}
@@ -490,6 +560,98 @@ export default function BibliothequeClient({
                 </article>
               ))}
             </div>
+          ) : (
+            /* ---------------- Vue LISTE compacte ---------------- */
+            <ul
+              role="list"
+              aria-label={`Livres (${livresAffiches.length})`}
+              className="space-y-2"
+            >
+              {livresAffiches.map((livre) => {
+                const ratio = progressions[livre.id]
+                  ? Math.round(progressions[livre.id].ratio * 100)
+                  : null;
+                const erreurs = chapitresEnErreur[livre.id] ?? 0;
+                return (
+                  <li
+                    key={livre.id}
+                    role="listitem"
+                    data-reveler="haut"
+                  >
+                    <div
+                      className="velours group flex items-center gap-3 p-3 cursor-pointer transition-all duration-200 hover:border-grenat-600/60 hover:shadow-lg"
+                      tabIndex={0}
+                      aria-label={`Ouvrir « ${livre.titre} » (${ETIQUETTES_STATUT[livre.statut]})`}
+                      onClick={() => ouvrirLivre(livre)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          ouvrirLivre(livre);
+                        }
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        className="shrink-0 grid place-items-center h-10 w-10 rounded-lg bg-gradient-to-br from-grenat-700 via-grenat-600 to-violet-rom-700 font-display text-[13px] text-encre-100/95"
+                      >
+                        {initialesDe(livre.titre)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-display text-encre-100 truncate group-hover:text-grenat-300 transition-colors">
+                            {livre.titre}
+                          </span>
+                          <span
+                            className={`shrink-0 text-[10px] uppercase tracking-wider rounded-full px-2 py-0.5 ${COULEURS_STATUT[livre.statut]}`}
+                          >
+                            {ETIQUETTES_STATUT[livre.statut]}
+                          </span>
+                          {erreurs > 0 && (
+                            <span className="shrink-0 text-[10px] text-amber-300">
+                              {erreurs === 1 ? '1 à reprendre' : `${erreurs} à reprendre`}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-encre-500 truncate mt-0.5">
+                          {livre.auteur ? `${livre.auteur} · ` : ''}
+                          {libelleLangue(livre.langue_source)} →{' '}
+                          {libelleLangue(livre.langue_cible)}
+                          {ratio !== null ? ` · reprise ${ratio} %` : ''}
+                          {` · ajouté le ${dateCourte(livre.created_at)}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <BoutonFavori
+                          livreId={livre.id}
+                          titre={livre.titre}
+                          hook={favoris}
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            supprimer(livre);
+                          }}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              supprimer(livre);
+                            }
+                          }}
+                          disabled={suppression === livre.id}
+                          className="inline-flex items-center justify-center min-h-11 min-w-11 text-encre-500 hover:text-grenat-400 transition-colors cursor-pointer disabled:opacity-40 px-2 rounded-md hover:bg-grenat-500/10 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-grenat-400"
+                          title="Supprimer le livre"
+                          aria-label={`Supprimer « ${livre.titre} »`}
+                        >
+                          {suppression === livre.id ? '…' : 'Supprimer'}
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </>
       )}

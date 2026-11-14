@@ -144,7 +144,12 @@ export default async function Accueil() {
       >
         <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {RITUEL.map((etape, i) => (
-            <li key={etape.titre} className="velours p-5 flex flex-col gap-2">
+            <li
+              key={etape.titre}
+              data-reveler="zoom"
+              data-delai={i + 1}
+              className="velours p-5 flex flex-col gap-2"
+            >
               <span className="text-2xl" aria-hidden>
                 {etape.icone}
               </span>
@@ -163,11 +168,17 @@ export default async function Accueil() {
         id="formats"
         surTitre="Formats"
         titre="Ce que le studio accepte"
+        reveal="gauche"
         intro="Tous les formats passent par le même pipeline : extraction du texte, repérage des chapitres, découpage, traduction, réassemblage."
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {FORMATS.map((f) => (
-            <div key={f.ext} className="velours p-5">
+          {FORMATS.map((f, i) => (
+            <div
+              key={f.ext}
+              data-reveler="zoom"
+              data-delai={i + 1}
+              className="velours p-5"
+            >
               <p className="font-display text-2xl text-grenat-300">{f.ext}</p>
               <p className="text-encre-500 text-sm mt-2 leading-relaxed">{f.note}</p>
             </div>
@@ -197,10 +208,16 @@ export default async function Accueil() {
         id="promesse"
         surTitre="La promesse"
         titre="Ce que Plume d’Ombres garantit"
+        reveal="droite"
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          {PROMESSES.map((p) => (
-            <div key={p.titre} className="velours p-5">
+          {PROMESSES.map((p, i) => (
+            <div
+              key={p.titre}
+              data-reveler={i % 2 === 0 ? 'gauche' : 'droite'}
+              data-delai={(i % 2) + 1}
+              className="velours p-5"
+            >
               <h3 className="font-display text-lg text-encre-100">{p.titre}</h3>
               <p className="text-encre-500 text-sm mt-2 leading-relaxed">{p.texte}</p>
             </div>

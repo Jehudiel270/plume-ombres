@@ -58,6 +58,9 @@ export default function MenuRadialLecteur({ outils }: { outils: OutilLecteur[] }
     () => false
   );
   const [ouvert, setOuvert] = useState(false);
+  // Retour visuel : la clé de l'outil qui vient d'être déclenché — la
+  // pastille émet une onde multicolore avant la fermeture du menu.
+  const [echo, setEcho] = useState<string | null>(null);
   const boutonRef = useRef<HTMLButtonElement>(null);
   const premierItemRef = useRef<HTMLButtonElement>(null);
 
@@ -78,7 +81,19 @@ export default function MenuRadialLecteur({ outils }: { outils: OutilLecteur[] }
 
   if (!monte || outils.length === 0) return null;
 
-  const fermer = () => setOuvert(false);
+  const fermer = () => {
+    setOuvert(false);
+    setEcho(null);
+  };
+
+  /** Clic d'outil : ONDE de confirmation (260 ms) puis fermeture. */
+  const declencher = (o: OutilLecteur) => {
+    setEcho(o.cle);
+    window.setTimeout(() => {
+      o.onPress();
+      fermer();
+    }, 260);
+  };
 
   return createPortal(
     <>
@@ -118,16 +133,13 @@ export default function MenuRadialLecteur({ outils }: { outils: OutilLecteur[] }
                   ref={i === 0 ? premierItemRef : undefined}
                   type="button"
                   role="menuitem"
-                  onClick={() => {
-                    o.onPress();
-                    fermer();
-                  }}
+                  onClick={() => declencher(o)}
                   aria-label={`${o.libelle}${o.actif ? ' — actif' : ''}`}
                   className={`outil-radial grid h-11 w-11 cursor-pointer place-items-center rounded-full border shadow-xl backdrop-blur transition-colors ${
                     o.actif
                       ? 'border-grenat-500 bg-grenat-900/80 text-grenat-200'
                       : 'border-nuit-600 bg-nuit-900/95 text-encre-200 hover:border-nuit-500'
-                  }`}
+                  } ${echo === o.cle ? 'retour-clic' : ''}`}
                 >
                   <Icone size={18} aria-hidden />
                 </button>
@@ -149,7 +161,9 @@ export default function MenuRadialLecteur({ outils }: { outils: OutilLecteur[] }
         aria-expanded={ouvert}
         aria-haspopup="menu"
         aria-label={ouvert ? 'Fermer les outils de lecture' : 'Ouvrir les outils de lecture'}
-        className="fixed right-4 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 grid h-14 w-14 cursor-pointer place-items-center rounded-full border border-grenat-700/80 bg-gradient-to-b from-grenat-800 to-nuit-900 text-encre-100 shadow-2xl shadow-black/50 backdrop-blur transition-transform active:scale-95"
+        className={`fixed right-4 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 grid h-14 w-14 cursor-pointer place-items-center rounded-full border border-grenat-700/80 bg-gradient-to-b from-grenat-800 to-nuit-900 text-encre-100 shadow-2xl shadow-black/50 backdrop-blur transition-transform active:scale-95 ${
+          ouvert ? '' : 'retour-clic-pulse'
+        }`}
       >
         {ouvert ? <X size={22} aria-hidden /> : <Feather size={22} aria-hidden />}
       </button>

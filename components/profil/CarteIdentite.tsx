@@ -10,6 +10,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { BookOpen, CalendarDays, Mail, Star } from 'lucide-react';
 import { creerClientNavigateur } from '@/lib/supabase/client';
 
 interface Props {
@@ -160,30 +161,39 @@ export default function CarteIdentite({
         </p>
       </form>
 
-      <dl className="mt-2 pt-4 border-t border-nuit-700/60 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-        <div>
-          <dt className="text-encre-500 text-[11px] uppercase tracking-wider">
-            E-mail
+      <dl className="mt-2 pt-4 border-t border-nuit-700/60 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+        {/* Tuiles de statistiques : chiffre en grand, icône discrète. */}
+        <div className="rounded-xl border border-nuit-700/60 bg-white/[0.02] p-3">
+          <dt className="text-encre-500 text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+            <Mail size={12} aria-hidden /> E-mail
           </dt>
-          <dd className="text-encre-100 text-xs break-all mt-1">{email || '—'}</dd>
+          <dd className="text-encre-100 text-xs break-all mt-1.5 leading-snug">
+            {email || '—'}
+          </dd>
         </div>
-        <div>
-          <dt className="text-encre-500 text-[11px] uppercase tracking-wider">
-            Membre depuis
+        <div className="rounded-xl border border-nuit-700/60 bg-white/[0.02] p-3">
+          <dt className="text-encre-500 text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+            <CalendarDays size={12} aria-hidden /> Membre depuis
           </dt>
-          <dd className="text-encre-100 text-xs mt-1">{formaterDate(depuis)}</dd>
+          <dd className="text-encre-100 text-xs mt-1.5">
+            {formaterDate(depuis)}
+          </dd>
         </div>
-        <div>
-          <dt className="text-encre-500 text-[11px] uppercase tracking-wider">
-            Livres
+        <div className="rounded-xl border border-nuit-700/60 bg-white/[0.02] p-3">
+          <dt className="text-encre-500 text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+            <BookOpen size={12} aria-hidden /> Livres
           </dt>
-          <dd className="text-encre-100 text-xs mt-1">{nbLivres}</dd>
+          <dd className="font-display text-xl text-encre-100 mt-1">
+            {nbLivres}
+          </dd>
         </div>
-        <div>
-          <dt className="text-encre-500 text-[11px] uppercase tracking-wider">
-            Favoris
+        <div className="rounded-xl border border-nuit-700/60 bg-white/[0.02] p-3">
+          <dt className="text-encre-500 text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+            <Star size={12} aria-hidden /> Favoris
           </dt>
-          <dd className="text-encre-100 text-xs mt-1">{nbFavoris}</dd>
+          <dd className="font-display text-xl text-encre-100 mt-1">
+            {nbFavoris}
+          </dd>
         </div>
       </dl>
 

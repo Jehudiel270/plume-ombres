@@ -44,3 +44,19 @@ export function prochainPas(
   if (position >= fond - 1) return null; // déjà au bout
   return Math.min(fond, position + Math.max(0, delta));
 }
+
+/** Seuils qualitatifs (px/s) : paliers de lecture « confortable ». */
+export const SEUILS_VITESSE = { lente: 40, moderee: 110, rapide: 200 } as const;
+
+/**
+ * Libellé qualitatif d'une vitesse (pur, testé) : la préparation du
+ * défilement parle « Contemplative / Posée / Soutenue / Vive » plutôt
+ * qu'en pixels — le chiffre reste affiché à côté pour les précis.
+ */
+export function libelleVitesse(valeur: unknown): string {
+  const v = vitesseDefilement(valeur);
+  if (v <= SEUILS_VITESSE.lente) return 'Contemplative';
+  if (v <= SEUILS_VITESSE.moderee) return 'Posée';
+  if (v <= SEUILS_VITESSE.rapide) return 'Soutenue';
+  return 'Vive';
+}

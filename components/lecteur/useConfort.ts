@@ -64,6 +64,14 @@ export interface ControleConfort {
   pleinEcran: boolean;
   basculerPleinEcran: () => void;
   defile: boolean;
+  /** Préparation OUVERTE : le lecteur règle sa vitesse avant de partir. */
+  preparerDefile: boolean;
+  /** Ouvre la préparation (ou arrête si déjà en défilement). */
+  demanderDefile: () => void;
+  /** Lance le défilement et ferme la préparation. */
+  demarrerDefile: () => void;
+  /** Ferme la préparation sans démarrer. */
+  annulerDefile: () => void;
   basculerDefile: () => void;
   vitesse: number;
   majVitesse: (v: number) => void;
@@ -95,6 +103,9 @@ export function useConfortLecture({
     pleinEcranServeur
   );
   const [defile, setDefile] = useState(false);
+  // La préparation (« à quelle vitesse voulez-vous défiler ? ») reste
+  // ouverte jusqu'au démarrage ou à l'annulation.
+  const [preparerDefile, setPreparerDefile] = useState(false);
   const [vitesse, setVitesse] = useState<number>(() => {
     // Lecture tolérante : hors navigateur ou valeur corrompue → défaut.
     try {
@@ -113,6 +124,7 @@ export function useConfortLecture({
   if (cleVu !== cleChapitre) {
     setCleVu(cleChapitre);
     setDefile(false);
+    setPreparerDefile(false);
   }
 
   const basculerPleinEcran = useCallback(async () => {
@@ -129,10 +141,11 @@ export function useConfortLecture({
   }, [cibleId]);
 
   // ---------- Défilement automatique ----------
-  // Boucle rAF : pas = vitesse (px/s) × temps écoulé. Le conteneur est
-  // résolu À CHAQUE pas (plein écran entré/sorti, colonnes changées).
-  // La vitesse passe par une ref tenue à jour PAR EFFET (jamais
-  // écrite pendant le rendu).
+  // Le MENU « Défiler » ouvre la PRÉPARATION (vitesse réglable avant
+  // de partir) ; « Commencer » lance la boucle rAF. Pas = vitesse
+  // (px/s) × temps écoulé. Le conteneur est résolu À CHAQUE pas (plein
+  // écran entré/sorti, colonnes changées). La vitesse passe par une
+  // ref tenue à jour PAR EFFET (jamais écrite pendant le rendu).
   const vitesseRef = useRef(vitesse);
   useEffect(() => {
     vitesseRef.current = vitesse;
@@ -178,6 +191,19 @@ export function useConfortLecture({
 
   const basculerDefile = useCallback(() => setDefile((d) => !d), []);
 
+  const demanderDefile = useCallback(() => {
+    setDefile((d) => {
+      if (d) return false; // déjà en cours → stop immédiat
+      setPreparerDefile(true); // sinon → régler la vitesse d'abord
+      return d;
+    });
+  }, []);
+  const demarrerDefile = useCallback(() => {
+    setPreparerDefile(false);
+    setDefile(true);
+  }, []);
+  const annulerDefile = useCallback(() => setPreparerDefile(false), []);
+
   // ---------- Raccourcis clavier (f, a) ----------
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
@@ -188,7 +214,11 @@ export function useConfortLecture({
         void basculerPleinEcran();
       } else if (cle === 'a') {
         e.preventDefault();
-        setDefile((d) => !d);
+        setDefile((d) => {
+          if (d) return false;
+          setPreparerDefile(true);
+          return d;
+        });
       }
     };
     document.addEventListener('keydown', surTouche);
@@ -210,6 +240,10 @@ export function useConfortLecture({
     pleinEcran,
     basculerPleinEcran: () => void basculerPleinEcran(),
     defile,
+    preparerDefile,
+    demanderDefile,
+    demarrerDefile,
+    annulerDefile,
     basculerDefile,
     vitesse,
     majVitesse,
