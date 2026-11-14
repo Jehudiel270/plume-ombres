@@ -39,6 +39,7 @@ import {
   libellePlafond,
   MAX_DESCRIPTION,
   MAX_TITRE,
+  MOTIFS_SIGNALEMENT,
 } from '@/lib/clubs';
 import type { MessageSalon, ReactionSalon } from '@/lib/salon';
 import { triFil } from '@/lib/salon';
@@ -151,6 +152,38 @@ export default function SalonClub({
   // — Confirmation à deux temps (destructif) —
   const [arme, setArme] = useState<string | null>(null);
   const desarmer = () => setArme(null);
+
+  // — Signalement avec motif (file de modération du club) —
+  const [signalement, setSignalement] = useState<{
+    id: number;
+    auteur: string;
+  } | null>(null);
+  const [motif, setMotif] = useState(MOTIFS_SIGNALEMENT[0] ?? 'Autre');
+  const [detailMotif, setDetailMotif] = useState('');
+
+  const envoyerSignalement = () => {
+    if (!signalement) return;
+    demarrer(async () => {
+      const { ok, donnees } = await appeler(
+        `/api/clubs/${encodeURIComponent(clubId)}/signalements`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            messageId: signalement.id,
+            motif,
+            detail: detailMotif || undefined,
+          }),
+        }
+      );
+      if (!ok) {
+        notifier((donnees.erreur as string) ?? 'Signalement refusé.', 'erreur');
+        return;
+      }
+      setSignalement(null);
+      setDetailMotif('');
+      notifier('Message signalé au staff du club.');
+    });
+  };
 
   // — Réglages (créateur) —
   const [reglagesOuverts, setReglagesOuverts] = useState(false);
@@ -703,8 +736,12 @@ export default function SalonClub({
             {peutSignaler && (
               <button
                 type="button"
-                onClick={() => actionMessage('POST', { action: 'signaler', id: m.id }, 'Message signalé au créateur du club.')}
-                title="Signaler au créateur du club"
+                onClick={() => {
+                  setMotif(MOTIFS_SIGNALEMENT[0] ?? 'Autre');
+                  setDetailMotif('');
+                  setSignalement({ id: m.id, auteur: m.auteur });
+                }}
+                title="Signaler au staff du club"
                 aria-label={`Signaler le message de ${m.auteur}`}
                 className="inline-flex items-center gap-1 rounded-full border border-nuit-700 px-2.5 py-1 text-xs text-encre-400 hover:text-grenat-200 hover:border-grenat-700 transition-colors cursor-pointer"
               >
@@ -1125,6 +1162,72 @@ export default function SalonClub({
           </button>
         )}
       </section>
+
+      {/* Modale de signalement : un motif, une précision facultative.
+          La file reste une affaire de staff — jamais un tribunal
+          entre membres. */}
+      {signalement && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Signaler un message"
+          className="fixed inset-0 z-50 grid place-items-center bg-nuit-950/80 p-4"
+          onClick={() => setSignalement(null)}
+        >
+          <div
+            className="velours w-full max-w-md rounded-2xl p-5 space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-lg text-encre-100">
+              Signaler le message de {signalement.auteur}
+            </h2>
+            <p className="text-xs text-encre-500">
+              Le staff du club le verra dans sa file de modération, avec
+              l’extrait du message. Jamais de châtiment : il conserve ou
+              masque, et le signalement est clos.
+            </p>
+            <div role="radiogroup" aria-label="Motif du signalement" className="grid gap-1.5">
+              {MOTIFS_SIGNALEMENT.map((mo) => (
+                <button
+                  key={mo}
+                  type="button"
+                  role="radio"
+                  aria-checked={motif === mo}
+                  onClick={() => setMotif(mo)}
+                  className={`!min-h-9 text-xs text-left ${motif === mo ? 'bouton-principal' : 'bouton-fantome'} cursor-pointer`}
+                >
+                  {mo}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={detailMotif}
+              onChange={(e) => setDetailMotif(e.target.value)}
+              placeholder="Précision (facultative, 200 caractères)"
+              maxLength={200}
+              className="champ-sombre w-full rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2.5 text-sm text-encre-100"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSignalement(null)}
+                className="bouton-fantome min-h-10 text-sm cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={envoyerSignalement}
+                disabled={enCours}
+                className="bouton-principal min-h-10 text-sm disabled:opacity-40 cursor-pointer"
+              >
+                Envoyer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
