@@ -9,7 +9,9 @@ import test from 'node:test';
 import {
   bornePosition,
   codeInvitation,
+  editionPossible,
   estCodeValide,
+  libelleModifie,
   libellePlafond,
   MAX_MESSAGE,
   messageVisiblePour,
@@ -64,4 +66,24 @@ test('position de lecture déclarée, bornée', () => {
   assert.equal(bornePosition(-5), 0);
   assert.equal(bornePosition('9'), 9);
   assert.equal(bornePosition(9999), 2000);
+});
+
+test('fenêtre d\u2019édition : 15 minutes, une seule fois', () => {
+  const maintenant = Date.now();
+  const ilYADeuxMinutes = new Date(maintenant - 2 * 60_000).toISOString();
+  const ilYAUneHeure = new Date(maintenant - 60 * 60_000).toISOString();
+  const edité = new Date(maintenant - 60_000).toISOString();
+  assert.equal(editionPossible(ilYADeuxMinutes, null, maintenant), true);
+  assert.equal(editionPossible(ilYAUneHeure, null, maintenant), false); // fenêtre close
+  assert.equal(editionPossible(ilYADeuxMinutes, edité, maintenant), false); // déjà édité
+  assert.equal(editionPossible('pas une date', null, maintenant), false);
+  // Tolérance d'horloge légère (serveur client décalé d'une seconde).
+  const àLavenir = new Date(maintenant + 30_000).toISOString();
+  assert.equal(editionPossible(àLavenir, null, maintenant), true);
+});
+
+test('libellé « modifié »', () => {
+  assert.equal(libelleModifie(null), null);
+  assert.equal(libelleModifie(undefined), null);
+  assert.equal(libelleModifie('2026-11-14T12:00:00Z'), 'modifié');
 });

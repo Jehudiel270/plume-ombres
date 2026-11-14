@@ -22,6 +22,11 @@ export const MAX_MESSAGE = 2000;
 export const MAX_TITRE = 120;
 export const MAX_DESCRIPTION = 600;
 
+/** Fenêtre d'édition d'un message (15 minutes après publication).
+ *  Passé ce délai, le fil garde sa mémoire : on supprime et on
+ *  réécrit, on ne réécrit pas l'histoire en silence. */
+export const FENETRE_EDITION_MS = 15 * 60 * 1000;
+
 /** Code d'invitation lisible (8 caractères). Aléatoire VOLONTAIRE :
  *  valeur de sécurité côté client, régénérée jusqu'à validité côté
  *  serveur (UNIQUE en base). */
@@ -78,4 +83,26 @@ export function bornePosition(brut: unknown): number {
   const n = Math.round(Number(brut));
   if (!Number.isFinite(n) || n < 0) return 0;
   return Math.min(2000, n);
+}
+
+/**
+ * Édition encore possible ? (PUR, testé) Un message publié à
+ * `creeLe` (ISO) peut être édité par son auteur tant que la fenêtre
+ * de 15 minutes n'est pas écoulée et qu'il n'a pas déjà été édité.
+ */
+export function editionPossible(
+  creeLe: string,
+  modifieLe: string | null | undefined,
+  maintenant: number = Date.now()
+): boolean {
+  if (modifieLe) return false;
+  const t = new Date(creeLe).getTime();
+  if (!Number.isFinite(t)) return false;
+  return maintenant - t < FENETRE_EDITION_MS && maintenant - t >= -60_000;
+}
+
+/** Libellé discret pour l'interface : message modifié. */
+export function libelleModifie(modifieLe: string | null | undefined): string | null {
+  if (!modifieLe) return null;
+  return 'modifié';
 }
