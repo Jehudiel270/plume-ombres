@@ -29,6 +29,7 @@ import {
   FIABILITES,
   GENRES_EVENEMENT,
   TYPES_RELATION,
+  calculerSuggestions,
   libelleRole,
   phraseRelation,
   positionsToile,
@@ -113,6 +114,13 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
   const [recherche, setRecherche] = useState('');
   const [resultatsOuverts, setResultatsOuverts] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null);
+  // Aide (mode d'emploi) et SUGGESTIONS LOCALES (calculées, sans IA).
+  const [aideOuverte, setAideOuverte] = useState(false);
+  const [suggestionsOuvertes, setSuggestionsOuvertes] = useState(false);
+  const [suggestionRelation, setSuggestionRelation] = useState<{
+    origineId: string;
+    destinationId: string;
+  } | null>(null);
 
   // ---------- Toile : caméra et dispositions ----------
   const [deplacements, setDeplacements] = useState<Record<string, Position>>({});
@@ -240,6 +248,15 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
     });
     return d;
   }, [aretesFiltrees]);
+
+  // SUGGESTIONS LOCALES : calculées depuis le graphe visible (sans IA).
+  const suggestions = useMemo(
+    () => (graphe ? calculerSuggestions(graphe) : null),
+    [graphe]
+  );
+  const compteurSuggestions = suggestions
+    ? suggestions.pairesSansLien.length + suggestions.isoles.length
+    : 0;
 
   // Mise en avant : voisinage direct du personnage sélectionné,
   // extrémités de la relation, personnages de l'événement, résultats.
@@ -831,6 +848,25 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
           </button>
           <button
             type="button"
+            className="bouton-fantome min-h-10 text-xs px-3"
+            aria-expanded={aideOuverte}
+            onClick={() => setAideOuverte((v) => !v)}
+          >
+            Aide
+          </button>
+          <button
+            type="button"
+            className={`min-h-10 text-xs px-3 ${
+              suggestionsOuvertes ? 'bouton-principal' : 'bouton-fantome'
+            }`}
+            aria-pressed={suggestionsOuvertes}
+            onClick={() => setSuggestionsOuvertes((v) => !v)}
+          >
+            Suggestions
+            {graphe && compteurSuggestions > 0 ? ` · ${compteurSuggestions}` : ''}
+          </button>
+          <button
+            type="button"
             className={`min-h-10 text-xs px-3 ${portraits ? 'bouton-principal' : 'bouton-fantome'}`}
             aria-pressed={portraits}
             onClick={() => setPortraits((v) => !v)}
@@ -938,6 +974,21 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
               {graphe.masquees > 1 ? 's' : ''} : au-delà du chapitre choisi, rien ne quitte
               la base. Aucune fuite par construction.
             </p>
+          )}
+
+          {/* ---------- AIDE (mode d'emploi) ---------- */}
+          {aideOuverte && <ModaleAide fermer={() => setAideOuverte(false)} />}
+
+          {/* ---------- SUGGESTIONS LOCALES (calculées, sans IA) ---------- */}
+          {suggestionsOuvertes && (
+            <PanneauSuggestions
+              graphe={graphe}
+              estProprietaire={estProprietaire}
+              preRemplir={(origineId, destinationId) => {
+                setSuggestionRelation({ origineId, destinationId });
+                setSuggestionsOuvertes(false);
+              }}
+            />
           )}
 
           {/* ---------- VUE GRAPHE ---------- */}
@@ -1389,6 +1440,8 @@ export default function PanneauGraphe({ livreId, chapitres, estProprietaire }: P
               poster={poster}
               supprimer={supprimer}
               recharge={recharger}
+              suggestion={suggestionRelation}
+              onSuggestionAppliquee={() => setSuggestionRelation(null)}
             />
           )}
         </>
@@ -1734,6 +1787,197 @@ function FicheGraphe({
   );
 }
 
+
+// ============================================================
+// AIDE (mode d'emploi) — portage de la maquette (Modals.vue).
+// Texte réel : décrit exactement les interactions livrées.
+// ============================================================
+
+function ModaleAide({ fermer }: { fermer: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Aide du graphe narratif"
+      onClick={fermer}
+    >
+      <div
+        className="velours max-w-xl w-full max-h-[85vh] overflow-y-auto p-6 rounded-2xl space-y-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="font-display text-xl text-encre-100">Lire la toile</h2>
+        <ul className="space-y-2 text-sm text-encre-300">
+          <li>
+            <b className="text-encre-100">Se déplacer</b> : glissez le fond ; glissez un
+            personnage pour le déplacer (la disposition est conservée à l'écran).
+          </li>
+          <li>
+            <b className="text-encre-100">Zoomer</b> : molette ou boutons (50 à 300 %),
+            recentrage et plein écran disponibles dans la barre.
+          </li>
+          <li>
+            <b className="text-encre-100">Couleur des liens</b> : type de relation
+            (famille, amour, rivalité…). LÉGENDE CLIQUABLE : un clic masque ou
+            réaffiche un type.
+          </li>
+          <li>
+            <b className="text-encre-100">Trait</b> : fiabilité — plein (fait), tirets
+            (déduction), pointillé (hypothèse), pointillé fin (incertain) ;
+            épaisseur = intensité ; flèches = sens.
+          </li>
+          <li>
+            <b className="text-encre-100">Anti-spoilers</b> : la portée du graphe suit le
+            chapitre choisi ; au-delà, rien ne quitte la base.
+          </li>
+          <li>
+            <b className="text-encre-100">Trois vues</b> : la toile, la liste des
+            personnages, la chronologie des événements.
+          </li>
+          <li>
+            <b className="text-encre-100">Suggestions</b> : calculées localement sur ce que
+            vous avez déjà documenté (personnages souvent ensemble sans lien
+            connu, personnages isolés) — vous décidez, rien ne s'ajoute sans
+            votre confirmation.
+          </li>
+        </ul>
+        <button
+          type="button"
+          className="bouton-principal min-h-9 px-4 text-sm"
+          onClick={fermer}
+        >
+          Compris
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SUGGESTIONS LOCALES — portage de la maquette (propositions de
+// mise à jour du graphe). TOUT est calculé depuis le graphe déjà
+// filtré : co-apparitions sans relation, personnages isolés,
+// relations fragiles. AUCUN appel à une IA, AUCUN contenu inventé.
+// ============================================================
+
+interface PropsSuggestions {
+  graphe: GrapheFiltre;
+  estProprietaire: boolean;
+  preRemplir: (origineId: string, destinationId: string) => void;
+}
+
+function PanneauSuggestions({
+  graphe,
+  estProprietaire,
+  preRemplir,
+}: PropsSuggestions) {
+  const suggestions = calculerSuggestions(graphe);
+  const vide =
+    suggestions.pairesSansLien.length === 0 &&
+    suggestions.isoles.length === 0 &&
+    suggestions.fragiles.length === 0;
+
+  if (vide) {
+    return (
+      <p className="velours p-4 rounded-2xl text-sm text-encre-300">
+        Aucune suggestion pour l'instant : documentez des personnages, des
+        relations et des événements, et des pistes apparaîtront ici — calculées
+        localement, jamais imposées.
+      </p>
+    );
+  }
+
+  return (
+    <div className="velours p-4 rounded-2xl space-y-4">
+      <div>
+        <h2 className="sur-titre text-encre-300">Pistes à considérer</h2>
+        <p className="text-xs text-encre-500 mt-1">
+          Calculées localement à partir de ce que vous avez déjà documenté.
+          Rien ne s'ajoute au graphe sans votre confirmation.
+        </p>
+      </div>
+
+      {suggestions.pairesSansLien.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold text-encre-100">
+            Souvent ensemble, sans lien documenté
+          </h3>
+          <ul className="space-y-1.5">
+            {suggestions.pairesSansLien.map((paire) => (
+              <li
+                key={`${paire.origineId}-${paire.destinationId}`}
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2 text-sm"
+              >
+                <span className="text-encre-100">
+                  {paire.nomOrigine} · {paire.nomDestination}
+                </span>
+                <span className="text-xs text-encre-500">
+                  {paire.occasions} événement{paire.occasions > 1 ? 's' : ''} en commun
+                </span>
+                {estProprietaire && (
+                  <button
+                    type="button"
+                    className="bouton-fantome text-xs min-h-8 px-2 ml-auto border border-nuit-700"
+                    onClick={() => preRemplir(paire.origineId, paire.destinationId)}
+                  >
+                    Préremplir une relation
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {suggestions.isoles.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold text-encre-100">
+            Personnages encore isolés
+          </h3>
+          <ul className="flex flex-wrap gap-1.5">
+            {suggestions.isoles.map((personnage) => (
+              <li
+                key={personnage.id}
+                className="rounded-full border border-nuit-700 bg-nuit-850 px-3 py-1 text-xs text-encre-300"
+              >
+                {personnage.nom}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-encre-500">
+            Reliez-les depuis le formulaire « Ajouter une relation » ci-dessous.
+          </p>
+        </section>
+      )}
+
+      {suggestions.fragiles.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold text-encre-100">
+            Relations fragiles à consolider
+          </h3>
+          <ul className="flex flex-wrap gap-1.5">
+            {suggestions.fragiles.map((relation) => (
+              <li
+                key={relation.id}
+                className="rounded-full border border-nuit-700 bg-nuit-850 px-3 py-1 text-xs text-encre-300"
+              >
+                {relation.libelle}{' '}
+                <span className="text-encre-500">
+                  ({FIABILITES[relation.fiabilite].libelle.toLowerCase()})
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-encre-500">
+            Une fois confirmées par votre lecture, remplacez-les par une
+            relation plus fiable (fait ou déduction).
+          </p>
+        </section>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // Édition enrichie (propriétaire)
 // ============================================================
@@ -1745,6 +1989,9 @@ interface EditionProps {
   poster: (corps: Record<string, unknown>) => Promise<boolean>;
   supprimer: (type: 'personnage' | 'relation' | 'evenement', id: string) => void;
   recharge: () => Promise<void>;
+  /** Préremplissage venant du panneau des suggestions. */
+  suggestion: { origineId: string; destinationId: string } | null;
+  onSuggestionAppliquee: () => void;
 }
 
 function EditionGraphe({
@@ -1755,6 +2002,8 @@ function EditionGraphe({
   poster,
   supprimer,
   recharge,
+  suggestion,
+  onSuggestionAppliquee,
 }: EditionProps) {
   // Personnage
   const [nom, setNom] = useState('');
@@ -1782,6 +2031,19 @@ function EditionGraphe({
 
   const cls =
     'champ-sombre w-full rounded-lg border border-nuit-700 bg-nuit-850 px-3 py-2.5 text-sm text-encre-100';
+
+  // Préremplissage depuis les SUGGESTIONS locales : la paire proposée
+  // remplit le formulaire de relation et le rend visible.
+  useEffect(() => {
+    if (!suggestion) return;
+    setOrigineId(suggestion.origineId);
+    setDestinationId(suggestion.destinationId);
+    document
+      .getElementById('titre-ajout-relation')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    onSuggestionAppliquee();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestion]);
 
   const ajouterPersonnage = async () => {
     if (

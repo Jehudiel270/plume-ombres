@@ -574,3 +574,85 @@ export async function supprimerEvenement(
   const { error } = await client.from('graphe_evenements').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
+
+// ============================================================
+// SUGGESTIONS LOCALES (portage de la maquette : propositions de
+// mise à jour du graphe). AUCUN appel à une IA, AUCUNE donnée
+// inventée : tout est CALCULÉ depuis le graphe déjà filtré —
+// co-apparitions sans relation, personnages isolés, relations
+// fragiles. Le lecteur reste l'unique décideur.
+// ============================================================
+
+export interface SuggestionPaire {
+  origineId: string;
+  destinationId: string;
+  nomOrigine: string;
+  nomDestination: string;
+  /** Combien d'événements les font apparaître ensemble. */
+  occasions: number;
+}
+
+export interface SuggestionsGraphe {
+  pairesSansLien: SuggestionPaire[];
+  /** Personnages sans aucune relation visible. */
+  isoles: Array<{ id: string; nom: string }>;
+  /** Relations dont la fiabilité est faible (hypothèse, incertain). */
+  fragiles: Array<{ id: string; libelle: string; fiabilite: Fiabilite }>;
+}
+
+const PLAFOND_SUGGESTIONS = 8;
+
+export function calculerSuggestions(graphe: GrapheFiltre): SuggestionsGraphe {
+  const nomParId = new Map(graphe.noeuds.map((n) => [n.id, n.nom] as const));
+  const pairesReliees = new Set(
+    graphe.aretes.map((a) => {
+      const [x, y] = [a.origineId, a.destinationId].sort();
+      return `${x}||${y}`;
+    })
+  );
+
+  const occasions = new Map<string, SuggestionPaire>();
+  for (const evenement of graphe.evenements) {
+    const ids = [...new Set(evenement.personnageIds)];
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const [x, y] = [ids[i]!, ids[j]!].sort();
+        const cle = `${x}||${y}`;
+        if (pairesReliees.has(cle)) continue;
+        const nomOrigine = nomParId.get(x);
+        const nomDestination = nomParId.get(y);
+        if (!nomOrigine || !nomDestination) continue;
+        const existante = occasions.get(cle);
+        if (existante) existante.occasions += 1;
+        else
+          occasions.set(cle, {
+            origineId: x,
+            destinationId: y,
+            nomOrigine,
+            nomDestination,
+            occasions: 1,
+          });
+      }
+    }
+  }
+
+  const degrés = new Map<string, number>();
+  for (const arete of graphe.aretes) {
+    degrés.set(arete.origineId, (degrés.get(arete.origineId) ?? 0) + 1);
+    degrés.set(arete.destinationId, (degrés.get(arete.destinationId) ?? 0) + 1);
+  }
+
+  return {
+    pairesSansLien: [...occasions.values()]
+      .sort((a, b) => b.occasions - a.occasions)
+      .slice(0, PLAFOND_SUGGESTIONS),
+    isoles: graphe.noeuds
+      .filter((n) => (degrés.get(n.id) ?? 0) === 0)
+      .map((n) => ({ id: n.id, nom: n.nom }))
+      .slice(0, PLAFOND_SUGGESTIONS),
+    fragiles: graphe.aretes
+      .filter((a) => a.fiabilite === 'hypothese' || a.fiabilite === 'incertain')
+      .map((a) => ({ id: a.id, libelle: a.libelle, fiabilite: a.fiabilite }))
+      .slice(0, PLAFOND_SUGGESTIONS),
+  };
+}
