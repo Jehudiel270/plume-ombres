@@ -88,4 +88,31 @@ ligne. Remplacée par la fonction `appartient_au_club()`
 Note d'infrastructure : le protocole git (HTTPS smart-HTTP) restait
 bloqué depuis l'environnement de travail ; les poussées ont été
 effectuées via l'API Git Data de GitHub (blobs → arbre → commits →
-refs), à contenu de commit identique au dépôt local.
+refs), à contenu de commit identique au dépôt local. (Le 15/11 : le
+HTTPS est de nouveau fonctionnel — poussées normales.)
+
+## 6. Vérifications EN LIGNE du chantier « suivis » (15/11/2026)
+
+Probe `scripts/probe-suivis-agenda.mts` (réutilisable) : deux comptes
+jetables créés puis supprimés, session réelle, cookies @supabase/ssr,
+sur https://plumedombres.kodelyza.com — **24/24 vérifications
+réussies** :
+
+| Vérification | Résultat |
+|---|---|
+| POST /api/clubs + programme 12 chapitres → 3 étapes | 201, 200 |
+| POST /api/suivis (suivre son livre) | 201 |
+| POST /api/suivis (doublon) | 200, `dejaSuivi=true` (idempotent) |
+| POST /api/suivis (livre d'autrui) | 403 (RLS + policy) |
+| GET /api/suivis | 200 : livre listé avec chapitres, œuvre traduite dans les sorties |
+| GET /suivis (page) | 200, titre + œuvres suivies rendus |
+| Bouton de suivi fiche livre / fiche ambiance | rendu, état `aria-pressed` correct dans les DEUX sens (suivi → non suivi) |
+| PATCH etapes (ouvrir étape 2) + POST rencontre + POST sondage | 200 |
+| Notifications de club (type `club`) : l'autre membre reçoit étape / rencontre / sondage | 3/3 ; l'auteur ne reçoit PAS ses propres événements |
+| Agenda /api/suivis contient la rencontre à venir | oui |
+| DELETE /api/suivis | 200, livre retiré, bouton repasse à « Suivre cette œuvre » |
+| Nettoyage comptes jetables | cascade complète (0 livre restant) |
+
+Leçon notée pendant le probe : après POST suivi, la fiche livre rend
+le bouton en état « Œuvre suivie » — vérifier l'ÉTAT réel, pas un
+libellé supposé.
