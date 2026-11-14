@@ -127,28 +127,40 @@ export async function POST(requete: NextRequest): Promise<NextResponse> {
         ? corps.livreId
         : null;
 
-    // Code d'invitation régénéré jusqu'à unicité (contrainte UNIQUE).
+    // Le créateur devient membre AVANT de répondre : l'identifiant du
+    // club est généré côté serveur (pas de RETURNING RLS à satisfaire),
+    // et l'adhésion est posée immédiatement — une création réussie se
+    // traduit toujours par un club visible par son créateur.
     for (let essai = 0; essai < 6; essai += 1) {
       const code = codeInvitation();
-      const { data, error } = await c.client
+      const clubId = crypto.randomUUID();
+      const { error } = await c.client
         .from('clubs')
         .insert({
+          id: clubId,
           createur_id: c.utilisateurId,
           titre,
           description: propreTexte(corps.description, 600) || null,
           livre_id: livreId,
           code_invitation: code,
-        })
-        .select('id')
-        .maybeSingle();
-      if (!error && data) {
-        const clubId = (data as { id: string }).id;
-        await c.client.from('clubs_membres').insert({
-          club_id: clubId,
-          utilisateur_id: c.utilisateurId,
-          position_lecture: 0,
         });
-        return NextResponse.json({ id: clubId }, { status: 201 });
+      if (!error) {
+        const { error: erreurMembre } = await c.client
+          .from('clubs_membres')
+          .insert({
+            club_id: clubId,
+            utilisateur_id: c.utilisateurId,
+            position_lecture: 0,
+          });
+        if (!erreurMembre) {
+          return NextResponse.json({ id: clubId }, { status: 201 });
+        }
+        // Le club existe mais l'adhésion a échoué : le créateur reste
+        // propriétaire (policy SELECT inclut le créateur), on signale.
+        return NextResponse.json(
+          { erreur: 'Club créé mais adhésion incomplète : réessayez de rejoindre avec le code.' },
+          { status: 500 }
+        );
       }
     }
     return NextResponse.json({ erreur: 'Création refusée, réessayez.' }, { status: 500 });

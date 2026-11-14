@@ -68,7 +68,7 @@ import {
   trouverExtrait,
   type PlageSurlignage,
 } from '@/lib/plages-texte';
-import { VITESSE_MAX, VITESSE_MIN } from '@/lib/confort-lecture';
+import { VITESSE_MAX, VITESSE_MIN, libelleVitesse } from '@/lib/confort-lecture';
 import Recherche from '@/components/Recherche';
 import type { ControlePreferences } from '@/components/lecteur/ReglagesLecture';
 import { PanneauReglages } from '@/components/lecteur/ReglagesLecture';
@@ -860,7 +860,7 @@ function Lecteur({
     libelle: confort.defile ? 'Arrêter' : 'Défiler',
     icone: ChevronsDown,
     actif: confort.defile,
-    onPress: confort.basculerDefile,
+    onPress: confort.demanderDefile,
   });
   if (confort.pleinEcranPossible) {
     outils.push({
@@ -1000,6 +1000,58 @@ function Lecteur({
       </div>
 
       {basDePage}
+
+      {/* PRÉPARATION du défilement : la vitesse se règle AVANT de
+          partir — jamais de surprise. */}
+      {confort.preparerDefile && !confort.defile && (
+        <div
+          role="dialog"
+          aria-label="Préparer le défilement automatique"
+          className="fixed left-1/2 -translate-x-1/2 bottom-[calc(8.25rem+env(safe-area-inset-bottom))] z-40 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-nuit-700 bg-nuit-900/95 p-4 shadow-2xl backdrop-blur lg:left-auto lg:right-6 lg:translate-x-0 lg:bottom-[8.5rem] animate-fondu-monte"
+        >
+          <p className="text-sm text-encre-100 font-medium">
+            Vitesse du défilement
+          </p>
+          <p className="mt-1 text-xs text-encre-500">
+            Réglez l’allure avant de commencer — elle reste modifiable
+            pendant la lecture.
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <input
+              type="range"
+              min={VITESSE_MIN}
+              max={VITESSE_MAX}
+              step={10}
+              value={confort.vitesse}
+              onChange={(e) => confort.majVitesse(Number(e.target.value))}
+              aria-label="Vitesse du défilement automatique, pixels par seconde"
+              className="w-full accent-[var(--color-grenat-500)]"
+            />
+            <span className="w-24 shrink-0 text-right text-xs text-encre-400">
+              {libelleVitesse(confort.vitesse)}
+              <span className="block text-[10px] text-encre-500">
+                {confort.vitesse} px/s
+              </span>
+            </span>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={confort.annulerDefile}
+              className="bouton-fantome !min-h-9 !px-3 text-xs cursor-pointer"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={confort.demarrerDefile}
+              className="bouton-principal !min-h-9 !px-4 text-xs cursor-pointer"
+            >
+              Commencer
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bouton radial des outils (bas droite) + pilule de voix
           flottante (bas gauche) + pilule de défilement. */}

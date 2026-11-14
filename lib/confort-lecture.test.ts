@@ -9,6 +9,7 @@ import {
   VITESSE_DEFAUT,
   VITESSE_MAX,
   VITESSE_MIN,
+  libelleVitesse,
   prochainPas,
   vitesseDefilement,
 } from './confort-lecture';
@@ -48,4 +49,20 @@ test('rien à faire défiler : null immédiatement', () => {
   // Conteneur non mesuré.
   assert.equal(prochainPas(0, 30, 0, 0), null);
   assert.equal(prochainPas(NaN, 30, 2000, 800), null);
+});
+
+test('le libellé qualitatif suit les paliers de vitesse', () => {
+  assert.equal(libelleVitesse(20), 'Contemplative');
+  assert.equal(libelleVitesse(40), 'Contemplative');
+  assert.equal(libelleVitesse(41), 'Posée');
+  assert.equal(libelleVitesse(VITESSE_DEFAUT), 'Posée');
+  assert.equal(libelleVitesse(110), 'Posée');
+  assert.equal(libelleVitesse(111), 'Soutenue');
+  assert.equal(libelleVitesse(200), 'Soutenue');
+  assert.equal(libelleVitesse(201), 'Vive');
+  assert.equal(libelleVitesse(VITESSE_MAX), 'Vive');
+  // Valeurs hors bornes : d'abord bornées, puis libellées.
+  assert.equal(libelleVitesse(0), 'Posée'); // invalide → défaut (60)
+  assert.equal(libelleVitesse(-5), 'Posée');
+  assert.equal(libelleVitesse(9999), 'Vive');
 });

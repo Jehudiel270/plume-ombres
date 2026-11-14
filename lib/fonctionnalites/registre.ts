@@ -244,9 +244,11 @@ export const INTERRUPTEURS: readonly DefInterrupteur[] = [
     libelle: 'Graphe narratif anti-spoilers',
     groupe: 'Lecture et carnet',
     description:
-      'Graphe des personnages et relations, filtré côté serveur par le chapitre lu.',
+      'Graphe des personnages et relations, filtré côté serveur par le chapitre lu. ' +
+      'Comprend la GÉNÉRATION ASSISTÉE (niveau de détails choisi par le lecteur), servie ' +
+      'par le réservoir « Clés API » — les clés restent invisibles des utilisateurs.',
     itineraires: ['/livres/*/graphe'],
-    api: ['/api/livres/*/graphe'],
+    api: ['/api/livres/*/graphe', '/api/livres/*/graphe/ia'],
     planMinimal: null,
     prod: false,
   },

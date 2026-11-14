@@ -20,6 +20,7 @@ import { MagasinAbonnementSupabase } from '@/lib/paiement/magasin';
 import { prive } from '@/lib/metadata';
 import BarreNavigation from '@/components/BarreNavigation';
 import PanneauGraphe from '@/components/graphe/PanneauGraphe';
+import PanneauIaGraphe from '@/components/graphe/PanneauIaGraphe';
 
 export const metadata = prive('Graphe narratif');
 
@@ -94,6 +95,10 @@ export default async function PageGraphe({
             votre lecture — chaque apparition est datée.
           </p>
         </header>
+
+        {fiche.proprietaire_id === utilisateur.id && chapitres.length > 0 && (
+          <PanneauIaGraphe livreId={id} positionMax={chapitres.length} />
+        )}
 
         <PanneauGraphe
           livreId={id}
