@@ -54,3 +54,33 @@ PWA, pages légales.
    message signalé puis masqué) et d'une fiche d'ambiance riche
    (palette, playlist, citation) — le retour « scripts verts » ne
    suffit jamais (leçon des chantiers précédents).
+
+## 5. Vérifications EN LIGNE réellement passées (14/11/2026)
+
+Comptes jetables créés puis supprimés, session réelle, cookies
+@supabase/ssr, sur https://plumedombres.kodelyza.com :
+
+| Vérification | Résultat |
+|---|---|
+| POST /api/clubs (création) | 201, créateur `role=admin` |
+| Programme : génération 10 chapitres → 3 étapes de 4 | 200, dernier ouvert chapitre 4 |
+| Ouverture séquentielle de l'étape 2 | 200 |
+| Sondage (3 options) | 200, répartition vide avant le vote |
+| Vote unique (doublon refusé) | 200 puis 409 |
+| Rencontre « salon écrit » + bascule participation | 200 |
+| Message + signalement + file staff + masquage | 200, `masque=true` en base |
+| Page salon : 4 onglets rendus (programme, sondages, membres, rencontres) | 200 |
+| Fiche ambiance riche : palette nommée, atmosphère, ton, rythme, promesses, playlist, citation ch. 1, mots-clés | 200, tout rendu |
+| Recommandations « Pour vous si vous avez aimé » | rendues (genres + tropes partagés) |
+
+Correctif de sécurité posé pendant la vérification : la première
+policy d'adhésion (`clubs_membres_select_club`) lisait
+`clubs_membres` dans sa propre clause USING — PostgreSQL renvoyait
+42P17 (récursion infinie) et bloquait la lecture des membres en
+ligne. Remplacée par la fonction `appartient_au_club()`
+(SECURITY DEFINER) — migration 20261114170000.
+
+Note d'infrastructure : le protocole git (HTTPS smart-HTTP) restait
+bloqué depuis l'environnement de travail ; les poussées ont été
+effectuées via l'API Git Data de GitHub (blobs → arbre → commits →
+refs), à contenu de commit identique au dépôt local.
