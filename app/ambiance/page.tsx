@@ -13,11 +13,7 @@ import { utilisateurConnecte, creerClientServeur } from '@/lib/supabase/server';
 import { verifierAccesModule } from '@/lib/fonctionnalites/etats';
 import { planEnVigueur, CODE_PLAN_GRATUIT } from '@/lib/abonnement';
 import { MagasinAbonnementSupabase } from '@/lib/paiement/magasin';
-import {
-  INTENSITES,
-  chargerAmbiances,
-  libelleIntensite,
-} from '@/lib/ambiance';
+import { chargerAmbiances } from '@/lib/ambiance';
 import { prive } from '@/lib/metadata';
 import BarreNavigation from '@/components/BarreNavigation';
 import FicheLivreAmbiance from '@/components/ambiance/FicheLivreAmbiance';
@@ -91,8 +87,6 @@ export default async function PageAmbiance() {
                 genresInitiaux={fiches.get(l.id)?.genres ?? []}
                 tropesInitiaux={fiches.get(l.id)?.tropes ?? []}
                 intensiteInitiale={fiches.get(l.id)?.intensite ?? 3}
-                intensites={[...INTENSITES]}
-                libelleIntensite={libelleIntensite}
               />
             ))}
           </ul>

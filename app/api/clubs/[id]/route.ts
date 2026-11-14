@@ -1,14 +1,18 @@
 // ============================================================
-// app/api/clubs/[id]/route.ts — Salon d'un club privé (F11).
+// app/api/clubs/[id]/route.ts — Salon d'un club privé (F11 v2).
 //
 //   GET     → le club, ses membres, ses messages FILTRÉS :
 //             tout message dont `chapitre_max` dépasse MA position
 //             de lecture est retiré CÔTÉ SERVEUR (jamais un flou
-//             CSS — règle du brief).
-//   POST    → { contenu, chapitreMax?, positionLecture? } : publier
-//             un message ou mettre à jour sa position de lecture.
-//   DELETE  → quitter le club (le créateur ne peut pas quitter :
-//             il supprime le club entier).
+//             CSS — règle du brief). Pagination : ?avant=<id>.
+//   POST    → { contenu, chapitreMax?, reponseA? } : publier
+//             { positionLecture } : mettre à jour ma position
+//             { action: 'regenerer-code' } : créateur seulement
+//   PATCH   → réglages du club (créateur) : titre, description,
+//             livreId (null pour détacher le livre)
+//   DELETE  → quitter le club ; ?mode=supprimer : le créateur
+//             supprime le club entier (messages et adhésions
+//             partent en cascade).
 //
 // GARDES : session 401, interrupteur `clubs` (fermé → 404, plan
 // insuffisant → 403), RLS par adhésion, bornes lib/clubs.
@@ -22,13 +26,26 @@ import { planEnVigueur, CODE_PLAN_GRATUIT } from '@/lib/abonnement';
 import { MagasinAbonnementSupabase } from '@/lib/paiement/magasin';
 import {
   bornePosition,
+  codeInvitation,
   messageVisiblePour,
   propreMessage,
+  propreTexte,
 } from '@/lib/clubs';
+import {
+  agregerReactions,
+  triFil,
+  versMessageSalon,
+  type LigneMessageBrute,
+  type LigneReactionBrute,
+  type ReactionSalon,
+} from '@/lib/salon';
 
 export const runtime = 'nodejs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Pagination du fil : 60 messages par page. */
+const PAGE_MESSAGES = 60;
 
 type Contexte = {
   ok: true;
@@ -98,12 +115,17 @@ async function contexte(id: string): Promise<Contexte | { ok: false; reponse: Ne
 }
 
 export async function GET(
-  _requete: NextRequest,
+  requete: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params;
   const c = await contexte(id);
   if (!c.ok) return c.reponse;
+
+  // Curseur de pagination : les messages plus anciens que `avant`.
+  const avantBrut = requete.nextUrl.searchParams.get('avant');
+  const avant = Number(avantBrut);
+  const pageAnciens = Number.isFinite(avant) && avant > 0;
 
   const [clubLigne, membres, messages] = await Promise.all([
     c.client
@@ -116,13 +138,16 @@ export async function GET(
       .select('utilisateur_id, position_lecture, profiles ( pseudo )')
       .eq('club_id', c.clubId)
       .order('rejoins_le', { ascending: true })
-      .limit(12),
+      .limit(24),
     c.client
       .from('clubs_messages')
-      .select('id, auteur_id, contenu, chapitre_max, created_at, profiles ( pseudo )')
+      .select(
+        'id, auteur_id, contenu, chapitre_max, created_at, modifie_le, epingle, reponse_a, signale, prive, destinataire_id, profiles ( pseudo )'
+      )
       .eq('club_id', c.clubId)
+      .lt('id', pageAnciens ? Math.floor(avant) : Number.MAX_SAFE_INTEGER)
       .order('created_at', { ascending: false })
-      .limit(100),
+      .limit(PAGE_MESSAGES + 1),
   ]);
   if (!clubLigne.data || membres.error || messages.error) {
     return NextResponse.json({ erreur: 'Club introuvable.' }, { status: 404 });
@@ -133,40 +158,61 @@ export async function GET(
     position_lecture: number;
     profiles: { pseudo: string | null } | null;
   };
-  type MessageLigne = {
-    id: number;
-    auteur_id: string;
-    contenu: string;
-    chapitre_max: number;
-    created_at: string;
-    profiles: { pseudo: string | null } | null;
-  };
+
+  const lignes = (messages.data ?? []) as unknown as LigneMessageBrute[];
+  const plusAnciens = lignes.length > PAGE_MESSAGES;
+  const page = plusAnciens ? lignes.slice(0, PAGE_MESSAGES) : lignes;
+
+  // Pseudos des membres : pour nommer le destinataire d'un message
+  // privé (la RLS ne m'envoie de toute façon QUE les MP concernés).
+  const pseudosMembres = new Map<string, string>(
+    ((membres.data ?? []) as unknown as MembreLigne[]).map((m) => [
+      m.utilisateur_id,
+      m.profiles?.pseudo ?? 'Lecteur',
+    ])
+  );
 
   // FILTRAGE ANTI-SPOILERS côté serveur : le contenu hors de ma
   // lecture N'EST PAS ENVOYÉ (compte tenu dans `masques`).
-  const visibles: Array<{
-    id: number;
-    auteur: string;
-    mien: boolean;
-    contenu: string;
-    plafond: number;
-    le: string;
-  }> = [];
+  const visibles = [];
   let masques = 0;
-  for (const m of (messages.data ?? []) as unknown as MessageLigne[]) {
-    if (!messageVisiblePour(m.chapitre_max, c.maPosition)) {
+  for (const m of page) {
+    const salon = versMessageSalon(m, {
+      monId: c.utilisateurId,
+      maPosition: c.maPosition,
+      estCreateur: c.estCreateur,
+      pseudosMembres,
+    });
+    if (!salon) {
       masques += 1;
       continue;
     }
-    visibles.push({
-      id: m.id,
-      auteur: m.profiles?.pseudo ?? 'Lecteur',
-      mien: m.auteur_id === c.utilisateurId,
-      contenu: m.contenu,
-      plafond: m.chapitre_max,
-      le: m.created_at,
-    });
+    visibles.push(salon);
   }
+
+  // Réactions des messages de CETTE page (la RLS n'envoie que celles
+  // des messages que je peux lire), agrégées par émoji.
+  const idsPage = page.map((m) => m.id);
+  let reactionsParMessage = new Map<number, ReactionSalon[]>();
+  if (idsPage.length > 0) {
+    const { data: reactionsLignes } = await c.client
+      .from('clubs_reactions')
+      .select('message_id, utilisateur_id, emoji')
+      .eq('club_id', c.clubId)
+      .in('message_id', idsPage)
+      .limit(3000);
+    reactionsParMessage = agregerReactions(
+      ((reactionsLignes ?? []) as unknown as LigneReactionBrute[]),
+      c.utilisateurId
+    );
+  }
+  for (const m of visibles) {
+    m.reactions = reactionsParMessage.get(m.id) ?? [];
+  }
+
+  // Les épinglés remontent, sans quitter l'ordre chronologique du
+  // reste du fil (l'interface les met en avant elle-même).
+  visibles.sort(triFil);
 
   const club = clubLigne.data as unknown as {
     titre: string;
@@ -182,17 +228,22 @@ export async function GET(
         titre: club.titre,
         description: club.description,
         codeInvitation: club.code_invitation,
+        createurId: club.createur_id,
         estCreateur: c.estCreateur,
         livreTitre: club.livres?.titre ?? null,
       },
       maPosition: c.maPosition,
       membres: ((membres.data ?? []) as unknown as MembreLigne[]).map((m) => ({
+        utilisateurId: m.utilisateur_id,
         pseudo: m.profiles?.pseudo ?? 'Lecteur',
         moi: m.utilisateur_id === c.utilisateurId,
+        createur: m.utilisateur_id === club.createur_id,
         position: m.position_lecture,
       })),
       messages: visibles,
       masques,
+      plusAnciens,
+      curseur: page.length > 0 ? page[page.length - 1].id : null,
     },
     { headers: { 'Cache-Control': 'no-store' } }
   );
@@ -210,6 +261,30 @@ export async function POST(
     corps = (await requete.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json({ erreur: 'Requête illisible.' }, { status: 400 });
+  }
+
+  // Régénération du code d'invitation (créateur seulement).
+  if (corps.action === 'regenerer-code') {
+    if (!c.estCreateur) {
+      return NextResponse.json(
+        { erreur: 'Seul le créateur régénère le code.' },
+        { status: 403 }
+      );
+    }
+    for (let essai = 0; essai < 6; essai += 1) {
+      const { data, error } = await c.client
+        .from('clubs')
+        .update({ code_invitation: codeInvitation(), updated_at: new Date().toISOString() })
+        .eq('id', c.clubId)
+        .select('code_invitation')
+        .maybeSingle();
+      if (!error && data) {
+        return NextResponse.json({
+          codeInvitation: (data as { code_invitation: string }).code_invitation,
+        });
+      }
+    }
+    return NextResponse.json({ erreur: 'Régénération impossible.' }, { status: 500 });
   }
 
   // Mise à jour de MA position de lecture (anti-spoilers personnel).
@@ -230,6 +305,67 @@ export async function POST(
     return NextResponse.json({ erreur: 'Message vide.' }, { status: 422 });
   }
   const chapitreMax = Math.max(0, Math.round(Number(corps.chapitreMax) || 0));
+
+  // Message privé : le destinataire DOIT être un membre du club,
+  // autre que moi. La RLS ne montrera ce message qu'à nous deux —
+  // ni le créateur, ni les autres membres.
+  let prive = false;
+  let destinataireId: string | null = null;
+  if (corps.prive === true) {
+    const propose = typeof corps.destinataireId === 'string' ? corps.destinataireId : '';
+    if (!UUID.test(propose) || propose === c.utilisateurId) {
+      return NextResponse.json(
+        { erreur: 'Choisissez le destinataire de votre message privé.' },
+        { status: 422 }
+      );
+    }
+    const { data: membreCible } = await c.client
+      .from('clubs_membres')
+      .select('utilisateur_id')
+      .eq('club_id', c.clubId)
+      .eq('utilisateur_id', propose)
+      .maybeSingle();
+    if (!membreCible) {
+      return NextResponse.json(
+        { erreur: 'Ce destinataire n’est pas membre du club.' },
+        { status: 422 }
+      );
+    }
+    prive = true;
+    destinataireId = propose;
+  }
+
+  // Réponse à un message : il doit exister dans CE club ET être
+  // visible pour moi (on ne répond pas à ce qu'on ne peut pas lire).
+  let reponseA: number | null = null;
+  if (corps.reponseA !== undefined && corps.reponseA !== null) {
+    const idReponse = Math.floor(Number(corps.reponseA));
+    if (Number.isFinite(idReponse) && idReponse > 0) {
+      const { data: cible } = await c.client
+        .from('clubs_messages')
+        .select('id, chapitre_max, prive, auteur_id, destinataire_id')
+        .eq('id', idReponse)
+        .eq('club_id', c.clubId)
+        .maybeSingle();
+      const cibleLigne = cible as
+        | {
+            chapitre_max: number;
+            prive: boolean;
+            auteur_id: string;
+            destinataire_id: string | null;
+          }
+        | null;
+      if (
+        cibleLigne &&
+        messageVisiblePour(cibleLigne.chapitre_max, c.maPosition) &&
+        (!cibleLigne.prive ||
+          cibleLigne.auteur_id === c.utilisateurId ||
+          cibleLigne.destinataire_id === c.utilisateurId)
+      ) {
+        reponseA = idReponse;
+      }
+    }
+  }
 
   // Anti-spam : au plus un message toutes les 20 secondes par membre.
   const { data: dernier } = await c.client
@@ -252,6 +388,9 @@ export async function POST(
     auteur_id: c.utilisateurId,
     contenu,
     chapitre_max: chapitreMax,
+    reponse_a: reponseA,
+    prive,
+    destinataire_id: destinataireId,
   });
   if (error) {
     return NextResponse.json({ erreur: 'Publication refusée.' }, { status: 500 });
@@ -259,16 +398,90 @@ export async function POST(
   return NextResponse.json({ ok: true }, { status: 201 });
 }
 
-export async function DELETE(
-  _requete: NextRequest,
+/** Réglages du club (créateur seulement) : titre, description, livre. */
+export async function PATCH(
+  requete: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params;
   const c = await contexte(id);
   if (!c.ok) return c.reponse;
+  if (!c.estCreateur) {
+    return NextResponse.json(
+      { erreur: 'Seul le créateur règle son club.' },
+      { status: 403 }
+    );
+  }
+  let corps: Record<string, unknown>;
+  try {
+    corps = (await requete.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ erreur: 'Requête illisible.' }, { status: 400 });
+  }
+
+  const maj: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (corps.titre !== undefined) {
+    const titre = propreTexte(corps.titre, 120);
+    if (!titre) {
+      return NextResponse.json({ erreur: 'Le titre ne peut pas être vide.' }, { status: 422 });
+    }
+    maj.titre = titre;
+  }
+  if (corps.description !== undefined) {
+    maj.description = propreTexte(corps.description, 600) || null;
+  }
+  if (corps.livreId !== undefined) {
+    // null détache le livre ; sinon un UUID de livre DU COMPTE.
+    if (corps.livreId === null || corps.livreId === '') {
+      maj.livre_id = null;
+    } else if (typeof corps.livreId === 'string' && UUID.test(corps.livreId)) {
+      const { data: livre } = await c.client
+        .from('livres')
+        .select('id')
+        .eq('id', corps.livreId)
+        .maybeSingle();
+      if (!livre) {
+        return NextResponse.json({ erreur: 'Livre introuvable dans votre bibliothèque.' }, { status: 404 });
+      }
+      maj.livre_id = corps.livreId;
+    } else {
+      return NextResponse.json({ erreur: 'Livre invalide.' }, { status: 422 });
+    }
+  }
+
+  const { error } = await c.client.from('clubs').update(maj).eq('id', c.clubId);
+  if (error) {
+    return NextResponse.json({ erreur: 'Enregistrement refusé.' }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(
+  requete: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  const { id } = await params;
+  const c = await contexte(id);
+  if (!c.ok) return c.reponse;
+
+  // Le créateur supprime le club ENTIER (cascade en base).
+  if (requete.nextUrl.searchParams.get('mode') === 'supprimer') {
+    if (!c.estCreateur) {
+      return NextResponse.json(
+        { erreur: 'Seul le créateur supprime le club.' },
+        { status: 403 }
+      );
+    }
+    const { error } = await c.client.from('clubs').delete().eq('id', c.clubId);
+    if (error) {
+      return NextResponse.json({ erreur: 'Suppression refusée.' }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, supprime: true });
+  }
+
   if (c.estCreateur) {
     return NextResponse.json(
-      { erreur: 'Le créateur ne quitte pas son club : il le supprime depuis la liste.' },
+      { erreur: 'Le créateur ne quitte pas son club : il le supprime depuis le salon ou la liste.' },
       { status: 422 }
     );
   }

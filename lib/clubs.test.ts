@@ -9,7 +9,10 @@ import test from 'node:test';
 import {
   bornePosition,
   codeInvitation,
+  editionPossible,
   estCodeValide,
+  estEmojiReaction,
+  libelleModifie,
   libellePlafond,
   MAX_MESSAGE,
   messageVisiblePour,
@@ -64,4 +67,57 @@ test('position de lecture déclarée, bornée', () => {
   assert.equal(bornePosition(-5), 0);
   assert.equal(bornePosition('9'), 9);
   assert.equal(bornePosition(9999), 2000);
+});
+
+test('fenêtre d\u2019édition : 15 minutes, une seule fois', () => {
+  const maintenant = Date.now();
+  const ilYADeuxMinutes = new Date(maintenant - 2 * 60_000).toISOString();
+  const ilYAUneHeure = new Date(maintenant - 60 * 60_000).toISOString();
+  const edité = new Date(maintenant - 60_000).toISOString();
+  assert.equal(editionPossible(ilYADeuxMinutes, null, maintenant), true);
+  assert.equal(editionPossible(ilYAUneHeure, null, maintenant), false); // fenêtre close
+  assert.equal(editionPossible(ilYADeuxMinutes, edité, maintenant), false); // déjà édité
+  assert.equal(editionPossible('pas une date', null, maintenant), false);
+  // Tolérance d'horloge légère (serveur client décalé d'une seconde).
+  const àLavenir = new Date(maintenant + 30_000).toISOString();
+  assert.equal(editionPossible(àLavenir, null, maintenant), true);
+});
+
+test('libellé « modifié »', () => {
+  assert.equal(libelleModifie(null), null);
+  assert.equal(libelleModifie(undefined), null);
+  assert.equal(libelleModifie('2026-11-14T12:00:00Z'), 'modifié');
+});
+
+test('réactions : liste blanche stricte d’émojis', () => {
+  assert.equal(estEmojiReaction('❤️'), true);
+  assert.equal(estEmojiReaction('🔥'), true);
+  assert.equal(estEmojiReaction('📚'), true);
+  assert.equal(estEmojiReaction('🚀'), false); // hors liste blanche
+  assert.equal(estEmojiReaction('a'), false);
+  assert.equal(estEmojiReaction('<script>'), false);
+  assert.equal(estEmojiReaction(42), false);
+  assert.equal(estEmojiReaction(null), false);
+});
+
+test('propreMessage : ne coupe jamais un émoji en deux', () => {
+  // INVARIANT : le message coupé ne se termine JAMAIS par une haute
+  // substitution isolée (moitié cassée d'une paire UTF-16).
+  const jamaisSubstitutionSeule = (texte: string) => {
+    const coupe = propreMessage(texte);
+    assert.ok(coupe.length <= MAX_MESSAGE);
+    const dernier = coupe.charCodeAt(coupe.length - 1);
+    assert.ok(!(dernier >= 0xd800 && dernier <= 0xdbff), 'paire cassée !');
+    return coupe;
+  };
+
+  // La coupe tombe pile ENTRE les deux moitiés de l'émoji.
+  jamaisSubstitutionSeule('a'.repeat(MAX_MESSAGE - 1) + '😱');
+  // La coupe tombe dans la séquence du drapeau régional.
+  jamaisSubstitutionSeule('a'.repeat(MAX_MESSAGE - 2) + '🇫🇷');
+  // L'émoji passe entièrement : il est intact.
+  const entier = propreMessage('a'.repeat(MAX_MESSAGE - 2) + '😱');
+  assert.equal(entier.endsWith('😱'), true);
+  // Un message court passe intact.
+  assert.equal(propreMessage('  bonsoir  '), 'bonsoir');
 });

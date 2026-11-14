@@ -8,7 +8,11 @@
 
 import { useState, useTransition } from 'react';
 
-import type { Intensite } from '@/lib/ambiance';
+// Les helpers purs (INTENSITES, libelleIntensite) sont importés ICI,
+// dans le monde client : une fonction ne peut PAS traverser la
+// frontière serveur → client en prop (erreur de sérialisation RSC,
+// cause du crash « Le fil s'est rompu » avec au moins un livre).
+import { INTENSITES, libelleIntensite, type Intensite } from '@/lib/ambiance';
 import { enregistrerFiche } from '@/app/ambiance/actions';
 
 interface Props {
@@ -16,8 +20,6 @@ interface Props {
   genresInitiaux: string[];
   tropesInitiaux: string[];
   intensiteInitiale: Intensite;
-  intensites: readonly Intensite[];
-  libelleIntensite: (i: Intensite) => string;
 }
 
 export default function FicheLivreAmbiance({
@@ -25,9 +27,9 @@ export default function FicheLivreAmbiance({
   genresInitiaux,
   tropesInitiaux,
   intensiteInitiale,
-  intensites,
-  libelleIntensite,
 }: Props) {
+  // Échelle locale (1 → 5) : copie défensive pour la boucle de rendu.
+  const intensites: readonly Intensite[] = INTENSITES;
   const [enAttente, demarrer] = useTransition();
   const [message, setMessage] = useState<{ ton: 'ok' | 'erreur'; texte: string } | null>(
     null
