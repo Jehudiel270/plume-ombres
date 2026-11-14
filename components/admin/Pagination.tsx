@@ -10,6 +10,8 @@
 // .select-sombre (même garantie de hauteur).
 // ============================================================
 
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 interface Props {
   page: number;
   nbPages: number;
@@ -83,7 +85,7 @@ export default function Pagination({
               disabled={page <= 1}
               aria-label="Page précédente"
             >
-              <span aria-hidden="true">‹</span>
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
               <span className="hidden sm:inline">Précédent</span>
             </button>
 
@@ -112,7 +114,7 @@ export default function Pagination({
               aria-label="Page suivante"
             >
               <span className="hidden sm:inline">Suivant</span>
-              <span aria-hidden="true">›</span>
+              <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </button>
           </nav>
         )}

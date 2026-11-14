@@ -14,6 +14,7 @@
 
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Check, X } from 'lucide-react';
 
 interface Props {
   ouvert: boolean;
@@ -120,6 +121,7 @@ export default function ModaleConfirmation({
             disabled={enCours}
             className="bouton-fantome w-full sm:w-auto"
           >
+            <X className="w-4 h-4" aria-hidden="true" />
             Annuler
           </button>
           <button
@@ -129,6 +131,7 @@ export default function ModaleConfirmation({
             disabled={enCours}
             className="bouton-principal w-full sm:w-auto"
           >
+            <Check className="w-4 h-4" aria-hidden="true" />
             {enCours ? 'En cours…' : libelleConfirmer}
           </button>
         </div>

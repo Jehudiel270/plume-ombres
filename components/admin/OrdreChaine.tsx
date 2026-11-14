@@ -23,6 +23,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { ChevronDown, ChevronUp, RefreshCw, Save } from 'lucide-react';
 
 type IdFournisseur = 'libretranslate' | 'gemini' | 'google' | 'mymemory';
 type EtatMoteur = 'ok' | 'indisponible' | 'non_configure' | 'desactive';
@@ -292,7 +293,8 @@ export default function OrdreChaine() {
                   aria-label={`Monter ${nomDe(id)}`}
                   className="rounded-md border border-nuit-700 px-2 py-1 text-encre-200 text-xs hover:border-violet-rom-500/60 hover:text-violet-rom-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  ↑ Monter
+                  <ChevronUp className="w-3.5 h-3.5 inline -mt-0.5" aria-hidden="true" />
+                  Monter
                 </button>
                 <button
                   type="button"
@@ -301,7 +303,8 @@ export default function OrdreChaine() {
                   aria-label={`Descendre ${nomDe(id)}`}
                   className="rounded-md border border-nuit-700 px-2 py-1 text-encre-200 text-xs hover:border-violet-rom-500/60 hover:text-violet-rom-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  ↓ Descendre
+                  <ChevronDown className="w-3.5 h-3.5 inline -mt-0.5" aria-hidden="true" />
+                  Descendre
                 </button>
               </span>
             </li>
@@ -317,6 +320,7 @@ export default function OrdreChaine() {
           aria-label="Enregistrer le nouvel ordre de la chaîne"
           className="rounded-lg border border-violet-rom-500/60 bg-violet-rom-500/20 px-4 py-2 text-violet-rom-200 text-sm hover:bg-violet-rom-500/30 disabled:opacity-40 disabled:cursor-not-allowed"
         >
+          <Save className="w-4 h-4 inline -mt-0.5" aria-hidden="true" />
           {enregistrement ? 'Enregistrement…' : 'Enregistrer'}
         </button>
         <button
@@ -325,6 +329,7 @@ export default function OrdreChaine() {
           disabled={enregistrement}
           className="rounded-lg border border-nuit-700 px-4 py-2 text-encre-300 text-sm hover:border-violet-rom-500/60 disabled:opacity-40"
         >
+          <RefreshCw className="w-4 h-4 inline -mt-0.5" aria-hidden="true" />
           Recharger
         </button>
         {verrouille && (
